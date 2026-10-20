@@ -151,6 +151,12 @@
   .pill.hidden { display: none; }
   .pill.error { color: var(--error); flex-wrap: wrap; justify-content: center; border-radius: 14px; }
   .pill.ok { color: #1b5e20; }
+  /* Angebot "Land offline speichern?" */
+  .pill.offer { flex-direction: column; align-items: stretch; border-radius: 16px; font-weight: 400; gap: 8px; padding: 12px 14px; max-width: 360px; }
+  .offer .offerText { text-align: left; line-height: 1.35; }
+  .offer .offerBtns { display: flex; gap: 8px; }
+  .offer .offerBtns button { flex: 1; }
+  .offer .offerNever { background: none !important; color: var(--muted) !important; min-height: 28px !important; font-weight: 400 !important; font-size: 13px !important; text-decoration: underline; padding: 0 !important; }
   #preloadStatus { flex-wrap: wrap; justify-content: center; font-size: 14px; }
   .pill button.light { background: #eceff1; color: var(--fg); }
   .pill button {
@@ -251,20 +257,6 @@
       <div class="hint">Häkchen = Land ist auch ohne Netz verfügbar. Häkchen entfernen = gespeicherte Daten des Landes löschen. ✔ gespeichert · ⟳ neuer Datenstand verfügbar</div>
     </div>
     <div class="row">
-      <label class="title" for="preloadRadius">Nur die Umgebung vorladen</label>
-      <div class="preloadRow">
-        <select id="preloadRadius">
-          <option value="10">10 km Umkreis</option>
-          <option value="25" selected>25 km Umkreis</option>
-          <option value="50">50 km Umkreis</option>
-          <option value="100">100 km Umkreis</option>
-          <option value="200">200 km Umkreis</option>
-        </select>
-        <button type="button" id="preloadBtn" class="btn">Vorladen</button>
-      </div>
-      <div class="hint">Rund um die Kartenmitte – auch außerhalb der aufbereiteten Länder (dort langsamer).</div>
-    </div>
-    <div class="row">
       <div class="hint" id="dataInfo"></div>
       <div class="hint" id="cacheInfo">…</div>
       <button type="button" id="clearCacheBtn" class="btn light">Alle gespeicherten Daten löschen</button>
@@ -280,6 +272,7 @@
 </button>
 
 <div id="statusWrap">
+  <div id="offerBox" class="pill offer hidden"></div>
   <div id="preloadStatus" class="pill hidden"></div>
   <div id="status" class="pill"><span>Starte …</span></div>
 </div>
@@ -333,7 +326,7 @@
       match: function (t) { return t.tourism === 'viewpoint'; } }
   ];
 
-  var settings = { color: '#ff6a00', width: 3, transparency: 0, showRestricted: false, poi: {}, openSection: 'secStyle', offline: [] };
+  var settings = { color: '#ff6a00', width: 3, transparency: 0, showRestricted: false, poi: {}, openSection: 'secStyle', offline: [], noAsk: [] };
   POI_CATS.forEach(function (c) { settings.poi[c.id] = c.on; });
   try {
     var saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
@@ -345,6 +338,7 @@
       if (typeof saved.showRestricted === 'boolean') settings.showRestricted = saved.showRestricted;
       if (typeof saved.openSection === 'string') settings.openSection = saved.openSection;
       if (Array.isArray(saved.offline)) settings.offline = saved.offline.filter(function (x) { return typeof x === 'string'; });
+      if (Array.isArray(saved.noAsk)) settings.noAsk = saved.noAsk.filter(function (x) { return typeof x === 'string'; });
       if (saved.poi) POI_CATS.forEach(function (c) {
         if (typeof saved.poi[c.id] === 'boolean') settings.poi[c.id] = saved.poi[c.id];
       });
@@ -426,6 +420,7 @@
   function setStatus(html, cls) {
     statusEl.className = 'pill' + (cls ? ' ' + cls : '');
     statusEl.innerHTML = html;
+    placeLocateBtn();
   }
   var SPINNER = '<div class="spinner"></div>';
   function showError(msg) {
@@ -780,6 +775,7 @@
       if (running && running.job.kind === 'view') running.controller.abort();
       staticPending = 0;
       render(); renderPois(); updateViewStatus();
+      hideOffer();
       return;
     }
 
@@ -838,6 +834,7 @@
 
       render(); renderPois(); updateViewStatus();
       pump();
+      maybeOfferRegion(); // Land noch nicht offline gespeichert? → nachfragen
     });
   }
 
@@ -993,19 +990,7 @@
     clearTimeout(preloadHideTimer);
     preloadStatusEl.innerHTML = html;
     preloadStatusEl.className = html ? 'pill' + (cls ? ' ' + cls : '') : 'pill hidden';
-  }
-
-  function startPreload(radiusKm) {
-    if (preload && !preload.error) return; // läuft schon
-    var c = map.getCenter();
-    var dLat = radiusKm / 111.32, dLon = radiusKm / (111.32 * Math.cos(c.lat * Math.PI / 180));
-    var box = L.latLngBounds([c.lat - dLat, c.lng - dLon], [c.lat + dLat, c.lng + dLon]);
-    // nur Kacheln innerhalb des Kreises
-    var all = cellsIn(box).filter(function (cell) {
-      var mid = L.latLng((cell.i + 0.5) * CELL_LAT, (cell.j + 0.5) * CELL_LON);
-      return mid.distanceTo(c) <= radiusKm * 1000 + 3000;
-    });
-    preloadCells(all.filter(needsStore), c);
+    placeLocateBtn();
   }
 
   // ================= Länder offline speichern =================
@@ -1055,10 +1040,12 @@
   function onCountryToggle(r) {
     if (r._cb.checked) {
       if (settings.offline.indexOf(r.id) === -1) settings.offline.push(r.id);
+      settings.noAsk = settings.noAsk.filter(function (id) { return id !== r.id; });
     } else {
       var st = regionState(r);
       if (st.missing < st.total && !confirm('Gespeicherte Daten von ' + r.name + ' löschen?')) { r._cb.checked = true; return; }
       settings.offline = settings.offline.filter(function (id) { return id !== r.id; });
+      askedThisSession[r.id] = true; // gerade bewusst abgewählt – nicht sofort wieder fragen
       deleteRegionData([r]);
     }
     saveSettings();
@@ -1075,7 +1062,7 @@
       var anyStored = regs.some(function (r) { var st = regionState(r); return st.missing < st.total; });
       if (anyStored && !confirm('Die gespeicherten Daten ALLER Länder löschen?')) { all.checked = true; return; }
       settings.offline = [];
-      regs.forEach(function (r) { r._cb.checked = false; });
+      regs.forEach(function (r) { r._cb.checked = false; askedThisSession[r.id] = true; });
       deleteRegionData(regs);
     }
     saveSettings();
@@ -1108,14 +1095,78 @@
     return { cells: list, bytes: bytes };
   }
 
-  function loadSelectedCountries() {
-    if (preload && !preload.error) return;
+  var loadAfterPreload = false;   // nach dem laufenden Download gleich die Auswahl weiterladen
+  function loadSelectedCountries(skipConfirm) {
+    if (preload && !preload.error) { loadAfterPreload = true; return; }
     var m = selectedMissing();
     if (!m.cells.length) return;
-    if (m.bytes > 300e6 && !confirm('Es werden ca. ' + sizeText(m.bytes) + ' heruntergeladen und im Browser gespeichert. ' +
+    if (!skipConfirm && m.bytes > 300e6 && !confirm('Es werden ca. ' + sizeText(m.bytes) + ' heruntergeladen und im Browser gespeichert. ' +
         'Am besten im WLAN. Jetzt laden?')) return;
     preloadCells(m.cells, map.getCenter());
     renderCountryList();
+  }
+
+  // ================= Angebot: "Dieses Land offline speichern?" =================
+  // Zeigt die Karte ein aufbereitetes Land, das noch nicht offline gespeichert ist, wird gefragt.
+  var blockRegions = null;        // Block -> Länder, die dort Daten haben
+  var askedThisSession = {};      // "Später" gedrückt → in dieser Sitzung nicht mehr fragen
+  var offerEl = document.getElementById('offerBox');
+
+  // Land in der Kartenmitte: Block in der Mitte zählt dreifach, die 8 Nachbar-Blöcke einfach
+  // (so wird an Grenzen das Land gewählt, das den Ausschnitt überwiegend ausfüllt)
+  function regionAtView() {
+    if (!blockRegions) {
+      blockRegions = {};
+      staticIndex.regions.forEach(function (r) {
+        r.blocks.forEach(function (bk) { (blockRegions[bk] = blockRegions[bk] || []).push(r); });
+      });
+    }
+    var c = map.getCenter();
+    var bi = Math.floor(Math.floor(c.lat / CELL_LAT) / BLOCK), bj = Math.floor(Math.floor(c.lng / CELL_LON) / BLOCK);
+    var votes = {}, best = null;
+    for (var di = -1; di <= 1; di++) for (var dj = -1; dj <= 1; dj++) {
+      (blockRegions[(bi + di) + ',' + (bj + dj)] || []).forEach(function (r) {
+        votes[r.id] = (votes[r.id] || 0) + (di === 0 && dj === 0 ? 3 : 1);
+        if (!best || votes[r.id] > votes[best.id]) best = r;
+      });
+    }
+    return best;
+  }
+
+  function hideOffer() { offerEl.className = 'pill offer hidden'; offerEl.innerHTML = ''; offerEl.dataset.region = ''; placeLocateBtn(); }
+
+  function maybeOfferRegion() {
+    if (!staticIndex || !dbOk || map.getZoom() < MIN_ZOOM) { hideOffer(); return; }
+    var r = regionAtView();
+    if (!r || settings.offline.indexOf(r.id) !== -1 || settings.noAsk.indexOf(r.id) !== -1 || askedThisSession[r.id]) { hideOffer(); return; }
+    var st = regionState(r);
+    if (st.missing === 0) { hideOffer(); return; }
+    if (offerEl.dataset.region === r.id) return; // wird schon angezeigt
+    var bytes = (r.size || 0) * st.missing / Math.max(1, st.total);
+    offerEl.dataset.region = r.id;
+    offerEl.className = 'pill offer';
+    offerEl.innerHTML =
+      '<div class="offerText">📥 Für <b>' + esc(r.name) + '</b> sind noch keine Offline-Daten gespeichert. ' +
+      'Jetzt für die Offline-Nutzung herunterladen? <b>(≈ ' + sizeText(bytes) + ')</b></div>' +
+      '<div class="offerBtns"><button type="button" id="offerYes">Ja, herunterladen</button>' +
+      '<button type="button" id="offerLater" class="light">Später</button></div>' +
+      '<button type="button" id="offerNever" class="offerNever">Für ' + esc(r.name) + ' nicht mehr fragen</button>';
+    placeLocateBtn();
+    document.getElementById('offerYes').onclick = function () {
+      // Für die Zukunft merken: Land wird in den Einstellungen als "offline speichern" angehakt
+      if (settings.offline.indexOf(r.id) === -1) settings.offline.push(r.id);
+      if (r._cb) r._cb.checked = true;
+      saveSettings();
+      hideOffer();
+      loadSelectedCountries(true);
+      renderCountryList();
+    };
+    document.getElementById('offerLater').onclick = function () { askedThisSession[r.id] = true; hideOffer(); };
+    document.getElementById('offerNever').onclick = function () {
+      if (settings.noAsk.indexOf(r.id) === -1) settings.noAsk.push(r.id);
+      saveSettings();
+      hideOffer();
+    };
   }
 
   // Status-Anzeige der Länderliste (gebremst, weil beim Vorladen sehr oft aufgerufen)
@@ -1217,6 +1268,7 @@
       setPreloadStatus('<span>✔ Vorladen fertig – das Gebiet ist jetzt gespeichert</span>', 'ok');
       preloadHideTimer = setTimeout(function () { setPreloadStatus(''); }, 6000);
       updateCountryList();
+      if (loadAfterPreload) { loadAfterPreload = false; setTimeout(function () { loadSelectedCountries(true); }, 500); }
       return;
     }
     var pct = Math.round(preload.done / preload.total * 100);
@@ -1633,9 +1685,6 @@
   map.on('movestart', function () { clearTimeout(debounceTimer); });
 
   // Bedienelemente zum Vorladen und für den Speicher
-  document.getElementById('preloadBtn').addEventListener('click', function () {
-    startPreload(Number(document.getElementById('preloadRadius').value));
-  });
   document.getElementById('clearCacheBtn').addEventListener('click', function () {
     if (!confirm('Alle gespeicherten Schotterwege und Orte löschen? Sie werden dann bei Bedarf neu geladen.')) return;
     settings.offline = [];
@@ -1646,7 +1695,18 @@
   L.DomEvent.disableClickPropagation(preloadStatusEl);
 
   document.getElementById('cbAll').addEventListener('change', onAllToggle);
-  document.getElementById('countryApply').addEventListener('click', loadSelectedCountries);
+  document.getElementById('countryApply').addEventListener('click', function () { loadSelectedCountries(false); });
+  L.DomEvent.disableClickPropagation(offerEl);
+
+  // "Mein Standort" immer oberhalb der Hinweise unten halten (deren Höhe ändert sich laufend)
+  var statusWrapEl = document.getElementById('statusWrap');
+  function placeLocateBtn() {
+    if (!statusWrapEl || !locateBtn) return; // beim Start noch nicht bereit
+    var bottom = parseFloat(getComputedStyle(statusWrapEl).bottom) || 28;
+    locateBtn.style.bottom = Math.max(140, bottom + statusWrapEl.offsetHeight + 14) + 'px';
+  }
+  if (window.ResizeObserver) new ResizeObserver(placeLocateBtn).observe(statusWrapEl);
+  placeLocateBtn();
 
   // Zuerst Browser-Speicher und Verzeichnis der fertigen Daten lesen, dann den Ausschnitt laden
   Promise.all([dbLoadIndex(), loadStaticIndex()]).then(function () { updateCacheInfo(); loadNow(); });
