@@ -326,7 +326,7 @@
       match: function (t) { return t.tourism === 'viewpoint'; } }
   ];
 
-  var settings = { color: '#e6007e', width: 2, transparency: 0, showRestricted: false, poi: {}, openSection: 'secStyle', offline: [], noAsk: [] };
+  var settings = { color: '#e6007e', width: 2, transparency: 0, showRestricted: false, poi: {}, panelOpen: false, openSection: '', offline: [], noAsk: [] };
   POI_CATS.forEach(function (c) { settings.poi[c.id] = c.on; });
   try {
     var saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
@@ -337,6 +337,7 @@
       if (saved.transparency >= 0 && saved.transparency <= 100) settings.transparency = Number(saved.transparency);
       if (typeof saved.showRestricted === 'boolean') settings.showRestricted = saved.showRestricted;
       if (typeof saved.openSection === 'string') settings.openSection = saved.openSection;
+      if (typeof saved.panelOpen === 'boolean') settings.panelOpen = saved.panelOpen;
       if (Array.isArray(saved.offline)) settings.offline = saved.offline.filter(function (x) { return typeof x === 'string'; });
       if (Array.isArray(saved.noAsk)) settings.noAsk = saved.noAsk.filter(function (x) { return typeof x === 'string'; });
       if (saved.poi) POI_CATS.forEach(function (c) {
@@ -1573,7 +1574,8 @@
     panel.classList.toggle('collapsed', c);
     toggle.setAttribute('aria-expanded', String(!c));
   }
-  if (window.innerWidth < 600) setCollapsed(true);
+  // Beim ersten Start eingeklappt; danach wie zuletzt gewählt
+  setCollapsed(!settings.panelOpen);
 
   // Abschnitte: immer nur einer offen (spart Platz am Handy); der zuletzt geöffnete wird gemerkt
   var sections = ['secStyle', 'secPoi', 'secOffline'].map(function (id) { return document.getElementById(id); });
@@ -1590,7 +1592,12 @@
     });
   });
   updateSummaries();
-  toggle.addEventListener('click', function () { setCollapsed(!panel.classList.contains('collapsed')); });
+  toggle.addEventListener('click', function () {
+    var open = panel.classList.contains('collapsed');
+    setCollapsed(!open);
+    settings.panelOpen = open;
+    saveSettings();
+  });
   L.DomEvent.disableClickPropagation(panel);
   L.DomEvent.disableScrollPropagation(panel);
 
