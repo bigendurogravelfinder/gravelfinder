@@ -202,13 +202,13 @@
     <div class="row">
       <label class="title" for="colorPicker">Farbe der Schotterwege</label>
       <div class="colorRow">
-        <input type="color" id="colorPicker" value="#ff6a00">
+        <input type="color" id="colorPicker" value="#e6007e">
         <div class="swatches" id="swatches"></div>
       </div>
     </div>
     <div class="row">
-      <label class="title" for="widthRange">Linienbreite: <span id="widthValue">3</span> px</label>
-      <input type="range" id="widthRange" min="1" max="5" step="1" value="3">
+      <label class="title" for="widthRange">Linienbreite: <span id="widthValue">2</span> px</label>
+      <input type="range" id="widthRange" min="1" max="5" step="1" value="2">
     </div>
     <div class="row">
       <label class="title" for="transpRange">Transparenz: <span id="transpValue">0</span> %</label>
@@ -306,7 +306,7 @@
     { id: 'fuel',  label: 'Tankstellen',        emoji: '⛽', color: '#d32f2f', on: true,
       query: 'nwr["amenity"="fuel"]',
       match: function (t) { return t.amenity === 'fuel'; } },
-    { id: 'food',  label: 'Lebensmittel',       emoji: '🛒', color: '#2e7d32', on: true,
+    { id: 'food',  label: 'Lebensmittel',       emoji: '🛒', color: '#2e7d32', on: false,
       query: 'nwr["shop"~"^(supermarket|convenience|bakery|butcher|greengrocer|farm)$"]',
       match: function (t) { return /^(supermarket|convenience|bakery|butcher|greengrocer|farm)$/.test(t.shop || ''); } },
     { id: 'gastro', label: 'Gasthaus / Café',   emoji: '🍽️', color: '#ef6c00', on: false,
@@ -326,7 +326,7 @@
       match: function (t) { return t.tourism === 'viewpoint'; } }
   ];
 
-  var settings = { color: '#ff6a00', width: 3, transparency: 0, showRestricted: false, poi: {}, openSection: 'secStyle', offline: [], noAsk: [] };
+  var settings = { color: '#e6007e', width: 2, transparency: 0, showRestricted: false, poi: {}, openSection: 'secStyle', offline: [], noAsk: [] };
   POI_CATS.forEach(function (c) { settings.poi[c.id] = c.on; });
   try {
     var saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
