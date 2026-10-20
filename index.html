@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Schotterkarte</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1d232a;
+    --muted: #5b6672;
+    --accent: #c0561b;
+    --border: rgba(0,0,0,.15);
+    --shadow: 0 2px 10px rgba(0,0,0,.25);
+    --error: #b3261e;
+  }
+  html, body { margin: 0; height: 100%; background: #e8e4dc; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--fg); }
+  #map { position: absolute; inset: 0; }
+
+  /* ---------- Bedienfeld oben rechts ---------- */
+  #panel {
+    position: absolute; top: 10px; right: 10px; z-index: 1000;
+    width: 270px; max-width: calc(100vw - 80px);
+    background: var(--bg); border-radius: 12px; box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  #panelToggle {
+    width: 100%; min-height: 48px; border: 0; background: var(--bg);
+    font: 600 16px/1 inherit; font-family: inherit; color: var(--fg);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 14px; cursor: pointer;
+  }
+  #panelToggle .chev { transition: transform .2s; font-size: 14px; }
+  #panel.collapsed #panelToggle .chev { transform: rotate(-90deg); }
+  #panel.collapsed #panelBody { display: none; }
+  #panelBody { padding: 4px 14px 14px; border-top: 1px solid var(--border); }
+  .row { margin-top: 12px; }
+  .row label.title { display: block; font-size: 14px; color: var(--muted); margin-bottom: 6px; }
+  .colorRow { display: flex; align-items: center; gap: 10px; }
+  input[type=color] { width: 56px; height: 44px; border: 1px solid var(--border); border-radius: 8px; padding: 2px; background: #fff; cursor: pointer; }
+  .swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+  .swatch { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px var(--border); cursor: pointer; padding: 0; }
+  input[type=range] { width: 100%; height: 32px; accent-color: var(--accent); }
+  .check { display: flex; align-items: center; gap: 10px; font-size: 15px; cursor: pointer; min-height: 40px; }
+  .check input { width: 24px; height: 24px; accent-color: var(--accent); }
+  .legend { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .legend svg { flex: none; }
+  #panelBody { max-height: calc(100vh - 90px); overflow-y: auto; box-sizing: border-box; }
+  .poiSym { width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; flex: none; }
+  .poiCount { color: var(--muted); font-size: 13px; }
+  .preloadRow { display: flex; gap: 8px; }
+  .preloadRow[hidden] { display: none; }
+  .preloadRow select { flex: 1; min-height: 44px; font: inherit; font-size: 15px; border: 1px solid var(--border); border-radius: 8px; padding: 0 8px; background: #fff; color: var(--fg); }
+  .btn { min-height: 44px; padding: 0 16px; border: 0; border-radius: 22px; background: var(--accent); color: #fff; font: 600 15px inherit; font-family: inherit; cursor: pointer; }
+  .btn.light { background: #eceff1; color: var(--fg); margin-top: 8px; width: 100%; }
+  .hint { font-size: 13px; color: var(--muted); margin-top: 6px; line-height: 1.35; }
+
+  /* ---------- Orte (POI-Symbole) ---------- */
+  .poi-icon { background: none; border: 0; }
+  .poi-marker {
+    width: 32px; height: 32px; border-radius: 50%; border: 2px solid #fff; box-sizing: border-box;
+    box-shadow: 0 1px 5px rgba(0,0,0,.55);
+    display: flex; align-items: center; justify-content: center; font-size: 16px; line-height: 1;
+  }
+  /* weiter herausgezoomt: kleinere Symbole, damit sie sich weniger überdecken */
+  .zoom-low .poi-marker { transform: scale(.7); }
+
+  /* ---------- Standort-Button ---------- */
+  #locateBtn {
+    position: absolute; left: 10px; bottom: 140px; z-index: 1000;
+    min-height: 52px; padding: 0 18px; border: 0; border-radius: 26px;
+    background: var(--bg); box-shadow: var(--shadow);
+    font: 600 16px inherit; font-family: inherit; color: var(--fg);
+    display: flex; align-items: center; gap: 8px; cursor: pointer;
+  }
+  #locateBtn:active { transform: scale(.97); }
+  #locateBtn svg { width: 22px; height: 22px; }
+  #locateBtn.active { color: #1a73e8; }
+  #locateBtn.busy svg { animation: spin 1.2s linear infinite; }
+
+  /* ---------- Standort-Markierung ---------- */
+  .loc-icon { background: none; border: 0; }
+  .loc-wrap { position: relative; width: 60px; height: 60px; }
+  .loc-dot, .loc-pulse { position: absolute; left: 50%; top: 50%; border-radius: 50%; box-sizing: border-box; }
+  .loc-dot {
+    width: 22px; height: 22px; margin: -11px 0 0 -11px;
+    background: #1a73e8; border: 4px solid #fff;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.25), 0 2px 8px rgba(0,0,0,.6);
+  }
+  .loc-pulse {
+    width: 22px; height: 22px; margin: -11px 0 0 -11px;
+    background: rgba(26,115,232,.45);
+    animation: locPulse 2s ease-out infinite;
+  }
+  @keyframes locPulse { from { transform: scale(1); opacity: .9; } to { transform: scale(2.7); opacity: 0; } }
+  .loc-heading { position: absolute; inset: 0; display: none; }
+  .has-heading .loc-heading { display: block; }
+  .loc-heading::before {
+    content: ''; position: absolute; left: 50%; top: 5px; margin-left: -9px;
+    border-left: 9px solid transparent; border-right: 9px solid transparent;
+    border-bottom: 16px solid #1a73e8;
+    filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 1px #fff);
+  }
+
+  /* ---------- Statusleiste unten ---------- */
+  #statusWrap {
+    position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 1000;
+    width: max-content; max-width: calc(100vw - 32px);
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+  }
+  .pill {
+    max-width: 100%; box-sizing: border-box;
+    background: var(--bg); border-radius: 24px; box-shadow: var(--shadow);
+    padding: 10px 18px; font-size: 15px; font-weight: 600;
+    display: flex; align-items: center; gap: 10px; text-align: center;
+  }
+  .pill.hidden { display: none; }
+  .pill.error { color: var(--error); flex-wrap: wrap; justify-content: center; border-radius: 14px; }
+  .pill.ok { color: #1b5e20; }
+  #preloadStatus { flex-wrap: wrap; justify-content: center; font-size: 14px; }
+  .pill button.light { background: #eceff1; color: var(--fg); }
+  .pill button {
+    min-height: 40px; padding: 0 16px; border: 0; border-radius: 20px;
+    background: var(--accent); color: #fff; font: 600 15px inherit; font-family: inherit; cursor: pointer;
+  }
+  .spinner { width: 18px; height: 18px; border: 3px solid #ddd; border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; flex: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---------- Leaflet-Anpassungen ---------- */
+  .leaflet-touch .leaflet-bar a { width: 44px; height: 44px; line-height: 44px; font-size: 22px; }
+  .leaflet-control-layers-toggle { width: 44px !important; height: 44px !important; }
+  .leaflet-popup-content { font-size: 14px; line-height: 1.45; margin: 12px 14px; }
+  .leaflet-popup-content h3 { margin: 0 0 6px; font-size: 16px; }
+  .leaflet-popup-content table { border-collapse: collapse; }
+  .leaflet-popup-content td { padding: 2px 8px 2px 0; vertical-align: top; }
+  .leaflet-popup-content td:first-child { color: var(--muted); white-space: nowrap; }
+  .leaflet-popup-content .warn { color: var(--error); font-weight: 600; }
+  .leaflet-popup-content a.osm { display: inline-block; margin-top: 8px; font-weight: 600; }
+
+  @media (max-width: 600px) {
+    #statusWrap { bottom: 24px; }
+    .pill { font-size: 14px; }
+    #locateBtn { bottom: 150px; }
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div id="panel">
+  <button id="panelToggle" type="button" aria-expanded="true">
+    <span>Einstellungen</span><span class="chev">▼</span>
+  </button>
+  <div id="panelBody">
+    <div class="row">
+      <label class="title" for="colorPicker">Farbe der Schotterwege</label>
+      <div class="colorRow">
+        <input type="color" id="colorPicker" value="#ff6a00">
+        <div class="swatches" id="swatches"></div>
+      </div>
+    </div>
+    <div class="row">
+      <label class="title" for="widthRange">Linienbreite: <span id="widthValue">3</span> px</label>
+      <input type="range" id="widthRange" min="1" max="5" step="1" value="3">
+    </div>
+    <div class="row">
+      <label class="title" for="transpRange">Transparenz: <span id="transpValue">0</span> %</label>
+      <input type="range" id="transpRange" min="0" max="100" step="5" value="0">
+    </div>
+    <div class="row">
+      <label class="check"><input type="checkbox" id="showRestricted"> Auch gesperrte Wege anzeigen</label>
+      <div class="legend">
+        <svg width="34" height="8"><line x1="0" y1="4" x2="34" y2="4" stroke="#777" stroke-width="3" stroke-dasharray="6 5"/></svg>
+        = gesperrt / nur Anrainer, Land- oder Forstwirtschaft
+      </div>
+    </div>
+    <div class="row">
+      <label class="title">Orte anzeigen</label>
+      <div id="poiList"></div>
+    </div>
+    <div class="row">
+      <label class="title" for="preloadRadius">Gebiet vorladen (für unterwegs)</label>
+      <div class="preloadRow">
+        <select id="preloadRadius">
+          <option value="10">10 km Umkreis</option>
+          <option value="25" selected>25 km Umkreis</option>
+          <option value="50">50 km Umkreis</option>
+          <option value="100">100 km Umkreis</option>
+          <option value="200">200 km Umkreis</option>
+        </select>
+        <button type="button" id="preloadBtn" class="btn">Vorladen</button>
+      </div>
+      <div class="preloadRow" id="regionRow" hidden style="margin-top:8px">
+        <select id="regionSelect" aria-label="Land zum Vorladen"></select>
+        <button type="button" id="regionBtn" class="btn">Vorladen</button>
+      </div>
+      <div class="hint">Speichert Schotterwege und Orte im Browser – rund um die Kartenmitte oder ein ganzes Land. Gespeicherte Gebiete erscheinen sofort, auch ohne Netz.</div>
+      <div class="hint" id="dataInfo"></div>
+      <div class="hint" id="cacheInfo">…</div>
+      <button type="button" id="clearCacheBtn" class="btn light">Gespeicherte Daten löschen</button>
+    </div>
+  </div>
+</div>
+
+<button id="locateBtn" type="button">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
+  Mein Standort
+</button>
+
+<div id="statusWrap">
+  <div id="preloadStatus" class="pill hidden"></div>
+  <div id="status" class="pill"><span>Starte …</span></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ================= Einstellungen =================
+  var OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+
+  // Fertig aufbereitete Kartendaten (von GitHub, siehe README). Es wird der Reihe nach probiert:
+  //  1. "data/v1/" neben der App – wenn die App selbst auf GitHub Pages liegt
+  //  2. die volle Adresse – wenn die App per Doppelklick oder von einem anderen Webspace geöffnet wird
+  // Wird keine Quelle gefunden, lädt die App wie bisher alles über Overpass.
+  var STATIC_SOURCES = [
+    'data/v1/',
+    'https://DEIN-GITHUB-NAME.github.io/gravelfinder/data/v1/'
+  ];
+  var MIN_ZOOM = 11;            // darunter keine Abfrage
+  var DEBOUNCE_MS = 800;        // Wartezeit nach dem Verschieben
+  var SURFACES = 'gravel|fine_gravel|compacted|unpaved|dirt|ground';
+  var STORAGE_KEY = 'schotterkarte.settings';
+  var CASING_COLOR = '#1b1b1b';
+  var RESTRICTED_COLOR = '#7a7a7a';
+
+  // ================= Gespeicherte Einstellungen =================
+  // ================= Orte (POIs) – hier lassen sich Kategorien ergänzen =================
+  // query: Overpass-Filter (nwr = Punkt, Weg oder Fläche), match: dieselbe Regel für die Zuordnung im Browser
+  var POI_CATS = [
+    { id: 'fuel',  label: 'Tankstellen',        emoji: '⛽', color: '#d32f2f', on: true,
+      query: 'nwr["amenity"="fuel"]',
+      match: function (t) { return t.amenity === 'fuel'; } },
+    { id: 'food',  label: 'Lebensmittel',       emoji: '🛒', color: '#2e7d32', on: true,
+      query: 'nwr["shop"~"^(supermarket|convenience|bakery|butcher|greengrocer|farm)$"]',
+      match: function (t) { return /^(supermarket|convenience|bakery|butcher|greengrocer|farm)$/.test(t.shop || ''); } },
+    { id: 'gastro', label: 'Gasthaus / Café',   emoji: '🍽️', color: '#ef6c00', on: false,
+      query: 'nwr["amenity"~"^(restaurant|cafe|fast_food|biergarten|pub)$"]',
+      match: function (t) { return /^(restaurant|cafe|fast_food|biergarten|pub)$/.test(t.amenity || ''); } },
+    { id: 'moto',  label: 'Motorrad-Werkstatt / Händler', emoji: '🏍️', color: '#37474f', on: false,
+      query: 'nwr["shop"~"^(motorcycle|motorcycle_repair)$"]',
+      match: function (t) { return /^(motorcycle|motorcycle_repair)$/.test(t.shop || ''); } },
+    { id: 'water', label: 'Trinkwasser',        emoji: '💧', color: '#0277bd', on: false,
+      query: 'nwr["amenity"="drinking_water"]',
+      match: function (t) { return t.amenity === 'drinking_water'; } },
+    { id: 'camp',  label: 'Campingplätze',      emoji: '⛺', color: '#6d4c41', on: false,
+      query: 'nwr["tourism"="camp_site"]',
+      match: function (t) { return t.tourism === 'camp_site'; } },
+    { id: 'view',  label: 'Aussichtspunkte',    emoji: '🔭', color: '#7b1fa2', on: false,
+      query: 'nwr["tourism"="viewpoint"]',
+      match: function (t) { return t.tourism === 'viewpoint'; } }
+  ];
+
+  var settings = { color: '#ff6a00', width: 3, transparency: 0, showRestricted: false, poi: {} };
+  POI_CATS.forEach(function (c) { settings.poi[c.id] = c.on; });
+  try {
+    var saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    if (saved) {
+      if (/^#[0-9a-f]{6}$/i.test(saved.color)) settings.color = saved.color;
+      // früher gespeicherte Werte (bis 8 px) auf den neuen Bereich 1–5 px begrenzen
+      if (Number(saved.width) > 0) settings.width = Math.min(5, Math.max(1, Math.round(Number(saved.width))));
+      if (saved.transparency >= 0 && saved.transparency <= 100) settings.transparency = Number(saved.transparency);
+      if (typeof saved.showRestricted === 'boolean') settings.showRestricted = saved.showRestricted;
+      if (saved.poi) POI_CATS.forEach(function (c) {
+        if (typeof saved.poi[c.id] === 'boolean') settings.poi[c.id] = saved.poi[c.id];
+      });
+    }
+  } catch (e) { /* localStorage nicht verfügbar – Standardwerte verwenden */ }
+
+  function saveSettings() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(settings)); } catch (e) {}
+  }
+
+  // ================= Karte =================
+  var map = L.map('map', { zoomControl: true, preferCanvas: true }).setView([48.1575, 14.0289], 12);
+  // Kartenposition in der Adresszeile (#breite,länge,zoom) – für Lesezeichen und Links
+  var hashPos = /^#(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?),(\d{1,2})$/.exec(location.hash);
+  if (hashPos) map.setView([Number(hashPos[1]), Number(hashPos[2])], Number(hashPos[3]));
+  map.on('moveend', function () {
+    var c = map.getCenter();
+    try { history.replaceState(null, '', '#' + c.lat.toFixed(5) + ',' + c.lng.toFixed(5) + ',' + map.getZoom()); } catch (e) {}
+  });
+  map.attributionControl.setPrefix(false);
+
+  // Hinweis: tile.openstreetmap.org sperrt Seiten, die per Doppelklick (als Datei) geöffnet werden,
+  // weil der Browser dann keine Herkunftsangabe (Referer) mitschickt. Der deutsche OSM-Server
+  // zeigt dieselben OpenStreetMap-Daten und funktioniert auch so.
+  var osm = L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap-Mitwirkende</a>'
+  });
+  var cyclosm = L.tileLayer('https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png', {
+    maxZoom: 20, subdomains: 'abc',
+    attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap-Mitwirkende</a> | Stil: <a href="https://www.cyclosm.org" target="_blank">CyclOSM</a>'
+  });
+  var topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    maxZoom: 17, subdomains: 'abc',
+    attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap-Mitwirkende</a>, SRTM | Stil: © <a href="https://opentopomap.org" target="_blank">OpenTopoMap</a> (CC-BY-SA)'
+  });
+  osm.addTo(map);
+  L.control.layers({ 'OpenStreetMap': osm, 'Topokarte (Höhenlinien)': topo, 'CyclOSM (Wege & Oberflächen)': cyclosm }, null, { position: 'topleft' }).addTo(map);
+  L.control.scale({ imperial: false, position: 'bottomright' }).addTo(map);
+
+  // Canvas mit großer Klick-Toleranz, damit man dünne Linien am Handy trifft
+  // Eigene Ebene für die Wege, damit die Transparenz auf alle Wege gemeinsam wirkt
+  var roadsPane = map.createPane('roadsPane');
+  roadsPane.style.zIndex = 450;
+  var renderer = L.canvas({ tolerance: 10, pane: 'roadsPane' });
+  var roadLayer = L.layerGroup().addTo(map);
+
+  // ================= Datenspeicher =================
+  // Die Karte wird in feste Kacheln geteilt (ca. 5,5 × 5,6 km). Jede Kachel wird einmal vom Server
+  // geladen und dauerhaft im Browser gespeichert (IndexedDB) – beim nächsten Mal ist sie sofort da.
+  var CELL_LAT = 0.05, CELL_LON = 0.075;
+  var BLOCK = 4;              // bis zu 4 × 4 Kacheln (ca. 22 × 22 km) pro Server-Anfrage
+  var MAX_AGE_DAYS = 30;      // ältere Kacheln werden angezeigt und im Hintergrund erneuert
+  var DATA_VERSION = 1;       // bei Änderungen an der Abfrage erhöhen → alte Kacheln werden neu geladen
+  var MAX_WAYS_IN_MEMORY = 120000;
+
+  var ways = new Map();       // OSM-ID -> { id, tags, latlngs, bounds, restricted }
+  var pois = new Map();       // z. B. "n12345" -> { type, id, lat, lon, tags, cats }
+  var cells = new Map();      // Kacheln im Arbeitsspeicher: Schlüssel -> Ladezeitpunkt
+  var stored = new Map();     // Kacheln im Browser-Speicher: Schlüssel -> { t, v, s (Größe) }
+  var drawn = { lines: [], casings: [], restrictedLines: [] };
+
+  // ================= Statusanzeige =================
+  var statusEl = document.getElementById('status');
+  function setStatus(html, cls) {
+    statusEl.className = 'pill' + (cls ? ' ' + cls : '');
+    statusEl.innerHTML = html;
+  }
+  var SPINNER = '<div class="spinner"></div>';
+  function showError(msg) {
+    setStatus('<span>' + msg + '</span><button type="button" id="retryBtn">Erneut versuchen</button>', 'error');
+    document.getElementById('retryBtn').onclick = function () { viewError = null; loadNow(); };
+  }
+
+  // ================= Kacheln =================
+  function cellKey(i, j) { return i + ':' + j; }
+  function cellsIn(b) {
+    var out = [];
+    var i0 = Math.floor(b.getSouth() / CELL_LAT), i1 = Math.floor(b.getNorth() / CELL_LAT);
+    var j0 = Math.floor(b.getWest() / CELL_LON), j1 = Math.floor(b.getEast() / CELL_LON);
+    for (var i = i0; i <= i1; i++) for (var j = j0; j <= j1; j++) out.push({ i: i, j: j, k: cellKey(i, j) });
+    return out;
+  }
+  function cellOf(lat, lon) { return cellKey(Math.floor(lat / CELL_LAT), Math.floor(lon / CELL_LON)); }
+  function isFresh(t) { return Date.now() - t < MAX_AGE_DAYS * 864e5; }
+  // Kacheln aus den fertigen Daten: neu holen, sobald es einen neueren Datenstand gibt (und sie älter als 1 Tag sind)
+  function cellFresh(c, t) {
+    if (staticIndex && cellCovered(c)) return t >= staticBuilt || Date.now() - t < 864e5;
+    return isFresh(t);
+  }
+  function needsLoad(c) { return !cells.has(c.k) || !cellFresh(c, cells.get(c.k)); }
+  function needsStore(c) {
+    if (!dbOk) return needsLoad(c); // ohne Browser-Speicher zählt nur der Arbeitsspeicher
+    var s = stored.get(c.k);
+    return !(s && s.v === DATA_VERSION && cellFresh(c, s.t));
+  }
+
+  // ================= Fertige Kartendaten (statische Dateien) =================
+  var staticIndex = null;    // index.json: { built, regions:[{id,name,blocks}], blocks:{ "bi,bj": [maske, hatDaten] } }
+  var staticBase = null;     // Adresse, unter der die Dateien gefunden wurden
+  var staticBuilt = 0;       // Zeitpunkt des Datenstands (ms)
+
+  function blockOf(c) { return Math.floor(c.i / BLOCK) + ',' + Math.floor(c.j / BLOCK); }
+  // Liegt die Kachel vollständig in einem aufbereiteten Land?
+  function cellCovered(c) {
+    var b = staticIndex && staticIndex.blocks[blockOf(c)];
+    if (!b) return false;
+    var bit = (c.i - Math.floor(c.i / BLOCK) * BLOCK) * BLOCK + (c.j - Math.floor(c.j / BLOCK) * BLOCK);
+    return (parseInt(b[0], 16) >> bit & 1) === 1;
+  }
+
+  function loadStaticIndex() {
+    var i = 0;
+    function next() {
+      if (i >= STATIC_SOURCES.length) return Promise.resolve();
+      var base = STATIC_SOURCES[i++];
+      if (/DEIN-GITHUB-NAME/.test(base)) return next();
+      return fetch(base + 'index.json', { cache: 'no-cache' })
+        .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+        .then(function (idx) {
+          staticIndex = idx; staticBase = base;
+          staticBuilt = Date.parse(String(idx.built).replace(/Z$/, ':00Z')) || 0;
+          fillRegionSelect();
+        })
+        .catch(next);
+    }
+    return next();
+  }
+
+  // Einen Block (4 × 4 Kacheln) laden. Ergebnis: Datensätze für die vollständig abgedeckten Kacheln
+  // ("full") und Teil-Daten von Grenz-Kacheln ("partial" – die ergänzt die App über Overpass).
+  function fetchBlock(bk) {
+    var info = staticIndex.blocks[bk];
+    var p = info[1] ? fetch(staticBase + 'blocks/' + bk.replace(',', '/') + '.json').then(function (r) {
+      if (!r.ok) throw new Error('http' + r.status);
+      return r.json();
+    }) : Promise.resolve({ cells: [] });
+    return p.then(function (data) {
+      var now = Date.now(), byKey = {};
+      data.cells.forEach(function (rec) { byKey[rec.k] = rec; });
+      var bi = Number(bk.split(',')[0]), bj = Number(bk.split(',')[1]);
+      var full = [], partial = [];
+      for (var di = 0; di < BLOCK; di++) for (var dj = 0; dj < BLOCK; dj++) {
+        var c = { i: bi * BLOCK + di, j: bj * BLOCK + dj };
+        c.k = cellKey(c.i, c.j);
+        var rec = byKey[c.k] || { k: c.k, w: [], p: [] };
+        rec.v = DATA_VERSION; rec.t = now;
+        if (cellCovered(c)) full.push(rec);
+        else if (byKey[c.k]) partial.push(rec);
+      }
+      return { full: full, partial: partial };
+    });
+  }
+
+  // Mehrere Blöcke parallel laden (4 gleichzeitig). onBlock(bk, ergebnis | null bei Fehler) je Block.
+  function loadBlocks(bks, onBlock, isCancelled) {
+    var idx = 0;
+    function worker() {
+      if (idx >= bks.length || (isCancelled && isCancelled())) return Promise.resolve();
+      var bk = bks[idx++];
+      return fetchBlock(bk)
+        .then(function (res) { onBlock(bk, res); }, function () { onBlock(bk, null); })
+        .then(worker);
+    }
+    var workers = [];
+    for (var n = 0; n < Math.min(4, bks.length); n++) workers.push(worker());
+    return Promise.all(workers);
+  }
+
+  // Ergebnis eines Blocks übernehmen: vollständige Kacheln merken und speichern, Grenz-Kacheln nur anzeigen
+  function takeBlock(res, intoMemory) {
+    if (intoMemory || !dbOk) {
+      res.full.forEach(function (r) { ingestRecord(r, true); });
+      res.partial.forEach(function (r) { ingestRecord(r, false); });
+    }
+    if (dbOk && res.full.length) dbPutCells(res.full);
+  }
+
+  // Fehlende Kacheln zu Server-Aufträgen bündeln. Passt alles in ein Rechteck von höchstens
+  // MAX_JOB_CELLS Kacheln, gibt es nur EINE Anfrage – sonst je Block von 4 × 4 Kacheln eine.
+  var MAX_JOB_CELLS = 42;     // ca. 6 × 7 Kacheln ≈ 33 × 39 km
+  function makeJobs(missing, kind, center) {
+    if (!missing.length) return [];
+    var all = { i0: Infinity, i1: -Infinity, j0: Infinity, j1: -Infinity };
+    missing.forEach(function (c) {
+      all.i0 = Math.min(all.i0, c.i); all.i1 = Math.max(all.i1, c.i);
+      all.j0 = Math.min(all.j0, c.j); all.j1 = Math.max(all.j1, c.j);
+    });
+    var single = (all.i1 - all.i0 + 1) * (all.j1 - all.j0 + 1) <= MAX_JOB_CELLS;
+    var blocks = {};
+    missing.forEach(function (c) {
+      var bk = single ? 'alle' : Math.floor(c.i / BLOCK) + '/' + Math.floor(c.j / BLOCK);
+      var b = blocks[bk] || (blocks[bk] = { i0: c.i, i1: c.i, j0: c.j, j1: c.j });
+      b.i0 = Math.min(b.i0, c.i); b.i1 = Math.max(b.i1, c.i);
+      b.j0 = Math.min(b.j0, c.j); b.j1 = Math.max(b.j1, c.j);
+    });
+    var jobs = Object.keys(blocks).map(function (bk) {
+      var b = blocks[bk], list = [];
+      for (var i = b.i0; i <= b.i1; i++) for (var j = b.j0; j <= b.j1; j++) list.push({ i: i, j: j, k: cellKey(i, j) });
+      var bounds = L.latLngBounds([b.i0 * CELL_LAT, b.j0 * CELL_LON], [(b.i1 + 1) * CELL_LAT, (b.j1 + 1) * CELL_LON]);
+      return { kind: kind, cells: list, bounds: bounds, dist: bounds.getCenter().distanceTo(center) };
+    });
+    // nächstgelegene zuerst
+    return jobs.sort(function (a, b) { return a.dist - b.dist; });
+  }
+
+  // ================= Browser-Speicher (IndexedDB) =================
+  // Zwei Tabellen: "cells" mit den Daten, "idx" mit einem kleinen Verzeichnis (Zeitpunkt, Größe)
+  var dbOk = false;
+  var dbPromise = new Promise(function (resolve) {
+    try {
+      var req = indexedDB.open('schotterkarte', 1);
+      req.onupgradeneeded = function () {
+        req.result.createObjectStore('cells', { keyPath: 'k' });
+        req.result.createObjectStore('idx', { keyPath: 'k' });
+      };
+      req.onsuccess = function () { dbOk = true; resolve(req.result); };
+      req.onerror = function () { resolve(null); };
+    } catch (e) { resolve(null); }
+  });
+
+  function dbTx(stores, mode, fn) {
+    return dbPromise.then(function (db) {
+      if (!db) return null;
+      return new Promise(function (resolve) {
+        var result = null;
+        try {
+          var tx = db.transaction(stores, mode);
+          result = fn(tx);
+          tx.oncomplete = function () { resolve(result); };
+          tx.onerror = tx.onabort = function () { resolve(null); };
+        } catch (e) { resolve(null); }
+      });
+    });
+  }
+  function dbLoadIndex() {
+    return dbTx(['idx'], 'readonly', function (tx) {
+      var r = tx.objectStore('idx').getAll();
+      var box = { list: [] };
+      r.onsuccess = function () { box.list = r.result || []; };
+      return box;
+    }).then(function (box) {
+      if (box) box.list.forEach(function (e) { stored.set(e.k, e); });
+    });
+  }
+  function dbGetCells(keys) {
+    if (!keys.length) return Promise.resolve([]);
+    return dbTx(['cells'], 'readonly', function (tx) {
+      var out = [], st = tx.objectStore('cells');
+      keys.forEach(function (k) {
+        var r = st.get(k);
+        r.onsuccess = function () { if (r.result && r.result.v === DATA_VERSION) out.push(r.result); };
+      });
+      return out;
+    }).then(function (out) { return out || []; });
+  }
+  var persistAsked = false;
+  function dbPutCells(recs) {
+    if (!persistAsked && navigator.storage && navigator.storage.persist) {
+      persistAsked = true;
+      try { navigator.storage.persist(); } catch (e) {} // Browser bitten, die Daten nicht automatisch zu löschen
+    }
+    return dbTx(['cells', 'idx'], 'readwrite', function (tx) {
+      recs.forEach(function (r) {
+        var size = JSON.stringify(r).length;
+        tx.objectStore('cells').put(r);
+        var e = { k: r.k, t: r.t, v: r.v, s: size };
+        tx.objectStore('idx').put(e);
+        stored.set(r.k, e);
+      });
+      return true;
+    }).then(updateCacheInfo);
+  }
+  function dbClear() {
+    return dbTx(['cells', 'idx'], 'readwrite', function (tx) {
+      tx.objectStore('cells').clear();
+      tx.objectStore('idx').clear();
+      return true;
+    }).then(function () { stored.clear(); updateCacheInfo(); });
+  }
+
+  // ================= Overpass-Abfrage =================
+  // Eine einzige Abfrage für Schotterwege UND alle Orte-Kategorien (alle, damit das Ein-/Ausschalten
+  // einer Kategorie nie eine neue Abfrage braucht). Wege kommen mit Geometrie, Orte nur als Punkt.
+  function buildQuery(b) {
+    var bbox = [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].map(function (n) { return n.toFixed(5); }).join(',');
+    return '[out:json][timeout:90][bbox:' + bbox + '];\n' +
+      '(\n' +
+      '  way["highway"="track"]["tracktype"~"^grade[123]$"];\n' +
+      '  way["highway"="track"][!"tracktype"]["surface"~"^(' + SURFACES + ')$"];\n' +
+      '  way["highway"~"^(unclassified|tertiary|residential|service)$"]["surface"~"^(' + SURFACES + ')$"];\n' +
+      ')->.wege;\n' +
+      '(\n' +
+      POI_CATS.map(function (c) { return '  ' + c.query + ';\n'; }).join('') +
+      ')->.orte;\n' +
+      '.wege out geom qt;\n' +
+      '.orte out center tags qt;';
+  }
+
+  // Zugangsbeschränkungen: der genaueste vorhandene Schlüssel entscheidet
+  // (motorcycle vor motor_vehicle vor vehicle vor access) – so wie in OpenStreetMap üblich.
+  var BLOCKED = {
+    motorcycle:    ['no', 'private'],
+    motor_vehicle: ['no', 'private', 'agricultural', 'forestry', 'destination'],
+    vehicle:       ['no', 'private'],
+    access:        ['no', 'private']
+  };
+  var ACCESS_KEYS = ['motorcycle', 'motor_vehicle', 'vehicle', 'access'];
+
+  function isRestricted(tags) {
+    for (var i = 0; i < ACCESS_KEYS.length; i++) {
+      var key = ACCESS_KEYS[i];
+      if (tags[key] !== undefined) {
+        var parts = String(tags[key]).split(';').map(function (s) { return s.trim(); });
+        return parts.every(function (p) { return BLOCKED[key].indexOf(p) !== -1; });
+      }
+    }
+    return false;
+  }
+
+  // ================= Warteschlange für Server-Anfragen =================
+  // Immer nur EINE Anfrage gleichzeitig (schont den Server). Aufträge für den sichtbaren Ausschnitt
+  // ("view") kommen vor Aufträgen zum Vorladen ("preload").
+  var queue = [];
+  var running = null;          // { job, controller }
+  var viewGen = 0;             // Zähler: jede Kartenbewegung erzeugt eine neue "Generation"
+  var viewTotal = 0, viewDone = 0, viewError = null;
+  var debounceTimer = null;
+  var lastCountText = '';
+
+  var staticPending = 0;       // noch ausstehende Block-Dateien für den sichtbaren Ausschnitt
+
+  function viewBusy() {
+    return staticPending > 0 || (running && running.job.kind === 'view') || queue.some(function (j) { return j.kind === 'view'; });
+  }
+
+  function pump() {
+    if (running || !queue.length) return;
+    var job = queue.shift();
+    // inzwischen schon vorhanden (z. B. durch Vorladen)? Dann überspringen
+    var todo = job.kind === 'view' ? job.cells.some(needsLoad) : job.cells.some(needsStore);
+    if (!todo) { finishJob(job, null, true); return; }
+
+    var controller = new AbortController();
+    running = { job: job, controller: controller };
+    job.retryIn = 0;
+    updateViewStatus(); updatePreloadStatus();
+
+    overpass(buildQuery(job.bounds), controller, function (sec) {
+      job.retryIn = sec;
+      updateViewStatus(); updatePreloadStatus();
+    })
+      .then(function (data) {
+        var recs = splitIntoCells(data.elements || [], job.cells);
+        // Ins Kartenbild übernehmen, wenn sichtbar (oder wenn es keinen Browser-Speicher gibt)
+        if (job.kind === 'view' || !dbOk || job.bounds.intersects(map.getBounds())) recs.forEach(ingestRecord);
+        if (dbOk) dbPutCells(recs);
+        finishJob(job, null);
+      })
+      .catch(function (err) { finishJob(job, err.name === 'AbortError' ? 'abort' : err); });
+  }
+
+  function finishJob(job, err, skipped) {
+    if (running && running.job === job) running = null;
+    if (job.kind === 'view' && job.gen === viewGen && err !== 'abort') {
+      viewDone++;
+      if (err) {
+        viewError = errorText(err);
+        queue = queue.filter(function (j) { return j.kind !== 'view'; }); // Rest abbrechen
+      }
+    }
+    if (job.kind === 'preload' && preload && err !== 'abort') {
+      if (err) {
+        // Vorladen anhalten; offene Aufträge zum Fortsetzen merken
+        preload.error = errorText(err);
+        preload.pending = [job].concat(queue.filter(function (j) { return j.kind === 'preload'; }));
+        queue = queue.filter(function (j) { return j.kind !== 'preload'; });
+      } else {
+        preload.done++;
+      }
+    }
+    if (!skipped && job.bounds.intersects(map.getBounds())) { render(); renderPois(); }
+    updateViewStatus(); updatePreloadStatus();
+    // Beim Vorladen kurze Pause zwischen den Anfragen
+    setTimeout(pump, job.kind === 'preload' && !skipped ? 1500 : 0);
+  }
+
+  // ================= Sichtbaren Ausschnitt laden =================
+  function scheduleLoad() {
+    clearTimeout(debounceTimer);
+    // Ist alles schon im Arbeitsspeicher, sofort zeichnen – sonst kurz warten (Debounce)
+    var allInMemory = map.getZoom() >= MIN_ZOOM && !cellsIn(map.getBounds()).some(function (c) { return !cells.has(c.k); });
+    debounceTimer = setTimeout(loadNow, allInMemory ? 0 : DEBOUNCE_MS);
+  }
+
+  function loadNow() {
+    clearTimeout(debounceTimer);
+    var gen = ++viewGen;
+    viewError = null;
+
+    if (map.getZoom() < MIN_ZOOM) {
+      queue = queue.filter(function (j) { return j.kind !== 'view'; });
+      if (running && running.job.kind === 'view') running.controller.abort();
+      staticPending = 0;
+      render(); renderPois(); updateViewStatus();
+      return;
+    }
+
+    // Arbeitsspeicher begrenzen: alles vergessen und aus dem Browser-Speicher neu holen
+    if (ways.size > MAX_WAYS_IN_MEMORY) { ways.clear(); pois.clear(); cells.clear(); }
+
+    var view = map.getBounds();
+    var needed = cellsIn(view.pad(0.1));
+    var neededKeys = {};
+    needed.forEach(function (c) { neededKeys[c.k] = true; });
+
+    // 1. Zuerst im Browser-Speicher nachsehen
+    var notInMemory = needed.filter(function (c) { return !cells.has(c.k) && stored.has(c.k); }).map(function (c) { return c.k; });
+    dbGetCells(notInMemory).then(function (recs) {
+      if (gen !== viewGen) return; // Karte wurde inzwischen weiterbewegt
+      recs.forEach(ingestRecord);
+
+      // 2. Was fehlt (oder zu alt ist): aus den fertigen Daten holen, wenn das Gebiet aufbereitet ist,
+      //    sonst beim Overpass-Server bestellen
+      var missing = needed.filter(needsLoad);
+      var fromStatic = staticIndex ? missing.filter(cellCovered) : [];
+      var fromOverpass = missing.filter(function (c) { return fromStatic.indexOf(c) === -1; });
+      // Grenz-Kacheln: die Teil-Daten aus den fertigen Dateien schon einmal anzeigen
+      var bks = {};
+      missing.forEach(function (c) { if (staticIndex && staticIndex.blocks[blockOf(c)]) bks[blockOf(c)] = true; });
+      bks = Object.keys(bks);
+      if (bks.length) {
+        staticPending = bks.length;
+        loadBlocks(bks, function (bk, res) {
+          if (gen !== viewGen) return;
+          staticPending--;
+          if (res) takeBlock(res, true);
+          else {
+            // Datei nicht erreichbar (z. B. offline): diese Kacheln über Overpass versuchen
+            var failed = fromStatic.filter(function (c) { return blockOf(c) === bk; });
+            if (failed.length) { var js = makeJobs(failed, 'view', view.getCenter()); js.forEach(function (j) { j.gen = gen; }); viewTotal += js.length; queue = js.concat(queue); pump(); }
+          }
+          render(); renderPois();
+        });
+      } else staticPending = 0;
+
+      queue = queue.filter(function (j) { return j.kind !== 'view'; }); // veraltete Aufträge verwerfen
+      if (running && running.job.kind === 'view' && !running.job.cells.some(function (c) { return neededKeys[c.k]; })) {
+        running.controller.abort(); // läuft für einen Bereich, der nicht mehr sichtbar ist
+      }
+      var jobs = makeJobs(fromOverpass, 'view', view.getCenter());
+      jobs.forEach(function (j) { j.gen = gen; });
+      viewTotal = jobs.length; viewDone = 0;
+
+      // Läuft gerade ein Vorlade-Auftrag, wird er unterbrochen und später wiederholt
+      if (jobs.length && running && running.job.kind === 'preload') {
+        queue.unshift(running.job);
+        running.controller.abort();
+      }
+      queue = jobs.concat(queue);
+
+      render(); renderPois(); updateViewStatus();
+      pump();
+    });
+  }
+
+  function updateViewStatus() {
+    if (map.getZoom() < MIN_ZOOM) { setStatus('<span>🔍 Bitte weiter hineinzoomen</span>'); return; }
+    if (viewError) { showError(viewError); return; }
+    if (viewBusy()) {
+      var r = running && running.job.kind === 'view' && running.job.retryIn;
+      var part = viewTotal > 1 ? ' (Teil ' + Math.min(viewDone + 1, viewTotal) + ' von ' + viewTotal + ')' : '';
+      setStatus(SPINNER + '<span>' + (r ? 'Server ausgelastet – neuer Versuch in ' + r + ' s …' : 'Lade Schotterwege …' + part) + '</span>');
+      return;
+    }
+    setStatus('<span>' + lastCountText + '</span>');
+  }
+
+  // Schickt eine Abfrage an Overpass. Bei Überlastung automatisch noch 2x versuchen
+  // (nach 5 und 10 Sekunden). onRetry(sekunden) meldet die Wartezeit, onRetry(0) den neuen Versuch.
+  function overpass(query, controller, onRetry) {
+    var body = 'data=' + encodeURIComponent(query);
+
+    function ask() {
+      return fetch(OVERPASS_URL, {
+        method: 'POST',
+        body: body,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+        signal: controller.signal
+      }).then(function (res) {
+        if (res.status === 429) throw new Error('busy429');
+        if (res.status === 502 || res.status === 503 || res.status === 504) throw new Error('busy504');
+        if (!res.ok) throw new Error('http' + res.status);
+        return res.json();
+      }).then(function (data) {
+        if (data.remark && /runtime error|timed out|out of memory/i.test(data.remark)) throw new Error('busy504');
+        return data;
+      });
+    }
+
+    // Wartezeit, die beim Verschieben der Karte sofort abgebrochen wird
+    function wait(sec) {
+      return new Promise(function (resolve, reject) {
+        var t = setTimeout(resolve, sec * 1000);
+        controller.signal.addEventListener('abort', function () {
+          clearTimeout(t);
+          var e = new Error('abgebrochen'); e.name = 'AbortError'; reject(e);
+        });
+      });
+    }
+
+    // "TypeError" = keine lesbare Antwort; das passiert auch, wenn der überlastete
+    // Server eine Fehlerseite ohne Browser-Freigabe (CORS) schickt.
+    function attempt(n) {
+      return ask().catch(function (err) {
+        var retryable = /^busy/.test(err.message) || err.name === 'TypeError';
+        if (err.name === 'AbortError' || !retryable || n >= 2) throw err;
+        var sec = 5 * Math.pow(2, n);
+        onRetry(sec);
+        return wait(sec).then(function () { onRetry(0); return attempt(n + 1); });
+      });
+    }
+    return attempt(0);
+  }
+
+  function errorText(err) {
+    var m = err.message || '';
+    if (m === 'busy429') return 'Der Kartenserver ist gerade überlastet (zu viele Anfragen). Bitte kurz warten.';
+    if (m === 'busy504') return 'Der Kartenserver antwortet gerade nicht rechtzeitig. Tipp: etwas hineinzoomen.';
+    if (/^http/.test(m)) return 'Fehler beim Laden (Server-Code ' + m.slice(4) + ').';
+    return 'Keine Antwort vom Kartenserver – er ist vermutlich gerade überlastet. Ist das Internet eingeschaltet?';
+  }
+
+  // Nur die Angaben speichern, die die App wirklich anzeigt – spart viel Speicherplatz
+  var WAY_KEYS = ['name', 'ref', 'highway', 'surface', 'tracktype', 'smoothness', 'access', 'vehicle', 'motor_vehicle', 'motorcycle'];
+  var POI_KEYS = ['name', 'brand', 'operator', 'amenity', 'shop', 'tourism', 'opening_hours', 'addr:street', 'addr:housenumber',
+    'addr:postcode', 'addr:city', 'phone', 'contact:phone', 'website', 'contact:website', 'automated', 'self_service'];
+  function pick(tags, keys) {
+    var o = {};
+    keys.forEach(function (k) { if (tags[k] !== undefined) o[k] = tags[k]; });
+    return o;
+  }
+  function r5(n) { return Math.round(n * 1e5) / 1e5; } // ca. 1 m genau
+
+  // Server-Antwort auf die Kacheln verteilen. Ein Weg kommt in jede Kachel, in der er einen Punkt hat.
+  // Ergebnis: je Kachel ein Datensatz { k, v, t, w: [[id, tags, koordinaten…]], p: [[typ, id, lat, lon, tags]] }
+  function splitIntoCells(elements, cellList) {
+    var recs = {}, now = Date.now();
+    cellList.forEach(function (c) { recs[c.k] = { k: c.k, v: DATA_VERSION, t: now, w: [], p: [] }; });
+    elements.forEach(function (el) {
+      var tags = el.tags || {};
+      if (el.type === 'way' && el.geometry) {
+        var flat = [], inCells = {};
+        el.geometry.forEach(function (pt) {
+          if (!pt) return;
+          flat.push(r5(pt.lat), r5(pt.lon));
+          var k = cellOf(pt.lat, pt.lon);
+          if (recs[k]) inCells[k] = true;
+        });
+        if (flat.length < 4) return;
+        var item = [el.id, pick(tags, WAY_KEYS), flat];
+        Object.keys(inCells).forEach(function (k) { recs[k].w.push(item); });
+      } else {
+        var lat = el.lat !== undefined ? el.lat : el.center && el.center.lat;
+        var lon = el.lon !== undefined ? el.lon : el.center && el.center.lon;
+        if (lat === undefined || lon === undefined) return;
+        var rec = recs[cellOf(lat, lon)];
+        if (rec) rec.p.push([el.type.charAt(0), el.id, r5(lat), r5(lon), pick(tags, POI_KEYS)]);
+      }
+    });
+    return Object.keys(recs).map(function (k) { return recs[k]; });
+  }
+
+  var POI_TYPES = { n: 'node', w: 'way', r: 'relation' };
+  // Kodierte Linie (Google-Polyline, 5 Nachkommastellen) in Koordinaten umwandeln – so kommen die fertigen Daten an
+  function decodePolyline(str) {
+    var out = [], lat = 0, lon = 0, i = 0;
+    while (i < str.length) {
+      for (var n = 0; n < 2; n++) {
+        var shift = 0, result = 0, b;
+        do { b = str.charCodeAt(i++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+        var d = (result & 1) ? ~(result >> 1) : (result >> 1);
+        if (n === 0) lat += d; else lon += d;
+      }
+      out.push([lat / 1e5, lon / 1e5]);
+    }
+    return out;
+  }
+
+  // Einen Kachel-Datensatz in den Arbeitsspeicher übernehmen.
+  // markLoaded = false: nur anzeigen, Kachel gilt aber nicht als vollständig (Grenz-Kacheln)
+  function ingestRecord(rec, markLoaded) {
+    rec.w.forEach(function (w) {
+      if (ways.has(w[0])) return;
+      var latlngs;
+      if (typeof w[2] === 'string') latlngs = decodePolyline(w[2]);
+      else { latlngs = []; for (var i = 0; i < w[2].length; i += 2) latlngs.push([w[2][i], w[2][i + 1]]); }
+      if (latlngs.length < 2) return;
+      ways.set(w[0], { id: w[0], tags: w[1], latlngs: latlngs, bounds: L.latLngBounds(latlngs), restricted: isRestricted(w[1]) });
+    });
+    rec.p.forEach(function (p) {
+      var key = p[0] + p[1];
+      if (pois.has(key)) return;
+      var cats = POI_CATS.filter(function (c) { return c.match(p[4]); });
+      if (cats.length) pois.set(key, { type: POI_TYPES[p[0]], id: p[1], lat: p[2], lon: p[3], tags: p[4], cats: cats });
+    });
+    if (markLoaded !== false) cells.set(rec.k, rec.t);
+  }
+
+  // ================= Vorladen =================
+  var preload = null;   // { total, done, error, pending }
+  var preloadStatusEl = document.getElementById('preloadStatus');
+  var preloadHideTimer = null;
+
+  function setPreloadStatus(html, cls) {
+    clearTimeout(preloadHideTimer);
+    preloadStatusEl.innerHTML = html;
+    preloadStatusEl.className = html ? 'pill' + (cls ? ' ' + cls : '') : 'pill hidden';
+  }
+
+  function startPreload(radiusKm) {
+    if (preload && !preload.error) return; // läuft schon
+    var c = map.getCenter();
+    var dLat = radiusKm / 111.32, dLon = radiusKm / (111.32 * Math.cos(c.lat * Math.PI / 180));
+    var box = L.latLngBounds([c.lat - dLat, c.lng - dLon], [c.lat + dLat, c.lng + dLon]);
+    // nur Kacheln innerhalb des Kreises
+    var all = cellsIn(box).filter(function (cell) {
+      var mid = L.latLng((cell.i + 0.5) * CELL_LAT, (cell.j + 0.5) * CELL_LON);
+      return mid.distanceTo(c) <= radiusKm * 1000 + 3000;
+    });
+    preloadCells(all.filter(needsStore), c);
+  }
+
+  // Ein ganzes aufbereitetes Land vorladen
+  function startRegionPreload(regionId) {
+    if (preload && !preload.error) return;
+    var region = staticIndex && staticIndex.regions.filter(function (r) { return r.id === regionId; })[0];
+    if (!region) return;
+    var list = [];
+    region.blocks.forEach(function (bk) {
+      var bi = Number(bk.split(',')[0]), bj = Number(bk.split(',')[1]);
+      for (var di = 0; di < BLOCK; di++) for (var dj = 0; dj < BLOCK; dj++) {
+        var cell = { i: bi * BLOCK + di, j: bj * BLOCK + dj };
+        cell.k = cellKey(cell.i, cell.j);
+        if (cellCovered(cell) && needsStore(cell)) list.push(cell);
+      }
+    });
+    preloadCells(list, map.getCenter());
+  }
+
+  // Gemeinsamer Teil: aufbereitete Kacheln als Block-Dateien holen (schnell, parallel),
+  // alle anderen über die Overpass-Warteschlange (langsam, nacheinander)
+  function preloadCells(missing, center) {
+    if (!missing.length) {
+      setPreloadStatus('<span>✔ Dieses Gebiet ist schon komplett gespeichert</span>', 'ok');
+      preloadHideTimer = setTimeout(function () { setPreloadStatus(''); }, 5000);
+      return;
+    }
+    var fromStatic = staticIndex ? missing.filter(cellCovered) : [];
+    var fromOverpass = missing.filter(function (c) { return fromStatic.indexOf(c) === -1; });
+    var bks = {};
+    fromStatic.forEach(function (c) { bks[blockOf(c)] = true; });
+    bks = Object.keys(bks);
+    var jobs = makeJobs(fromOverpass, 'preload', center);
+    var token = preload = { total: jobs.length + bks.length, done: 0, error: null, pending: null };
+
+    if (bks.length) {
+      var view = map.getBounds();
+      loadBlocks(bks, function (bk, res) {
+        if (preload !== token) return;
+        if (res) {
+          var bi = Number(bk.split(',')[0]) * BLOCK, bj = Number(bk.split(',')[1]) * BLOCK;
+          var bb = L.latLngBounds([bi * CELL_LAT, bj * CELL_LON], [(bi + BLOCK) * CELL_LAT, (bj + BLOCK) * CELL_LON]);
+          takeBlock(res, bb.intersects(view));
+          preload.done++;
+        } else {
+          // Datei nicht erreichbar: diese Kacheln über Overpass versuchen
+          var failed = fromStatic.filter(function (c) { return blockOf(c) === bk; });
+          var js = makeJobs(failed, 'preload', center);
+          preload.total += js.length; preload.done++;
+          queue = queue.concat(js); pump();
+        }
+        updatePreloadStatus();
+      }, function () { return preload !== token; });
+    }
+    queue = queue.filter(function (j) { return j.kind !== 'preload'; }).concat(jobs);
+    updatePreloadStatus();
+    pump();
+  }
+
+  function cancelPreload() {
+    queue = queue.filter(function (j) { return j.kind !== 'preload'; });
+    if (running && running.job.kind === 'preload') running.controller.abort();
+    preload = null;
+    setPreloadStatus('');
+  }
+
+  function resumePreload() {
+    if (!preload || !preload.pending) return;
+    queue = queue.concat(preload.pending);
+    preload.pending = null; preload.error = null;
+    updatePreloadStatus();
+    pump();
+  }
+
+  function updatePreloadStatus() {
+    if (!preload) return;
+    if (preload.error) {
+      setPreloadStatus('<span>Vorladen angehalten: ' + preload.error + '</span>' +
+        '<button type="button" id="preloadResume">Fortsetzen</button><button type="button" id="preloadCancel" class="light">Abbrechen</button>', 'error');
+      document.getElementById('preloadResume').onclick = resumePreload;
+      document.getElementById('preloadCancel').onclick = cancelPreload;
+      return;
+    }
+    if (preload.done >= preload.total) {
+      preload = null;
+      setPreloadStatus('<span>✔ Vorladen fertig – das Gebiet ist jetzt gespeichert</span>', 'ok');
+      preloadHideTimer = setTimeout(function () { setPreloadStatus(''); }, 6000);
+      return;
+    }
+    var pct = Math.round(preload.done / preload.total * 100);
+    var r = running && running.job.kind === 'preload' && running.job.retryIn;
+    var waiting = viewBusy() ? ' – pausiert' : ''; // der sichtbare Ausschnitt hat Vorrang
+    setPreloadStatus(SPINNER + '<span>Vorladen: ' + pct + ' % (' + preload.done + ' von ' + preload.total + ')' +
+      (r ? ' – Server ausgelastet, neuer Versuch in ' + r + ' s' : waiting) + '</span>' +
+      '<button type="button" id="preloadCancel" class="light">Abbrechen</button>');
+    document.getElementById('preloadCancel').onclick = cancelPreload;
+  }
+
+  function fillRegionSelect() {
+    var sel = document.getElementById('regionSelect');
+    sel.innerHTML = staticIndex.regions.map(function (r) {
+      return '<option value="' + esc(r.id) + '">Ganzes Land: ' + esc(r.name) + '</option>';
+    }).join('');
+    document.getElementById('regionRow').hidden = !staticIndex.regions.length;
+    var d = new Date(staticBuilt);
+    document.getElementById('dataInfo').textContent = 'Schnell-Daten für ' +
+      staticIndex.regions.map(function (r) { return r.name; }).join(', ') +
+      ' (Stand ' + d.toLocaleDateString('de-AT') + '). Andere Gebiete werden langsamer über Overpass geladen.';
+  }
+
+  function updateCacheInfo() {
+    var el = document.getElementById('cacheInfo');
+    if (!el) return;
+    if (!dbOk) { el.textContent = 'Dauerhaftes Speichern ist in diesem Browser nicht möglich – Daten bleiben nur bis zum Schließen der Seite.'; return; }
+    var n = 0, bytes = 0;
+    stored.forEach(function (e) { if (e.v === DATA_VERSION) { n++; bytes += e.s || 0; } });
+    el.textContent = n
+      ? 'Gespeichert: ' + n + ' Kacheln (je ca. 5 × 5 km), ca. ' + (bytes / 1048576).toFixed(1).replace('.', ',') + ' MB'
+      : 'Noch nichts gespeichert.';
+  }
+
+  // ================= Zeichnen =================
+  function lineStyle() { return { color: settings.color, weight: settings.width, opacity: 1, lineCap: 'round', lineJoin: 'round' }; }
+  // Dunkler Rand: bei dünnen Linien (1–2 px) schmaler und heller, damit die Farbe sichtbar bleibt
+  function casingStyle() {
+    var thin = settings.width <= 2;
+    return { color: CASING_COLOR, weight: settings.width + (thin ? 1 : 2), opacity: thin ? 0.55 : 0.85, lineCap: 'round', lineJoin: 'round' };
+  }
+  function restrictedStyle() { return { color: RESTRICTED_COLOR, weight: Math.max(1, settings.width - 1), opacity: 0.9, dashArray: '6 6', lineCap: 'butt' }; }
+
+  // Transparenz-Regler: 0 % = voll sichtbar, 100 % = unsichtbar. Gilt für die ganze Wege-Ebene,
+  // damit der dunkle Rand nicht durch die farbige Linie durchscheint.
+  function applyTransparency() { roadsPane.style.opacity = String(1 - settings.transparency / 100); }
+
+  function render() {
+    roadLayer.clearLayers();
+    drawn = { lines: [], casings: [], restrictedLines: [] };
+    if (map.getZoom() < MIN_ZOOM) return;
+
+    var view = map.getBounds();
+    var drawArea = view.pad(0.3);
+    var visibleOk = [], visibleRestricted = [];
+    var countOk = 0, countRestricted = 0;
+
+    ways.forEach(function (w) {
+      if (!drawArea.intersects(w.bounds)) return;
+      var inView = view.intersects(w.bounds);
+      if (w.restricted) { visibleRestricted.push(w); if (inView) countRestricted++; }
+      else { visibleOk.push(w); if (inView) countOk++; }
+    });
+
+    // gesperrte zuerst (liegen unten)
+    if (settings.showRestricted) {
+      visibleRestricted.forEach(function (w) {
+        var l = L.polyline(w.latlngs, L.extend({ renderer: renderer }, restrictedStyle()));
+        l.bindPopup(function () { return popupHtml(w); }, { maxWidth: 300 });
+        l.addTo(roadLayer);
+        drawn.restrictedLines.push(l);
+      });
+    }
+    // dunkler Rand unter allen fahrbaren Wegen
+    visibleOk.forEach(function (w) {
+      var c = L.polyline(w.latlngs, L.extend({ renderer: renderer, interactive: false }, casingStyle()));
+      c.addTo(roadLayer);
+      drawn.casings.push(c);
+    });
+    visibleOk.forEach(function (w) {
+      var l = L.polyline(w.latlngs, L.extend({ renderer: renderer }, lineStyle()));
+      l.bindPopup(function () { return popupHtml(w); }, { maxWidth: 300 });
+      l.addTo(roadLayer);
+      drawn.lines.push(l);
+    });
+
+    lastCountText = countOk + (countOk === 1 ? ' Schotterweg' : ' Schotterwege') + ' im Ausschnitt';
+    if (settings.showRestricted && countRestricted) lastCountText += ' (+ ' + countRestricted + ' gesperrt)';
+    updateViewStatus();
+  }
+
+  // Farbe/Breite ohne Neuladen anwenden
+  function applyStyle() {
+    var ls = lineStyle(), cs = casingStyle(), rs = restrictedStyle();
+    drawn.lines.forEach(function (l) { l.setStyle(ls); });
+    drawn.casings.forEach(function (l) { l.setStyle(cs); });
+    drawn.restrictedLines.forEach(function (l) { l.setStyle(rs); });
+  }
+
+  // ================= Orte (POIs) zeichnen =================
+  var poiLayer = L.layerGroup().addTo(map);
+
+  var poiIcons = {};
+  POI_CATS.forEach(function (c) {
+    poiIcons[c.id] = L.divIcon({
+      className: 'poi-icon',
+      html: '<div class="poi-marker" style="background:' + c.color + '">' + c.emoji + '</div>',
+      iconSize: [32, 32], iconAnchor: [16, 16], popupAnchor: [0, -16]
+    });
+  });
+
+  function renderPois() {
+    poiLayer.clearLayers();
+    var counts = {};
+    if (map.getZoom() < MIN_ZOOM) { updatePoiCounts(counts); return; }
+    var view = map.getBounds();
+    var drawArea = view.pad(0.3);
+    pois.forEach(function (p) {
+      // erste eingeschaltete Kategorie bestimmt das Symbol (z. B. Tankstelle mit Shop = ⛽)
+      var cat = null;
+      for (var i = 0; i < p.cats.length; i++) { if (settings.poi[p.cats[i].id]) { cat = p.cats[i]; break; } }
+      if (!cat) return;
+      var ll = L.latLng(p.lat, p.lon);
+      if (!drawArea.contains(ll)) return;
+      if (view.contains(ll)) counts[cat.id] = (counts[cat.id] || 0) + 1;
+      L.marker(ll, { icon: poiIcons[cat.id], title: p.tags.name || cat.label, keyboard: false })
+        .bindPopup(function () { return poiPopupHtml(p, cat); }, { maxWidth: 300 })
+        .addTo(poiLayer);
+    });
+    updatePoiCounts(counts);
+  }
+
+  function updatePoiCounts(counts) {
+    POI_CATS.forEach(function (c) {
+      var el = document.getElementById('poiCount-' + c.id);
+      if (el) el.textContent = settings.poi[c.id] && counts[c.id] ? '(' + counts[c.id] + ')' : '';
+    });
+  }
+
+  // ================= Popup =================
+  var LABELS = {
+    track: 'Feld-/Waldweg (track)',
+    unclassified: 'Nebenstraße (unclassified)',
+    tertiary: 'Verbindungsstraße (tertiary)',
+    residential: 'Wohnstraße (residential)',
+    service: 'Zufahrt / Erschließungsweg (service)',
+    gravel: 'Schotter (gravel)',
+    fine_gravel: 'Feinschotter / Splitt (fine_gravel)',
+    compacted: 'verdichtet (compacted)',
+    unpaved: 'unbefestigt (unpaved)',
+    dirt: 'Erde (dirt)',
+    ground: 'Naturboden (ground)',
+    asphalt: 'Asphalt (asphalt)',
+    grass: 'Gras (grass)',
+    grade1: 'grade1 – befestigt, sehr fest',
+    grade2: 'grade2 – Schotter, meist fest',
+    grade3: 'grade3 – gemischt, mal fest, mal weich',
+    grade4: 'grade4 – überwiegend weich',
+    grade5: 'grade5 – weich, Wiese/Erde',
+    excellent: 'ausgezeichnet (excellent)',
+    good: 'gut (good)',
+    intermediate: 'mittel (intermediate)',
+    bad: 'schlecht – robustes Fahrzeug (bad)',
+    very_bad: 'sehr schlecht – hohe Bodenfreiheit (very_bad)',
+    horrible: 'furchtbar – Geländefahrzeug (horrible)',
+    very_horrible: 'extrem (very_horrible)',
+    impassable: 'unpassierbar (impassable)',
+    no: 'nein', yes: 'ja', private: 'privat', destination: 'nur Anrainer/Zufahrt',
+    agricultural: 'nur Landwirtschaft', forestry: 'nur Forstwirtschaft', permissive: 'geduldet', designated: 'ausgewiesen'
+  };
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
+  }
+  function label(v) {
+    if (v === undefined || v === '') return '–';
+    return esc(String(v).split(';').map(function (p) { p = p.trim(); return LABELS[p] || p; }).join(', '));
+  }
+
+  function popupHtml(w) {
+    var t = w.tags;
+    var name = t.name || t.ref || '';
+    var accessRows = '';
+    ['access', 'vehicle', 'motor_vehicle', 'motorcycle'].forEach(function (k) {
+      if (t[k] !== undefined) accessRows += '<tr><td>' + k + '</td><td>' + label(t[k]) + '</td></tr>';
+    });
+    if (!accessRows) accessRows = '<tr><td>Zugang</td><td>keine Beschränkung eingetragen</td></tr>';
+
+    return '<h3>' + (name ? esc(name) : 'Ohne Namen') + '</h3>' +
+      (w.restricted ? '<div class="warn">⛔ Für Motorräder gesperrt / eingeschränkt</div>' : '') +
+      '<table>' +
+      '<tr><td>Straßentyp</td><td>' + label(t.highway) + '</td></tr>' +
+      '<tr><td>Oberfläche</td><td>' + label(t.surface) + '</td></tr>' +
+      '<tr><td>Tracktype</td><td>' + label(t.tracktype) + '</td></tr>' +
+      '<tr><td>Smoothness</td><td>' + label(t.smoothness) + '</td></tr>' +
+      accessRows +
+      '</table>' +
+      '<a class="osm" href="https://www.openstreetmap.org/way/' + w.id + '" target="_blank" rel="noopener">Weg auf openstreetmap.org ansehen ↗</a>';
+  }
+
+  var POI_KINDS = {
+    fuel: 'Tankstelle', supermarket: 'Supermarkt', convenience: 'Nahversorger / Shop', bakery: 'Bäckerei',
+    butcher: 'Fleischerei', greengrocer: 'Obst & Gemüse', farm: 'Hofladen',
+    restaurant: 'Restaurant / Gasthaus', cafe: 'Café', fast_food: 'Imbiss', biergarten: 'Biergarten', pub: 'Wirtshaus / Bar',
+    motorcycle: 'Motorradhändler', motorcycle_repair: 'Motorradwerkstatt',
+    drinking_water: 'Trinkwasser', camp_site: 'Campingplatz', viewpoint: 'Aussichtspunkt'
+  };
+
+  function poiPopupHtml(p, cat) {
+    var t = p.tags;
+    var kind = POI_KINDS[t.amenity] || POI_KINDS[t.shop] || POI_KINDS[t.tourism] || cat.label;
+    var name = t.name || t.brand || t.operator || kind;
+    var rows = '<tr><td>Art</td><td>' + esc(kind) + '</td></tr>';
+    if (t.brand && t.brand !== name) rows += '<tr><td>Marke</td><td>' + esc(t.brand) + '</td></tr>';
+    if (t.opening_hours) rows += '<tr><td>Geöffnet</td><td>' + esc(t.opening_hours) + '</td></tr>';
+    var street = [t['addr:street'], t['addr:housenumber']].filter(Boolean).join(' ');
+    var city = [t['addr:postcode'], t['addr:city']].filter(Boolean).join(' ');
+    var addr = [street, city].filter(Boolean).join(', ');
+    if (addr) rows += '<tr><td>Adresse</td><td>' + esc(addr) + '</td></tr>';
+    var phone = t.phone || t['contact:phone'];
+    if (phone) rows += '<tr><td>Telefon</td><td><a href="tel:' + esc(phone.replace(/[^\d+]/g, '')) + '">' + esc(phone) + '</a></td></tr>';
+    var web = t.website || t['contact:website'];
+    if (web && /^www\./i.test(web)) web = 'https://' + web;
+    if (web && /^https?:\/\//i.test(web)) rows += '<tr><td>Webseite</td><td><a href="' + esc(web) + '" target="_blank" rel="noopener">öffnen ↗</a></td></tr>';
+    if (t.amenity === 'fuel' && (t.automated === 'yes' || t.self_service === 'yes')) rows += '<tr><td>Hinweis</td><td>Selbstbedienung / Automat</td></tr>';
+
+    return '<h3>' + cat.emoji + ' ' + esc(name) + '</h3>' +
+      '<table>' + rows + '</table>' +
+      '<a class="osm" href="https://www.google.com/maps/dir/?api=1&destination=' + p.lat.toFixed(6) + ',' + p.lon.toFixed(6) + '" target="_blank" rel="noopener">Navigation starten ↗</a><br>' +
+      '<a class="osm" href="https://www.openstreetmap.org/' + p.type + '/' + p.id + '" target="_blank" rel="noopener">Auf openstreetmap.org ansehen ↗</a>';
+  }
+
+  // ================= Bedienfeld =================
+  var panel = document.getElementById('panel');
+  var toggle = document.getElementById('panelToggle');
+  function setCollapsed(c) {
+    panel.classList.toggle('collapsed', c);
+    toggle.setAttribute('aria-expanded', String(!c));
+  }
+  if (window.innerWidth < 600) setCollapsed(true);
+  toggle.addEventListener('click', function () { setCollapsed(!panel.classList.contains('collapsed')); });
+  L.DomEvent.disableClickPropagation(panel);
+  L.DomEvent.disableScrollPropagation(panel);
+
+  var picker = document.getElementById('colorPicker');
+  var range = document.getElementById('widthRange');
+  var widthValue = document.getElementById('widthValue');
+  var restrictedBox = document.getElementById('showRestricted');
+
+  picker.value = settings.color;
+  range.value = settings.width;
+  widthValue.textContent = settings.width;
+  restrictedBox.checked = settings.showRestricted;
+
+  picker.addEventListener('input', function () { settings.color = picker.value; applyStyle(); saveSettings(); });
+  range.addEventListener('input', function () {
+    settings.width = Number(range.value); widthValue.textContent = range.value; applyStyle(); saveSettings();
+  });
+
+  var transpRange = document.getElementById('transpRange');
+  var transpValue = document.getElementById('transpValue');
+  transpRange.value = settings.transparency;
+  transpValue.textContent = settings.transparency;
+  transpRange.addEventListener('input', function () {
+    settings.transparency = Number(transpRange.value); transpValue.textContent = transpRange.value; applyTransparency(); saveSettings();
+  });
+  applyTransparency();
+  restrictedBox.addEventListener('change', function () {
+    settings.showRestricted = restrictedBox.checked; saveSettings(); render();
+  });
+
+  // Schalter für die Orte (POIs)
+  var poiList = document.getElementById('poiList');
+  POI_CATS.forEach(function (c) {
+    var lab = document.createElement('label');
+    lab.className = 'check';
+    lab.innerHTML = '<input type="checkbox"><span class="poiSym" style="background:' + c.color + '">' + c.emoji + '</span>' +
+      '<span>' + c.label + ' <span class="poiCount" id="poiCount-' + c.id + '"></span></span>';
+    var box = lab.querySelector('input');
+    box.checked = settings.poi[c.id];
+    box.addEventListener('change', function () {
+      settings.poi[c.id] = box.checked;
+      saveSettings();
+      renderPois(); // alle Orte-Kategorien sind schon geladen – nur neu zeichnen
+    });
+    poiList.appendChild(lab);
+  });
+
+  ['#ff6a00', '#e6007e', '#0066ff', '#00b050', '#ffd400', '#8a2be2'].forEach(function (c) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'swatch'; b.style.background = c; b.title = c;
+    b.addEventListener('click', function () { picker.value = c; settings.color = c; applyStyle(); saveSettings(); });
+    document.getElementById('swatches').appendChild(b);
+  });
+
+  // ================= Mein Standort =================
+  // Eigene Ebene über Wegen und Orten (Orte: 600, Popups: 700), damit der Standort immer sichtbar ist
+  var locationPane = map.createPane('locationPane');
+  locationPane.style.zIndex = 650;
+  // Wichtig: Der Genauigkeitskreis wird auf eine Zeichenfläche über der ganzen Karte gemalt.
+  // Ohne diese Zeile würde sie alle Klicks auf Wege und Orte abfangen.
+  // Der blaue Punkt selbst bleibt antippbar (Leaflet gibt ihm eigene Klick-Freigabe).
+  locationPane.style.pointerEvents = 'none';
+  var posMarker = null, posCircle = null, lastPos = null;
+  var watchId = null, centerOnNextFix = false;
+  var locateBtn = document.getElementById('locateBtn');
+  L.DomEvent.disableClickPropagation(locateBtn);
+  L.DomEvent.disableClickPropagation(document.getElementById('statusWrap'));
+
+  var locIcon = L.divIcon({
+    className: 'loc-icon',
+    html: '<div class="loc-wrap"><div class="loc-heading"></div><div class="loc-pulse"></div><div class="loc-dot"></div></div>',
+    iconSize: [60, 60], iconAnchor: [30, 30], popupAnchor: [0, -14]
+  });
+
+  function onPosition(pos) {
+    var ll = L.latLng(pos.coords.latitude, pos.coords.longitude);
+    var acc = Math.round(pos.coords.accuracy);
+    lastPos = ll;
+    locateBtn.classList.remove('busy');
+    locateBtn.classList.add('active');
+
+    if (!posMarker) {
+      posCircle = L.circle(ll, { pane: 'locationPane', radius: acc, color: '#1a73e8', weight: 1, opacity: 0.6, fillColor: '#1a73e8', fillOpacity: 0.12, interactive: false }).addTo(map);
+      posMarker = L.marker(ll, { pane: 'locationPane', icon: locIcon, keyboard: false, title: 'Mein Standort' }).addTo(map);
+      posMarker.bindPopup('');
+    } else {
+      posMarker.setLatLng(ll);
+      posCircle.setLatLng(ll).setRadius(acc);
+    }
+    posMarker.setPopupContent('<b>Du bist hier</b><br>Genauigkeit ± ' + acc + ' m' +
+      (pos.coords.speed ? '<br>Tempo ca. ' + Math.round(pos.coords.speed * 3.6) + ' km/h' : ''));
+
+    // Fahrtrichtungspfeil nur, wenn das Gerät eine Richtung meldet und man sich bewegt
+    var el = posMarker.getElement();
+    if (el) {
+      var h = pos.coords.heading;
+      var moving = h !== null && !isNaN(h) && (pos.coords.speed || 0) > 1;
+      el.classList.toggle('has-heading', moving);
+      if (moving) el.querySelector('.loc-heading').style.transform = 'rotate(' + h + 'deg)';
+    }
+
+    if (centerOnNextFix) {
+      centerOnNextFix = false;
+      map.setView(ll, Math.max(map.getZoom(), 14));
+    }
+  }
+
+  function onPositionError(err) {
+    locateBtn.classList.remove('busy');
+    if (err.code === 1) {
+      // Zugriff verweigert: Beobachten beenden, Markierung entfernen
+      stopWatch();
+      if (centerOnNextFix) alert('Standort-Zugriff wurde nicht erlaubt. Bitte in den Browser-Einstellungen für diese Seite erlauben.');
+    } else if (centerOnNextFix) {
+      alert('Standort konnte nicht ermittelt werden. Ist GPS / Ortung eingeschaltet?');
+    }
+    centerOnNextFix = false;
+  }
+
+  function startWatch() {
+    if (watchId !== null) return;
+    watchId = navigator.geolocation.watchPosition(onPosition, onPositionError,
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 5000 });
+  }
+
+  function stopWatch() {
+    if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    watchId = null;
+    locateBtn.classList.remove('active');
+    if (posMarker) { map.removeLayer(posMarker); map.removeLayer(posCircle); posMarker = posCircle = null; }
+  }
+
+  locateBtn.addEventListener('click', function () {
+    if (!navigator.geolocation) { alert('Dein Browser kann den Standort nicht ermitteln.'); return; }
+    if (lastPos && watchId !== null) { map.setView(lastPos, Math.max(map.getZoom(), 14)); return; }
+    centerOnNextFix = true;
+    locateBtn.classList.add('busy');
+    startWatch();
+  });
+
+  // Wurde der Standort früher schon erlaubt, sofort markieren (ohne die Karte zu verschieben)
+  try {
+    if (navigator.geolocation && navigator.permissions) {
+      navigator.permissions.query({ name: 'geolocation' }).then(function (p) {
+        if (p.state === 'granted') startWatch();
+      }).catch(function () {});
+    }
+  } catch (e) {}
+
+  // ================= Start =================
+  function updateZoomClass() { map.getContainer().classList.toggle('zoom-low', map.getZoom() < 14); }
+  map.on('zoomend', updateZoomClass);
+  updateZoomClass();
+  map.on('moveend', scheduleLoad);
+  map.on('movestart', function () { clearTimeout(debounceTimer); });
+
+  // Bedienelemente zum Vorladen und für den Speicher
+  document.getElementById('preloadBtn').addEventListener('click', function () {
+    startPreload(Number(document.getElementById('preloadRadius').value));
+  });
+  document.getElementById('clearCacheBtn').addEventListener('click', function () {
+    if (confirm('Alle gespeicherten Schotterwege und Orte löschen? Sie werden dann bei Bedarf neu geladen.')) dbClear();
+  });
+  L.DomEvent.disableClickPropagation(preloadStatusEl);
+
+  document.getElementById('regionBtn').addEventListener('click', function () {
+    startRegionPreload(document.getElementById('regionSelect').value);
+  });
+
+  // Zuerst Browser-Speicher und Verzeichnis der fertigen Daten lesen, dann den Ausschnitt laden
+  Promise.all([dbLoadIndex(), loadStaticIndex()]).then(function () { updateCacheInfo(); loadNow(); });
+})();
+</script>
+</body>
+</html>

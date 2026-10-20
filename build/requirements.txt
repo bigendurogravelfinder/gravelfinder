@@ -1,0 +1,2 @@
+osmium>=3.7
+shapely>=2.0
