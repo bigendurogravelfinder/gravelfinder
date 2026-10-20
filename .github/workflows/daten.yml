@@ -1,1 +1,117 @@
+# Bereitet die Schotterwege und Orte auf und veröffentlicht App + Daten auf GitHub Pages.
+#
+# Läuft automatisch jeden Montag früh, außerdem von Hand:
+#   GitHub → Reiter "Actions" → "Kartendaten aufbereiten" → "Run workflow"
+#
+# Wird nur die App (index.html) geändert, werden die zuletzt erzeugten Daten wiederverwendet
+# (kein neues Aufbereiten nötig, dauert dann nur ca. 1 Minute).
 
+name: Kartendaten aufbereiten
+
+on:
+  schedule:
+    - cron: '0 2 * * 1'        # jeden Montag 02:00 UTC (= 03:00/04:00 Uhr in Österreich)
+  workflow_dispatch:
+    inputs:
+      nur:
+        description: 'Nur diese Länder (IDs aus regions.json, kommagetrennt) – leer = alle aktiven'
+        required: false
+        default: ''
+  push:
+    branches: [main]
+    paths: ['index.html', 'regions.json', 'build/**', '.github/workflows/daten.yml']
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      # Neu aufbereiten bei: Zeitplan, Start von Hand, Änderung an regions.json / Skript.
+      # Bei reiner App-Änderung genügen die gespeicherten Daten vom letzten Lauf.
+      - name: Entscheiden, ob neu aufbereitet wird
+        id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          rebuild=true
+          if [ "$EVENT" = "push" ]; then
+            git fetch --depth=2 origin "${GITHUB_SHA}" >/dev/null 2>&1 || true
+            changed=$(git diff --name-only "$BEFORE" "$GITHUB_SHA" 2>/dev/null || echo "regions.json")
+            echo "Geändert: $changed"
+            if ! echo "$changed" | grep -qE '^(regions\.json|build/|\.github/)'; then rebuild=false; fi
+          fi
+          echo "rebuild=$rebuild" >> "$GITHUB_OUTPUT"
+          echo "Neu aufbereiten: $rebuild"
+
+      - name: Letzte Daten wiederherstellen
+        id: cache
+        if: steps.plan.outputs.rebuild == 'false'
+        uses: actions/cache/restore@v4
+        with:
+          path: site/data
+          key: kartendaten-${{ github.run_id }}
+          restore-keys: kartendaten-
+
+      - name: Kein gespeicherter Stand vorhanden – doch neu aufbereiten
+        id: need
+        run: |
+          if [ "${{ steps.plan.outputs.rebuild }}" = "true" ] || [ -z "${{ steps.cache.outputs.cache-matched-key }}" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-python@v5
+        if: steps.need.outputs.build == 'true'
+        with:
+          python-version: '3.12'
+
+      - name: Werkzeuge installieren
+        if: steps.need.outputs.build == 'true'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q osmium-tool
+          pip install -q -r build/requirements.txt
+
+      - name: Daten aufbereiten
+        if: steps.need.outputs.build == 'true'
+        run: python build/build_tiles.py --out site/data/v1 --only "${{ github.event.inputs.nur }}"
+
+      - name: Daten für spätere App-Updates merken
+        if: steps.need.outputs.build == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: site/data
+          key: kartendaten-${{ github.run_id }}
+
+      - name: App dazulegen
+        run: |
+          cp index.html site/
+          touch site/.nojekyll
+          du -sh site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
