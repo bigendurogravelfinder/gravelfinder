@@ -35,7 +35,7 @@ import urllib.request
 from datetime import datetime, timezone
 
 import osmium
-from shapely.geometry import LineString, Polygon, box
+from shapely.geometry import LineString, Polygon, box, mapping
 from shapely.ops import unary_union
 from shapely.prepared import prep
 
@@ -301,6 +301,27 @@ def block_size(out_dir, key):
     return os.path.getsize(p) if os.path.exists(p) else 0
 
 
+def write_outlines(index_regions, shapes_by_id, out_dir):
+    """Vereinfachte Länder-Umrisse (ca. 1 km genau) für die Übersicht beim Herauszoomen."""
+    def rnd(obj):
+        if isinstance(obj, (list, tuple)):
+            if obj and isinstance(obj[0], float):
+                return [round(obj[0], 3), round(obj[1], 3)]
+            return [rnd(o) for o in obj]
+        return obj
+    features = []
+    for reg in index_regions:
+        shape = shapes_by_id.get(reg['id'])
+        if shape is None:
+            continue
+        geom = mapping(shape.simplify(0.01, preserve_topology=True))
+        features.append({'type': 'Feature', 'properties': {'id': reg['id'], 'name': reg['name']},
+                         'geometry': {'type': geom['type'], 'coordinates': rnd(geom['coordinates'])}})
+    with open(os.path.join(out_dir, 'outlines.json'), 'w', encoding='utf-8') as f:
+        json.dump({'type': 'FeatureCollection', 'features': features}, f, ensure_ascii=False, separators=(',', ':'))
+    print(f'  Länder-Umrisse: {len(features)} Länder, {os.path.getsize(os.path.join(out_dir, "outlines.json")) / 1e3:.0f} KB', flush=True)
+
+
 # ------------------------------------------------------------------ Hauptprogramm
 def main():
     ap = argparse.ArgumentParser()
@@ -326,6 +347,7 @@ def main():
     block_info = {}
     index_regions = []
     shapes = []
+    shapes_by_id = {}
     failed = []
     t_all = time.time()
 
@@ -361,7 +383,9 @@ def main():
             flush(store, args.out, block_info, region_blocks)
             del store
             try:
-                shapes.append(parse_poly(fetch_text(f'{GEOFABRIK}{rid}.poly')))
+                shape = parse_poly(fetch_text(f'{GEOFABRIK}{rid}.poly'))
+                shapes.append(shape)
+                shapes_by_id[rid] = shape
             except Exception as e:  # ohne Grenzlinie: Daten sind da, Randgebiete lädt die App über Overpass nach
                 print(f'    WARNUNG: Grenzlinie nicht verfügbar ({e})', flush=True)
             index_regions.append({'id': rid, 'name': r['name'], 'blocks': sorted(region_blocks)})
@@ -398,6 +422,8 @@ def main():
     }
     with open(os.path.join(args.out, 'index.json'), 'w', encoding='utf-8') as f:
         json.dump(index, f, ensure_ascii=False, separators=(',', ':'))
+
+    write_outlines(index_regions, shapes_by_id, args.out)
 
     files = sum(1 for v in block_info.values() if v['d']) + 1
     print(f'\nGesamt: {len(index_regions)} Länder, {fmt(files)} Dateien, {total / 1e6:.0f} MB, {(time.time() - t_all) / 60:.0f} min', flush=True)

@@ -398,6 +398,8 @@
   var roadsPane = map.createPane('roadsPane');
   roadsPane.style.zIndex = 450;
   var renderer = L.canvas({ tolerance: 10, pane: 'roadsPane' });
+  // Ebene für die eingefärbten Offline-Länder (beim Herauszoomen), unter den Wegen
+  map.createPane('countryPane').style.zIndex = 420;
   var roadLayer = L.layerGroup().addTo(map);
 
   // ================= Datenspeicher =================
@@ -478,6 +480,7 @@
           staticBuilt = Date.parse(String(idx.built).replace(/Z$/, ':00Z')) || 0;
           showDataInfo();
           buildCountryList();
+          loadOutlines();
         })
         .catch(next);
     }
@@ -839,7 +842,10 @@
   }
 
   function updateViewStatus() {
-    if (map.getZoom() < MIN_ZOOM) { setStatus('<span>🔍 Bitte weiter hineinzoomen</span>'); return; }
+    if (map.getZoom() < MIN_ZOOM) {
+      setStatus('<span>🔍 Bitte weiter hineinzoomen' + (offlineCount ? ' · <span style="color:#2e7d32">grün</span> = offline gespeichert' : '') + '</span>');
+      return;
+    }
     if (viewError) { showError(viewError); return; }
     if (viewBusy()) {
       var r = running && running.job.kind === 'view' && running.job.retryIn;
@@ -1106,6 +1112,61 @@
     renderCountryList();
   }
 
+  // ================= Offline-Länder beim Herauszoomen einfärben =================
+  var countryLayer = L.layerGroup().addTo(map);
+  var outlines = null;          // Länder-Umrisse (outlines.json), sonst Ersatz über die Blöcke
+  var offlineCount = 0;
+
+  function loadOutlines() {
+    fetch(staticBase + 'outlines.json')
+      .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+      .then(function (fc) {
+        outlines = {};
+        fc.features.forEach(function (f) { outlines[f.properties.id] = f; });
+        renderCountries();
+      })
+      .catch(function () { /* ältere Daten ohne Umrisse: Ersatz-Darstellung über Blöcke */ });
+  }
+
+  function renderCountries() {
+    countryLayer.clearLayers();
+    offlineCount = 0;
+    if (!staticIndex) return;
+    var low = map.getZoom() < MIN_ZOOM;
+    staticIndex.regions.forEach(function (r) {
+      if (settings.offline.indexOf(r.id) === -1) return;
+      var st = regionState(r);
+      if (st.missing >= st.total) return; // noch nichts gespeichert
+      offlineCount++;
+      if (!low) return;
+      var complete = st.missing === 0;
+      var style = {
+        pane: 'countryPane', color: '#1b5e20', weight: 2, opacity: 0.9,
+        fillColor: '#43a047', fillOpacity: complete ? 0.35 : 0.15, dashArray: complete ? null : '6 5'
+      };
+      var popup = '<h3>' + esc(r.name) + '</h3>' +
+        (complete ? '✔ offline gespeichert' : '⟳ teilweise gespeichert') + ' (' + sizeText(r.size || 0) + ')<br>' +
+        '<a href="#" class="osm zoomHere">Hier hineinzoomen</a>';
+      var layer;
+      if (outlines && outlines[r.id]) {
+        layer = L.geoJSON(outlines[r.id], L.extend({ style: function () { return style; } }, { pane: 'countryPane' }));
+      } else {
+        // Ersatz ohne Umrisse: die Blöcke des Landes als Flächen (ohne Rand, damit kein Gitter entsteht)
+        layer = L.featureGroup(r.blocks.map(function (bk) {
+          var bi = Number(bk.split(',')[0]) * BLOCK, bj = Number(bk.split(',')[1]) * BLOCK;
+          return L.rectangle([[bi * CELL_LAT, bj * CELL_LON], [(bi + BLOCK) * CELL_LAT, (bj + BLOCK) * CELL_LON]],
+            L.extend({}, style, { weight: 0, interactive: true }));
+        }));
+      }
+      layer.on('click', function (e) {
+        L.popup().setLatLng(e.latlng).setContent(popup).openOn(map);
+        var a = document.querySelector('.leaflet-popup .zoomHere');
+        if (a) a.onclick = function (ev) { ev.preventDefault(); map.closePopup(); map.setView(e.latlng, MIN_ZOOM + 1); };
+      });
+      layer.addTo(countryLayer);
+    });
+  }
+
   // ================= Angebot: "Dieses Land offline speichern?" =================
   // Zeigt die Karte ein aufbereitetes Land, das noch nicht offline gespeichert ist, wird gefragt.
   var blockRegions = null;        // Block -> Länder, die dort Daten haben
@@ -1196,6 +1257,8 @@
     else if (!sel) { btn.disabled = true; btn.textContent = 'Länder auswählen'; }
     else if (!m.cells.length) { btn.disabled = true; btn.textContent = '✔ Ausgewählte Länder sind gespeichert'; }
     else { btn.disabled = false; btn.textContent = 'Ausgewählte laden (≈ ' + sizeText(m.bytes) + ')'; }
+    renderCountries();
+    if (map.getZoom() < MIN_ZOOM) updateViewStatus();
   }
 
   // Gemeinsamer Teil: aufbereitete Kacheln als Block-Dateien holen (schnell, parallel),
@@ -1680,6 +1743,7 @@
   // ================= Start =================
   function updateZoomClass() { map.getContainer().classList.toggle('zoom-low', map.getZoom() < 14); }
   map.on('zoomend', updateZoomClass);
+  map.on('zoomend', function () { renderCountries(); if (map.getZoom() < MIN_ZOOM) updateViewStatus(); });
   updateZoomClass();
   map.on('moveend', scheduleLoad);
   map.on('movestart', function () { clearTimeout(debounceTimer); });
