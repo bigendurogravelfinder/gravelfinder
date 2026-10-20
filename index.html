@@ -21,7 +21,7 @@
 
   /* ---------- Bedienfeld oben rechts ---------- */
   #panel {
-    position: absolute; top: 10px; right: 10px; z-index: 1000;
+    position: absolute; top: 10px; right: 10px; z-index: 1001; /* über "Mein Standort" und der Statuszeile */
     width: 270px; max-width: calc(100vw - 80px);
     background: var(--bg); border-radius: 12px; box-shadow: var(--shadow);
     overflow: hidden;
@@ -35,7 +35,26 @@
   #panelToggle .chev { transition: transform .2s; font-size: 14px; }
   #panel.collapsed #panelToggle .chev { transform: rotate(-90deg); }
   #panel.collapsed #panelBody { display: none; }
-  #panelBody { padding: 4px 14px 14px; border-top: 1px solid var(--border); }
+  #panelBody { border-top: 1px solid var(--border); }
+
+  /* ---------- Abschnitte im Bedienfeld (aufklappbar) ---------- */
+  .section { border-bottom: 1px solid var(--border); }
+  .section:last-child { border-bottom: 0; }
+  .section > summary {
+    list-style: none; cursor: pointer; user-select: none;
+    display: flex; align-items: center; gap: 10px;
+    min-height: 52px; padding: 6px 14px; box-sizing: border-box;
+  }
+  .section > summary::-webkit-details-marker { display: none; }
+  .section > summary:hover { background: #f5f6f7; }
+  .secIcon { font-size: 18px; width: 24px; text-align: center; flex: none; }
+  .secTitle { flex: 1; font-weight: 600; font-size: 15px; display: flex; flex-direction: column; gap: 2px; }
+  .secSum { font-weight: 400; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .secSum .line { display: inline-block; width: 22px; border-radius: 3px; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
+  .secChev { font-size: 22px; color: var(--muted); transition: transform .2s; flex: none; line-height: 1; }
+  .section[open] > summary .secChev { transform: rotate(90deg); }
+  .section[open] > summary { background: #f5f6f7; }
+  .secBody { padding: 0 14px 14px; }
   .row { margin-top: 12px; }
   .row label.title { display: block; font-size: 14px; color: var(--muted); margin-bottom: 6px; }
   .colorRow { display: flex; align-items: center; gap: 10px; }
@@ -51,7 +70,20 @@
   .poiSym { width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; flex: none; }
   .poiCount { color: var(--muted); font-size: 13px; }
   .preloadRow { display: flex; gap: 8px; }
-  .preloadRow[hidden] { display: none; }
+  .preloadRow[hidden], .row[hidden] { display: none; }
+  .countryList {
+    max-height: 260px; overflow-y: auto; margin: 4px 0 8px;
+    border: 1px solid var(--border); border-radius: 8px; padding: 0 8px;
+  }
+  .countryList .check, .allEurope { min-height: 38px; font-size: 14px; gap: 8px; }
+  .allEurope { font-weight: 600; }
+  .cName { flex: 1; }
+  .cSize { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .cState { width: 18px; text-align: center; font-size: 14px; flex: none; }
+  .cState.ok { color: #2e7d32; }
+  .cState.upd { color: var(--accent); }
+  .btn.wide { width: 100%; }
+  .btn:disabled { background: #cfd8dc; color: #546e7a; cursor: default; }
   .preloadRow select { flex: 1; min-height: 44px; font: inherit; font-size: 15px; border: 1px solid var(--border); border-radius: 8px; padding: 0 8px; background: #fff; color: var(--fg); }
   .btn { min-height: 44px; padding: 0 16px; border: 0; border-radius: 22px; background: var(--accent); color: #fff; font: 600 15px inherit; font-family: inherit; cursor: pointer; }
   .btn.light { background: #eceff1; color: var(--fg); margin-top: 8px; width: 100%; }
@@ -154,6 +186,13 @@
     <span>Einstellungen</span><span class="chev">▼</span>
   </button>
   <div id="panelBody">
+   <details class="section" id="secStyle">
+    <summary>
+      <span class="secIcon">〰️</span>
+      <span class="secTitle">Darstellung Schotterwege<span class="secSum" id="sumStyle"></span></span>
+      <span class="secChev">›</span>
+    </summary>
+    <div class="secBody">
     <div class="row">
       <label class="title" for="colorPicker">Farbe der Schotterwege</label>
       <div class="colorRow">
@@ -176,12 +215,43 @@
         = gesperrt / nur Anrainer, Land- oder Forstwirtschaft
       </div>
     </div>
+    </div>
+   </details>
+
+   <details class="section" id="secPoi">
+    <summary>
+      <span class="secIcon">📍</span>
+      <span class="secTitle">POI<span class="secSum" id="sumPoi"></span></span>
+      <span class="secChev">›</span>
+    </summary>
+    <div class="secBody">
     <div class="row">
-      <label class="title">Orte anzeigen</label>
+      <label class="title">Orte auf der Karte anzeigen</label>
       <div id="poiList"></div>
     </div>
+    </div>
+   </details>
+
+   <details class="section" id="secOffline">
+    <summary>
+      <span class="secIcon">💾</span>
+      <span class="secTitle">Offline Karten<span class="secSum" id="sumOffline"></span></span>
+      <span class="secChev">›</span>
+    </summary>
+    <div class="secBody">
+    <div class="row" id="countryBox" hidden>
+      <label class="title">Länder offline speichern</label>
+      <label class="check allEurope">
+        <input type="checkbox" id="cbAll">
+        <span class="cName">Ganz Europa</span>
+        <span class="cSize" id="sizeAll"></span>
+      </label>
+      <div id="countryList" class="countryList"></div>
+      <button type="button" id="countryApply" class="btn wide">Ausgewählte laden</button>
+      <div class="hint">Häkchen = Land ist auch ohne Netz verfügbar. Häkchen entfernen = gespeicherte Daten des Landes löschen. ✔ gespeichert · ⟳ neuer Datenstand verfügbar</div>
+    </div>
     <div class="row">
-      <label class="title" for="preloadRadius">Gebiet vorladen (für unterwegs)</label>
+      <label class="title" for="preloadRadius">Nur die Umgebung vorladen</label>
       <div class="preloadRow">
         <select id="preloadRadius">
           <option value="10">10 km Umkreis</option>
@@ -192,15 +262,15 @@
         </select>
         <button type="button" id="preloadBtn" class="btn">Vorladen</button>
       </div>
-      <div class="preloadRow" id="regionRow" hidden style="margin-top:8px">
-        <select id="regionSelect" aria-label="Land zum Vorladen"></select>
-        <button type="button" id="regionBtn" class="btn">Vorladen</button>
-      </div>
-      <div class="hint">Speichert Schotterwege und Orte im Browser – rund um die Kartenmitte oder ein ganzes Land. Gespeicherte Gebiete erscheinen sofort, auch ohne Netz.</div>
+      <div class="hint">Rund um die Kartenmitte – auch außerhalb der aufbereiteten Länder (dort langsamer).</div>
+    </div>
+    <div class="row">
       <div class="hint" id="dataInfo"></div>
       <div class="hint" id="cacheInfo">…</div>
-      <button type="button" id="clearCacheBtn" class="btn light">Gespeicherte Daten löschen</button>
+      <button type="button" id="clearCacheBtn" class="btn light">Alle gespeicherten Daten löschen</button>
     </div>
+    </div>
+   </details>
   </div>
 </div>
 
@@ -226,8 +296,8 @@
   //  2. die volle Adresse – wenn die App per Doppelklick oder von einem anderen Webspace geöffnet wird
   // Wird keine Quelle gefunden, lädt die App wie bisher alles über Overpass.
   var STATIC_SOURCES = [
-    'data/v1/',
-    'https://bigendurogravelfinder.github.io/gravelfinder/data/v1/'
+    'data/v2/',
+    'https://bigendurogravelfinder.github.io/gravelfinder/data/v2/'
   ];
   var MIN_ZOOM = 11;            // darunter keine Abfrage
   var DEBOUNCE_MS = 800;        // Wartezeit nach dem Verschieben
@@ -263,7 +333,7 @@
       match: function (t) { return t.tourism === 'viewpoint'; } }
   ];
 
-  var settings = { color: '#ff6a00', width: 3, transparency: 0, showRestricted: false, poi: {} };
+  var settings = { color: '#ff6a00', width: 3, transparency: 0, showRestricted: false, poi: {}, openSection: 'secStyle', offline: [] };
   POI_CATS.forEach(function (c) { settings.poi[c.id] = c.on; });
   try {
     var saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
@@ -273,6 +343,8 @@
       if (Number(saved.width) > 0) settings.width = Math.min(5, Math.max(1, Math.round(Number(saved.width))));
       if (saved.transparency >= 0 && saved.transparency <= 100) settings.transparency = Number(saved.transparency);
       if (typeof saved.showRestricted === 'boolean') settings.showRestricted = saved.showRestricted;
+      if (typeof saved.openSection === 'string') settings.openSection = saved.openSection;
+      if (Array.isArray(saved.offline)) settings.offline = saved.offline.filter(function (x) { return typeof x === 'string'; });
       if (saved.poi) POI_CATS.forEach(function (c) {
         if (typeof saved.poi[c.id] === 'boolean') settings.poi[c.id] = saved.poi[c.id];
       });
@@ -281,6 +353,20 @@
 
   function saveSettings() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(settings)); } catch (e) {}
+    updateSummaries();
+  }
+
+  // Kurz-Zusammenfassung neben den Abschnitts-Titeln (sichtbar auch im zugeklappten Zustand)
+  function updateSummaries() {
+    var s = document.getElementById('sumStyle');
+    if (s) s.innerHTML = '<span class="line" style="background:' + settings.color + ';height:' + Math.max(2, settings.width) + 'px"></span>' +
+      settings.width + ' px' + (settings.transparency ? ', ' + settings.transparency + ' % transparent' : '') +
+      (settings.showRestricted ? ', mit gesperrten' : '');
+    var p = document.getElementById('sumPoi');
+    if (p) {
+      var on = POI_CATS.filter(function (c) { return settings.poi[c.id]; });
+      p.textContent = on.length ? on.map(function (c) { return c.emoji; }).join(' ') + '  (' + on.length + ' von ' + POI_CATS.length + ')' : 'keine eingeschaltet';
+    }
   }
 
   // ================= Karte =================
@@ -395,7 +481,8 @@
         .then(function (idx) {
           staticIndex = idx; staticBase = base;
           staticBuilt = Date.parse(String(idx.built).replace(/Z$/, ':00Z')) || 0;
-          fillRegionSelect();
+          showDataInfo();
+          buildCountryList();
         })
         .catch(next);
     }
@@ -404,12 +491,27 @@
 
   // Einen Block (4 × 4 Kacheln) laden. Ergebnis: Datensätze für die vollständig abgedeckten Kacheln
   // ("full") und Teil-Daten von Grenz-Kacheln ("partial" – die ergänzt die App über Overpass).
+  // Block-Datei holen. Die Dateien liegen gzip-komprimiert auf dem Server (spart 60 % Platz) und werden
+  // hier entpackt. Hat der Server sie schon selbst entpackt geliefert, wird das erkannt.
+  function fetchBlockFile(bk) {
+    var url = staticBase + 'blocks/' + bk.replace(',', '/') + (staticIndex.gz ? '.json.gz' : '.json');
+    return fetch(url).then(function (r) {
+      if (!r.ok) throw new Error('http' + r.status);
+      return r.arrayBuffer();
+    }).then(function (buf) {
+      var b = new Uint8Array(buf);
+      if (b[0] === 0x1f && b[1] === 0x8b) {
+        if (typeof DecompressionStream === 'undefined') throw new Error('Browser zu alt (kein Entpacken möglich)');
+        var stream = new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'));
+        return new Response(stream).json();
+      }
+      return JSON.parse(new TextDecoder().decode(b));
+    });
+  }
+
   function fetchBlock(bk) {
     var info = staticIndex.blocks[bk];
-    var p = info[1] ? fetch(staticBase + 'blocks/' + bk.replace(',', '/') + '.json').then(function (r) {
-      if (!r.ok) throw new Error('http' + r.status);
-      return r.json();
-    }) : Promise.resolve({ cells: [] });
+    var p = info[1] ? fetchBlockFile(bk) : Promise.resolve({ cells: [] });
     return p.then(function (data) {
       var now = Date.now(), byKey = {};
       data.cells.forEach(function (rec) { byKey[rec.k] = rec; });
@@ -906,21 +1008,143 @@
     preloadCells(all.filter(needsStore), c);
   }
 
-  // Ein ganzes aufbereitetes Land vorladen
-  function startRegionPreload(regionId) {
-    if (preload && !preload.error) return;
-    var region = staticIndex && staticIndex.regions.filter(function (r) { return r.id === regionId; })[0];
-    if (!region) return;
+  // ================= Länder offline speichern =================
+  // Häkchen bei einem Land = soll offline verfügbar sein (Auswahl wird gemerkt).
+  var regionCellsCache = {};
+  function regionCells(region) {   // alle vollständig abgedeckten Kacheln eines Landes
+    if (regionCellsCache[region.id]) return regionCellsCache[region.id];
     var list = [];
     region.blocks.forEach(function (bk) {
       var bi = Number(bk.split(',')[0]), bj = Number(bk.split(',')[1]);
       for (var di = 0; di < BLOCK; di++) for (var dj = 0; dj < BLOCK; dj++) {
         var cell = { i: bi * BLOCK + di, j: bj * BLOCK + dj };
         cell.k = cellKey(cell.i, cell.j);
-        if (cellCovered(cell) && needsStore(cell)) list.push(cell);
+        if (cellCovered(cell)) list.push(cell);
       }
     });
-    preloadCells(list, map.getCenter());
+    return (regionCellsCache[region.id] = list);
+  }
+  function regionState(region) {
+    var cs = regionCells(region), missing = 0, stale = 0;
+    cs.forEach(function (c) { if (needsStore(c)) { missing++; if (stored.has(c.k)) stale++; } });
+    return { total: cs.length, missing: missing, stale: stale };
+  }
+  function sizeText(bytes) {
+    return bytes >= 1e9 ? (bytes / 1e9).toFixed(1).replace('.', ',') + ' GB' : Math.max(1, Math.round(bytes / 1e6)) + ' MB';
+  }
+
+  function buildCountryList() {
+    var list = document.getElementById('countryList');
+    list.innerHTML = '';
+    staticIndex.regions.forEach(function (r) {
+      var lab = document.createElement('label');
+      lab.className = 'check';
+      lab.innerHTML = '<input type="checkbox"><span class="cName">' + esc(r.name) + '</span>' +
+        '<span class="cSize">' + sizeText(r.size || 0) + '</span><span class="cState"></span>';
+      r._cb = lab.querySelector('input');
+      r._state = lab.querySelector('.cState');
+      r._cb.checked = settings.offline.indexOf(r.id) !== -1;
+      r._cb.addEventListener('change', function () { onCountryToggle(r); });
+      list.appendChild(lab);
+    });
+    document.getElementById('sizeAll').textContent = sizeText(staticIndex.size || 0);
+    document.getElementById('countryBox').hidden = !staticIndex.regions.length;
+    renderCountryList();
+  }
+
+  function onCountryToggle(r) {
+    if (r._cb.checked) {
+      if (settings.offline.indexOf(r.id) === -1) settings.offline.push(r.id);
+    } else {
+      var st = regionState(r);
+      if (st.missing < st.total && !confirm('Gespeicherte Daten von ' + r.name + ' löschen?')) { r._cb.checked = true; return; }
+      settings.offline = settings.offline.filter(function (id) { return id !== r.id; });
+      deleteRegionData([r]);
+    }
+    saveSettings();
+    renderCountryList();
+  }
+
+  function onAllToggle() {
+    var all = document.getElementById('cbAll');
+    var regs = staticIndex.regions;
+    if (all.checked) {
+      settings.offline = regs.map(function (r) { return r.id; });
+      regs.forEach(function (r) { r._cb.checked = true; });
+    } else {
+      var anyStored = regs.some(function (r) { var st = regionState(r); return st.missing < st.total; });
+      if (anyStored && !confirm('Die gespeicherten Daten ALLER Länder löschen?')) { all.checked = true; return; }
+      settings.offline = [];
+      regs.forEach(function (r) { r._cb.checked = false; });
+      deleteRegionData(regs);
+    }
+    saveSettings();
+    renderCountryList();
+  }
+
+  // Gespeicherte Kacheln von Ländern löschen – außer solche, die auch zu einem noch ausgewählten Land gehören
+  function deleteRegionData(regs) {
+    var keep = {};
+    staticIndex.regions.forEach(function (r) {
+      if (settings.offline.indexOf(r.id) !== -1) regionCells(r).forEach(function (c) { keep[c.k] = true; });
+    });
+    var keys = [];
+    regs.forEach(function (r) { regionCells(r).forEach(function (c) { if (!keep[c.k] && stored.has(c.k)) keys.push(c.k); }); });
+    if (!keys.length) return;
+    dbTx(['cells', 'idx'], 'readwrite', function (tx) {
+      keys.forEach(function (k) { tx.objectStore('cells').delete(k); tx.objectStore('idx').delete(k); stored.delete(k); });
+      return true;
+    }).then(updateCacheInfo);
+  }
+
+  function selectedMissing() {
+    var seen = {}, list = [], bytes = 0;
+    staticIndex.regions.forEach(function (r) {
+      if (settings.offline.indexOf(r.id) === -1) return;
+      var cs = regionCells(r), miss = 0;
+      cs.forEach(function (c) { if (needsStore(c)) { miss++; if (!seen[c.k]) { seen[c.k] = true; list.push(c); } } });
+      bytes += (r.size || 0) * miss / Math.max(1, cs.length);
+    });
+    return { cells: list, bytes: bytes };
+  }
+
+  function loadSelectedCountries() {
+    if (preload && !preload.error) return;
+    var m = selectedMissing();
+    if (!m.cells.length) return;
+    if (m.bytes > 300e6 && !confirm('Es werden ca. ' + sizeText(m.bytes) + ' heruntergeladen und im Browser gespeichert. ' +
+        'Am besten im WLAN. Jetzt laden?')) return;
+    preloadCells(m.cells, map.getCenter());
+    renderCountryList();
+  }
+
+  // Status-Anzeige der Länderliste (gebremst, weil beim Vorladen sehr oft aufgerufen)
+  var countryTimer = null;
+  function updateCountryList() {
+    if (!staticIndex || countryTimer) return;
+    countryTimer = setTimeout(function () { countryTimer = null; renderCountryList(); }, 400);
+  }
+  function renderCountryList() {
+    if (!staticIndex) return;
+    var sel = 0;
+    staticIndex.regions.forEach(function (r) {
+      if (!r._cb) return;
+      var st = regionState(r);
+      var done = st.missing === 0;
+      r._state.className = 'cState' + (done ? ' ok' : st.stale ? ' upd' : '');
+      r._state.textContent = done ? '✔' : st.stale ? '⟳' : '';
+      r._state.title = done ? 'gespeichert' : st.stale ? 'neuer Datenstand verfügbar' : '';
+      if (r._cb.checked) sel++;
+    });
+    var all = document.getElementById('cbAll');
+    all.checked = sel === staticIndex.regions.length;
+    all.indeterminate = sel > 0 && !all.checked;
+    var btn = document.getElementById('countryApply');
+    var m = selectedMissing();
+    if (preload && !preload.error) { btn.disabled = true; btn.textContent = 'Wird geladen …'; }
+    else if (!sel) { btn.disabled = true; btn.textContent = 'Länder auswählen'; }
+    else if (!m.cells.length) { btn.disabled = true; btn.textContent = '✔ Ausgewählte Länder sind gespeichert'; }
+    else { btn.disabled = false; btn.textContent = 'Ausgewählte laden (≈ ' + sizeText(m.bytes) + ')'; }
   }
 
   // Gemeinsamer Teil: aufbereitete Kacheln als Block-Dateien holen (schnell, parallel),
@@ -968,6 +1192,7 @@
     if (running && running.job.kind === 'preload') running.controller.abort();
     preload = null;
     setPreloadStatus('');
+    updateCountryList();
   }
 
   function resumePreload() {
@@ -991,6 +1216,7 @@
       preload = null;
       setPreloadStatus('<span>✔ Vorladen fertig – das Gebiet ist jetzt gespeichert</span>', 'ok');
       preloadHideTimer = setTimeout(function () { setPreloadStatus(''); }, 6000);
+      updateCountryList();
       return;
     }
     var pct = Math.round(preload.done / preload.total * 100);
@@ -1002,27 +1228,30 @@
     document.getElementById('preloadCancel').onclick = cancelPreload;
   }
 
-  function fillRegionSelect() {
-    var sel = document.getElementById('regionSelect');
-    sel.innerHTML = staticIndex.regions.map(function (r) {
-      return '<option value="' + esc(r.id) + '">Ganzes Land: ' + esc(r.name) + '</option>';
-    }).join('');
-    document.getElementById('regionRow').hidden = !staticIndex.regions.length;
+  function showDataInfo() {
     var d = new Date(staticBuilt);
+    var n = staticIndex.regions.length;
     document.getElementById('dataInfo').textContent = 'Schnell-Daten für ' +
-      staticIndex.regions.map(function (r) { return r.name; }).join(', ') +
+      (n > 6 ? n + ' Länder' : staticIndex.regions.map(function (r) { return r.name; }).join(', ')) +
       ' (Stand ' + d.toLocaleDateString('de-AT') + '). Andere Gebiete werden langsamer über Overpass geladen.';
   }
 
   function updateCacheInfo() {
     var el = document.getElementById('cacheInfo');
+    var sum = document.getElementById('sumOffline');
     if (!el) return;
-    if (!dbOk) { el.textContent = 'Dauerhaftes Speichern ist in diesem Browser nicht möglich – Daten bleiben nur bis zum Schließen der Seite.'; return; }
+    if (!dbOk) {
+      el.textContent = 'Dauerhaftes Speichern ist in diesem Browser nicht möglich – Daten bleiben nur bis zum Schließen der Seite.';
+      sum.textContent = 'Speichern nicht möglich';
+      return;
+    }
     var n = 0, bytes = 0;
     stored.forEach(function (e) { if (e.v === DATA_VERSION) { n++; bytes += e.s || 0; } });
-    el.textContent = n
-      ? 'Gespeichert: ' + n + ' Kacheln (je ca. 5 × 5 km), ca. ' + (bytes / 1048576).toFixed(1).replace('.', ',') + ' MB'
-      : 'Noch nichts gespeichert.';
+    var mb = (bytes / 1048576).toFixed(1).replace('.', ',') + ' MB';
+    el.textContent = n ? 'Im Browser gespeichert: ' + n + ' Kacheln (je ca. 5 × 5 km), ca. ' + mb : 'Noch nichts gespeichert.';
+    var nc = settings.offline.length;
+    sum.textContent = (nc ? (nc === 1 ? '1 Land' : nc + ' Länder') + ' · ' : '') + (n ? mb + ' gespeichert' : 'noch nichts gespeichert');
+    updateCountryList();
   }
 
   // ================= Zeichnen =================
@@ -1230,6 +1459,22 @@
     toggle.setAttribute('aria-expanded', String(!c));
   }
   if (window.innerWidth < 600) setCollapsed(true);
+
+  // Abschnitte: immer nur einer offen (spart Platz am Handy); der zuletzt geöffnete wird gemerkt
+  var sections = ['secStyle', 'secPoi', 'secOffline'].map(function (id) { return document.getElementById(id); });
+  sections.forEach(function (sec) {
+    sec.open = sec.id === settings.openSection;
+    sec.addEventListener('toggle', function () {
+      if (sec.open) {
+        sections.forEach(function (o) { if (o !== sec) o.open = false; });
+        settings.openSection = sec.id;
+      } else if (settings.openSection === sec.id) {
+        settings.openSection = '';
+      }
+      saveSettings();
+    });
+  });
+  updateSummaries();
   toggle.addEventListener('click', function () { setCollapsed(!panel.classList.contains('collapsed')); });
   L.DomEvent.disableClickPropagation(panel);
   L.DomEvent.disableScrollPropagation(panel);
@@ -1392,13 +1637,16 @@
     startPreload(Number(document.getElementById('preloadRadius').value));
   });
   document.getElementById('clearCacheBtn').addEventListener('click', function () {
-    if (confirm('Alle gespeicherten Schotterwege und Orte löschen? Sie werden dann bei Bedarf neu geladen.')) dbClear();
+    if (!confirm('Alle gespeicherten Schotterwege und Orte löschen? Sie werden dann bei Bedarf neu geladen.')) return;
+    settings.offline = [];
+    if (staticIndex) staticIndex.regions.forEach(function (r) { if (r._cb) r._cb.checked = false; });
+    saveSettings();
+    dbClear();
   });
   L.DomEvent.disableClickPropagation(preloadStatusEl);
 
-  document.getElementById('regionBtn').addEventListener('click', function () {
-    startRegionPreload(document.getElementById('regionSelect').value);
-  });
+  document.getElementById('cbAll').addEventListener('change', onAllToggle);
+  document.getElementById('countryApply').addEventListener('click', loadSelectedCountries);
 
   // Zuerst Browser-Speicher und Verzeichnis der fertigen Daten lesen, dann den Ausschnitt laden
   Promise.all([dbLoadIndex(), loadStaticIndex()]).then(function () { updateCacheInfo(); loadNow(); });

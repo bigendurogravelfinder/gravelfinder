@@ -8,18 +8,22 @@ Ablauf je Land:
   1. Länderdatei (*.osm.pbf) und Grenzlinie (*.poly) von download.geofabrik.de laden
   2. Mit "osmium tags-filter" grob vorfiltern (macht die Datei ~50× kleiner), Original löschen
   3. Mit pyosmium genau nach den Regeln der App filtern (gleiche Regeln wie die Overpass-Abfrage)
-  4. Auf Kacheln (0,05° × 0,075°, ca. 5,5 × 5,6 km) verteilen und je Block (4 × 4 Kacheln)
-     eine JSON-Datei schreiben – gleiches Format wie der Browser-Speicher der App
+  4. Linien vereinfachen (Punkte mit < 3 m Abweichung weglassen – auf der Karte unsichtbar)
+  5. Auf Kacheln (0,05° × 0,075°, ca. 5,5 × 5,6 km) verteilen und je Block (4 × 4 Kacheln)
+     eine gzip-komprimierte JSON-Datei schreiben
 
 Ergebnis (Ordner --out):
-  index.json               Verzeichnis: welche Blöcke Daten haben und welche Kacheln vollständig abgedeckt sind
-  blocks/<bi>/<bj>.json    Daten eines Blocks
+  index.json                  Verzeichnis: Länder (mit Größe), Blöcke, vollständig abgedeckte Kacheln
+  blocks/<bi>/<bj>.json.gz    Daten eines Blocks (gzip – GitHub Pages erlaubt höchstens 1 GB)
 
 Länder werden nacheinander verarbeitet und ihre Blöcke sofort auf die Platte geschrieben
-(bei gemeinsamen Grenz-Blöcken zusammengeführt). So bleibt der Arbeitsspeicher auch für
-ganz Europa im Rahmen.
+(gemeinsame Grenz-Blöcke werden zusammengeführt). So bleibt der Arbeitsspeicher auch für
+ganz Europa im Rahmen. Welche Kacheln "vollständig abgedeckt" sind, wird am Ende aus der
+Vereinigung ALLER Ländergrenzen berechnet – Kacheln auf einer Grenze zwischen zwei
+aufbereiteten Ländern gelten damit ebenfalls als vollständig.
 """
 import argparse
+import gzip
 import json
 import math
 import os
@@ -31,7 +35,7 @@ import urllib.request
 from datetime import datetime, timezone
 
 import osmium
-from shapely.geometry import Polygon, box
+from shapely.geometry import LineString, Polygon, box
 from shapely.ops import unary_union
 from shapely.prepared import prep
 
@@ -39,9 +43,12 @@ from shapely.prepared import prep
 CELL_LAT = 0.05
 CELL_LON = 0.075
 BLOCK = 4
-FORMAT = 1
+FORMAT = 2
+SIMPLIFY_M = 3.0          # Linien-Vereinfachung in Metern
+PAGES_LIMIT = 1_000_000_000
 
 GEOFABRIK = 'https://download.geofabrik.de/europe/'
+UA = {'User-Agent': 'Gravelfinder-BigEnduro/1.0 (GitHub Actions)'}
 
 # ---- Filterregeln (gleich wie die Overpass-Abfrage in index.html) ----
 SURFACES = {'gravel', 'fine_gravel', 'compacted', 'unpaved', 'dirt', 'ground'}
@@ -87,6 +94,19 @@ def cell_of(lat, lon):
     return (math.floor(lat / CELL_LAT), math.floor(lon / CELL_LON))
 
 
+def simplify(coords):
+    """Douglas-Peucker in Metern (lokale Projektion). Behält Anfangs- und Endpunkt."""
+    if len(coords) <= 2:
+        return coords
+    lat0 = coords[0][0]
+    kx = 111320.0 * math.cos(math.radians(lat0))
+    ky = 110540.0
+    xy = [(lon * kx, lat * ky) for lat, lon in coords]
+    simple = LineString(xy).simplify(SIMPLIFY_M, preserve_topology=False)
+    out = [(y / ky, x / kx) for x, y in simple.coords]
+    return out if len(out) >= 2 else [coords[0], coords[-1]]
+
+
 def encode_polyline(coords):
     """Google-Polyline-Kodierung, 5 Nachkommastellen (~1 m) – etwa 6× kleiner als Zahlenlisten."""
     out = []
@@ -109,6 +129,8 @@ class Store:
         self.ways = {}    # id -> [id, tags, polyline]
         self.cells = {}   # (i, j) -> {'w': set(ids), 'p': [poi, ...]}
         self.n_pois = 0
+        self.n_points = 0
+        self.n_points_raw = 0
 
     def cell(self, key):
         c = self.cells.get(key)
@@ -119,8 +141,13 @@ class Store:
     def add_way(self, wid, tags, coords):
         if wid in self.ways:
             return
-        self.ways[wid] = [wid, tags, encode_polyline(coords)]
-        for key in {cell_of(lat, lon) for lat, lon in coords}:
+        # Kachel-Zuordnung mit ALLEN Punkten (wie in der App), Speicherung vereinfacht
+        keys = {cell_of(lat, lon) for lat, lon in coords}
+        simple = simplify(coords)
+        self.n_points_raw += len(coords)
+        self.n_points += len(simple)
+        self.ways[wid] = [wid, tags, encode_polyline(simple)]
+        for key in keys:
             self.cell(key)['w'].add(wid)
 
     def add_poi(self, typ, oid, lat, lon, tags):
@@ -187,7 +214,7 @@ def parse_poly(text):
     return shape
 
 
-def mark_coverage(shape, block_info, region_blocks):
+def mark_coverage(shape, block_info):
     """Kacheln, die vollständig im Gebiet liegen, im Block-Verzeichnis als 'abgedeckt' markieren."""
     minx, miny, maxx, maxy = shape.bounds
     p = prep(shape)
@@ -197,16 +224,14 @@ def mark_coverage(shape, block_info, region_blocks):
             if p.contains(box(j * CELL_LON, i * CELL_LAT, (j + 1) * CELL_LON, (i + 1) * CELL_LAT)):
                 bi, bj = i // BLOCK, j // BLOCK
                 bit = (i - bi * BLOCK) * BLOCK + (j - bj * BLOCK)
-                key = f'{bi},{bj}'
-                block_info.setdefault(key, {'m': 0, 'd': 0})['m'] |= 1 << bit
-                region_blocks.add(key)
+                block_info.setdefault(f'{bi},{bj}', {'m': 0, 'd': 0})['m'] |= 1 << bit
                 n += 1
     return n
 
 
 # ------------------------------------------------------------------ Schreiben
 def block_path(out_dir, bi, bj):
-    return os.path.join(out_dir, 'blocks', str(bi), f'{bj}.json')
+    return os.path.join(out_dir, 'blocks', str(bi), f'{bj}.json.gz')
 
 
 def flush(store, out_dir, block_info, region_blocks):
@@ -218,7 +243,7 @@ def flush(store, out_dir, block_info, region_blocks):
         path = block_path(out_dir, bi, bj)
         recs = {}
         if os.path.exists(path):
-            with open(path, encoding='utf-8') as f:
+            with gzip.open(path, 'rt', encoding='utf-8') as f:
                 for rec in json.load(f)['cells']:
                     recs[rec['k']] = rec
         for (i, j), c in items:
@@ -235,8 +260,9 @@ def flush(store, out_dir, block_info, region_blocks):
                     have_p.add((poi[0], poi[1]))
             recs[k] = rec
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, 'w', encoding='utf-8') as f:
-            json.dump({'v': FORMAT, 'cells': [recs[k] for k in sorted(recs)]}, f, ensure_ascii=False, separators=(',', ':'))
+        data = json.dumps({'v': FORMAT, 'cells': [recs[k] for k in sorted(recs)]}, ensure_ascii=False, separators=(',', ':'))
+        with gzip.open(path, 'wt', encoding='utf-8', compresslevel=9) as f:
+            f.write(data)
         key = f'{bi},{bj}'
         block_info.setdefault(key, {'m': 0, 'd': 0})['d'] = 1
         region_blocks.add(key)
@@ -245,15 +271,22 @@ def flush(store, out_dir, block_info, region_blocks):
 # ------------------------------------------------------------------ Hilfen
 def download(url, dest):
     t0 = time.time()
-    req = urllib.request.Request(url, headers={'User-Agent': 'Gravelfinder-BigEnduro/1.0 (GitHub Actions)'})
-    with urllib.request.urlopen(req, timeout=600) as r, open(dest, 'wb') as f:
-        shutil.copyfileobj(r, f, length=4 * 1024 * 1024)
-    size = os.path.getsize(dest) / 1e6
-    print(f'    geladen: {size:.0f} MB in {time.time() - t0:.0f} s', flush=True)
+    req = urllib.request.Request(url, headers=UA)
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(req, timeout=900) as r, open(dest, 'wb') as f:
+                shutil.copyfileobj(r, f, length=8 * 1024 * 1024)
+            break
+        except Exception as e:
+            if attempt == 2:
+                raise
+            print(f'    Download-Fehler ({e}), neuer Versuch in 30 s …', flush=True)
+            time.sleep(30)
+    print(f'    geladen: {os.path.getsize(dest) / 1e6:.0f} MB in {time.time() - t0:.0f} s', flush=True)
 
 
 def fetch_text(url):
-    req = urllib.request.Request(url, headers={'User-Agent': 'Gravelfinder-BigEnduro/1.0 (GitHub Actions)'})
+    req = urllib.request.Request(url, headers=UA)
     with urllib.request.urlopen(req, timeout=120) as r:
         return r.read().decode('utf-8')
 
@@ -262,20 +295,17 @@ def fmt(n):
     return f'{n:,}'.replace(',', '.')
 
 
-def dir_size(path):
-    total = files = 0
-    for root, _, names in os.walk(path):
-        for n in names:
-            total += os.path.getsize(os.path.join(root, n))
-            files += 1
-    return total, files
+def block_size(out_dir, key):
+    bi, bj = key.split(',')
+    p = block_path(out_dir, bi, bj)
+    return os.path.getsize(p) if os.path.exists(p) else 0
 
 
 # ------------------------------------------------------------------ Hauptprogramm
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--regions-file', default='regions.json')
-    ap.add_argument('--out', default='site/data/v1')
+    ap.add_argument('--out', default='site/data/v2')
     ap.add_argument('--work', default='work')
     ap.add_argument('--only', default='', help='nur diese Länder (IDs, kommagetrennt) – zum Testen')
     ap.add_argument('--skip-prefilter', action='store_true',
@@ -295,62 +325,88 @@ def main():
 
     block_info = {}
     index_regions = []
+    shapes = []
+    failed = []
     t_all = time.time()
 
-    for r in regions:
+    for n, r in enumerate(regions, 1):
         rid = r['id']
-        print(f'\n=== {r["name"]} ({rid}) ===', flush=True)
+        print(f'\n=== [{n}/{len(regions)}] {r["name"]} ({rid}) ===', flush=True)
         t0 = time.time()
         raw = os.path.join(args.work, f'{rid}.osm.pbf')
         filtered = os.path.join(args.work, f'{rid}-gefiltert.osm.pbf')
-
-        print('  1/4 Herunterladen …', flush=True)
-        download(f'{GEOFABRIK}{rid}-latest.osm.pbf', raw)
-
-        if args.skip_prefilter:
-            print('  2/4 Vorfiltern übersprungen', flush=True)
-            os.replace(raw, filtered)
-        else:
-            print('  2/4 Vorfiltern (osmium) …', flush=True)
-            subprocess.run(['osmium', 'tags-filter', raw, *OSMIUM_FILTERS, '-o', filtered, '--overwrite'], check=True)
-            os.remove(raw)
-        print(f'    gefiltert: {os.path.getsize(filtered) / 1e6:.0f} MB', flush=True)
-
-        print('  3/4 Auswerten (pyosmium) …', flush=True)
-        store = Store()
-        Collector(store).apply_file(filtered, locations=True)
-        os.remove(filtered)
-        print(f'    {fmt(len(store.ways))} Schotterwege, {fmt(store.n_pois)} Orte, {fmt(len(store.cells))} Kacheln mit Daten', flush=True)
-
-        print('  4/4 Schreiben …', flush=True)
-        region_blocks = set()
-        flush(store, args.out, block_info, region_blocks)
-        del store
         try:
-            covered = mark_coverage(parse_poly(fetch_text(f'{GEOFABRIK}{rid}.poly')), block_info, region_blocks)
-            print(f'    {fmt(covered)} Kacheln vollständig abgedeckt', flush=True)
-        except Exception as e:  # ohne Grenzlinie: Daten sind da, Randgebiete lädt die App über Overpass nach
-            print(f'    WARNUNG: Grenzlinie nicht verfügbar ({e}) – Abdeckung wird nicht markiert', flush=True)
+            print('  1/4 Herunterladen …', flush=True)
+            download(f'{GEOFABRIK}{rid}-latest.osm.pbf', raw)
 
-        index_regions.append({'id': rid, 'name': r['name'], 'blocks': sorted(region_blocks)})
-        print(f'  fertig in {time.time() - t0:.0f} s', flush=True)
+            if args.skip_prefilter:
+                print('  2/4 Vorfiltern übersprungen', flush=True)
+                os.replace(raw, filtered)
+            else:
+                print('  2/4 Vorfiltern (osmium) …', flush=True)
+                subprocess.run(['osmium', 'tags-filter', raw, *OSMIUM_FILTERS, '-o', filtered, '--overwrite'], check=True)
+                os.remove(raw)
+                print(f'    gefiltert: {os.path.getsize(filtered) / 1e6:.0f} MB', flush=True)
+
+            print('  3/4 Auswerten (pyosmium) …', flush=True)
+            store = Store()
+            Collector(store).apply_file(filtered, locations=True)
+            os.remove(filtered)
+            red = 100 - 100 * store.n_points / max(1, store.n_points_raw)
+            print(f'    {fmt(len(store.ways))} Schotterwege, {fmt(store.n_pois)} Orte, {fmt(len(store.cells))} Kacheln mit Daten, '
+                  f'Linienpunkte -{red:.0f} % durch Vereinfachung', flush=True)
+
+            print('  4/4 Schreiben …', flush=True)
+            region_blocks = set()
+            flush(store, args.out, block_info, region_blocks)
+            del store
+            try:
+                shapes.append(parse_poly(fetch_text(f'{GEOFABRIK}{rid}.poly')))
+            except Exception as e:  # ohne Grenzlinie: Daten sind da, Randgebiete lädt die App über Overpass nach
+                print(f'    WARNUNG: Grenzlinie nicht verfügbar ({e})', flush=True)
+            index_regions.append({'id': rid, 'name': r['name'], 'blocks': sorted(region_blocks)})
+            print(f'  fertig in {time.time() - t0:.0f} s', flush=True)
+        except Exception as e:
+            # Ein fehlerhaftes Land soll nicht den ganzen Lauf abbrechen
+            print(f'  FEHLER bei {r["name"]}: {e} – Land wird übersprungen', flush=True)
+            failed.append(r['name'])
+            for p in (raw, filtered):
+                if os.path.exists(p):
+                    os.remove(p)
+
+    print('\nAbdeckung berechnen …', flush=True)
+    if shapes:
+        covered = mark_coverage(unary_union(shapes), block_info)
+        print(f'  {fmt(covered)} Kacheln vollständig abgedeckt', flush=True)
+
+    # Größe je Land (komprimiert, so wie sie heruntergeladen wird)
+    sizes = {k: block_size(args.out, k) for k in block_info}
+    for reg in index_regions:
+        reg['size'] = sum(sizes.get(k, 0) for k in reg['blocks'])
+    total = sum(sizes.values())
 
     index = {
         'v': FORMAT,
         'built': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%MZ'),
         'cell': [CELL_LAT, CELL_LON],
         'block': BLOCK,
-        'regions': index_regions,
+        'gz': 1,
+        'size': total,
+        'regions': sorted(index_regions, key=lambda r: r['name']),
         # je Block: [Abdeckungs-Maske der 16 Kacheln als Hex, 1 = Datei vorhanden]
         'blocks': {k: [format(v['m'], '04x'), v['d']] for k, v in sorted(block_info.items())},
     }
     with open(os.path.join(args.out, 'index.json'), 'w', encoding='utf-8') as f:
         json.dump(index, f, ensure_ascii=False, separators=(',', ':'))
 
-    size, files = dir_size(args.out)
-    print(f'\nGesamt: {fmt(files)} Dateien, {size / 1e6:.1f} MB, {time.time() - t_all:.0f} s', flush=True)
-    if size > 900e6:
-        print('WARNUNG: Fast 1 GB – das ist die Obergrenze von GitHub Pages. Siehe README ("Ganz Europa").', flush=True)
+    files = sum(1 for v in block_info.values() if v['d']) + 1
+    print(f'\nGesamt: {len(index_regions)} Länder, {fmt(files)} Dateien, {total / 1e6:.0f} MB, {(time.time() - t_all) / 60:.0f} min', flush=True)
+    print('Größte Länder: ' + ', '.join(f'{r["name"]} {r["size"] / 1e6:.0f} MB'
+                                       for r in sorted(index_regions, key=lambda r: -r['size'])[:8]), flush=True)
+    if failed:
+        print('ÜBERSPRUNGEN (Fehler): ' + ', '.join(failed), flush=True)
+    if total > 0.95 * PAGES_LIMIT:
+        sys.exit(f'ABBRUCH: {total / 1e6:.0f} MB – zu groß für GitHub Pages (max. 1 GB). Siehe README ("Wenn es nicht mehr passt").')
 
 
 if __name__ == '__main__':
