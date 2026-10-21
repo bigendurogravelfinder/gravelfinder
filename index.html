@@ -304,6 +304,7 @@
 </button>
 
 <div id="statusWrap">
+  <div id="updateBox" class="pill offer hidden"></div>
   <div id="offerBox" class="pill offer hidden"></div>
   <div id="preloadStatus" class="pill hidden"></div>
   <div id="status" class="pill"><span>Starte …</span></div>
@@ -515,8 +516,10 @@
   function cellOf(lat, lon) { return cellKey(Math.floor(lat / CELL_LAT), Math.floor(lon / CELL_LON)); }
   function isFresh(t) { return Date.now() - t < MAX_AGE_DAYS * 864e5; }
   // Kacheln aus den fertigen Daten: neu holen, sobald es einen neueren Datenstand gibt (und sie älter als 1 Tag sind)
+  // strictFresh = true (beim ausdrücklichen Aktualisieren): ohne die 1-Tag-Schonfrist
+  var strictFresh = false;
   function cellFresh(c, t) {
-    if (staticIndex && cellCovered(c)) return t >= staticBuilt || Date.now() - t < 864e5;
+    if (staticIndex && cellCovered(c)) return t >= staticBuilt || (!strictFresh && Date.now() - t < 864e5);
     return isFresh(t);
   }
   function needsLoad(c) { return !cells.has(c.k) || !cellFresh(c, cells.get(c.k)); }
@@ -1395,6 +1398,45 @@
     });
   }
 
+  // ================= Hinweis: "Aktuellere Offline-Daten verfügbar" =================
+  // Beim Start (und nach dem Laden des Datenverzeichnisses): Sind bei angehakten Ländern gespeicherte
+  // Kacheln älter als der Datenstand auf dem Server (oder in einem alten Speicherformat)?
+  var updateAsked = false;           // in dieser Sitzung schon gefragt ("Später" oder erledigt)
+  var updateEl = document.getElementById('updateBox');
+
+  function hideUpdate() { updateEl.className = 'pill offer hidden'; updateEl.innerHTML = ''; placeLocateBtn(); }
+
+  function checkForUpdates() {
+    if (!staticIndex || !dbOk || updateAsked || !settings.offline.length || (preload && !preload.error)) { hideUpdate(); return; }
+    var names = [], bytes = 0;
+    staticIndex.regions.forEach(function (r) {
+      if (settings.offline.indexOf(r.id) === -1) return;
+      var cs = regionCells(r), old = 0;
+      cs.forEach(function (c) {
+        var e = stored.get(c.k);
+        if (e && (e.v !== DATA_VERSION || e.t < staticBuilt)) old++;
+      });
+      if (old) { names.push(r.name); bytes += (r.size || 0) * old / Math.max(1, cs.length); }
+    });
+    if (!names.length) { hideUpdate(); return; }
+    var list = names.length > 4 ? names.slice(0, 3).join(', ') + ' und ' + (names.length - 3) + ' weitere' : names.join(', ');
+    updateEl.className = 'pill offer';
+    updateEl.innerHTML =
+      '<div class="offerText">🔄 <b>Aktuellere Offline-Daten verfügbar</b> (Stand ' + new Date(staticBuilt).toLocaleDateString('de-AT') + '). ' +
+      'Alle angehakten Länder jetzt aktualisieren? ' + esc(list) + ' <b>(≈ ' + sizeText(bytes) + ')</b></div>' +
+      '<div class="offerBtns"><button type="button" id="updYes">Jetzt aktualisieren</button>' +
+      '<button type="button" id="updLater" class="light">Später</button></div>';
+    placeLocateBtn();
+    document.getElementById('updYes').onclick = function () {
+      updateAsked = true;
+      hideUpdate();
+      strictFresh = true;            // alle älteren Kacheln gelten jetzt als fehlend
+      loadSelectedCountries(true);
+      strictFresh = false;
+    };
+    document.getElementById('updLater').onclick = function () { updateAsked = true; hideUpdate(); maybeOfferRegion(); };
+  }
+
   // ================= Angebot: "Dieses Land offline speichern?" =================
   // Zeigt die Karte ein aufbereitetes Land, das noch nicht offline gespeichert ist, wird gefragt.
   var blockRegions = null;        // Block -> Länder, die dort Daten haben
@@ -1426,6 +1468,7 @@
 
   function maybeOfferRegion() {
     if (!staticIndex || !dbOk || map.getZoom() < MIN_ZOOM) { hideOffer(); return; }
+    if (!updateEl.classList.contains('hidden')) { hideOffer(); return; } // erst die Update-Frage beantworten
     var r = regionAtView();
     if (!r || settings.offline.indexOf(r.id) !== -1 || settings.noAsk.indexOf(r.id) !== -1 || askedThisSession[r.id]) { hideOffer(); return; }
     var st = regionState(r);
@@ -2113,6 +2156,7 @@
   document.getElementById('cbAll').addEventListener('change', onAllToggle);
   document.getElementById('countryApply').addEventListener('click', function () { loadSelectedCountries(false); });
   L.DomEvent.disableClickPropagation(offerEl);
+  L.DomEvent.disableClickPropagation(updateEl);
 
   // "Mein Standort" immer oberhalb der Hinweise unten halten (deren Höhe ändert sich laufend)
   var statusWrapEl = document.getElementById('statusWrap');
@@ -2125,7 +2169,7 @@
   placeLocateBtn();
 
   // Zuerst Browser-Speicher und Verzeichnis der fertigen Daten lesen, dann den Ausschnitt laden
-  Promise.all([dbLoadIndex(), loadStaticIndex()]).then(function () { updateCacheInfo(); loadNow(); });
+  Promise.all([dbLoadIndex(), loadStaticIndex()]).then(function () { updateCacheInfo(); loadNow(); checkForUpdates(); });
 })();
 </script>
 </body>
