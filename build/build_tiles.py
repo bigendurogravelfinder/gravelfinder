@@ -56,6 +56,8 @@ ROAD_HW = {'unclassified', 'tertiary', 'residential', 'service'}
 POI_AMENITY = {'fuel', 'restaurant', 'cafe', 'fast_food', 'biergarten', 'pub', 'drinking_water'}
 POI_SHOP = {'supermarket', 'convenience', 'bakery', 'butcher', 'greengrocer', 'farm', 'motorcycle', 'motorcycle_repair'}
 POI_TOURISM = {'camp_site', 'viewpoint'}
+# Ortsnamen (werden von der App über den Wegen beschriftet): 1 = Stadt, 2 = Markt/Kleinstadt, 3 = Dorf
+PLACE_RANK = {'city': 1, 'town': 2, 'village': 3}
 
 # nur diese Angaben werden gespeichert (wie WAY_KEYS / POI_KEYS in index.html)
 WAY_KEYS = ['name', 'ref', 'highway', 'surface', 'tracktype', 'smoothness', 'access', 'vehicle', 'motor_vehicle', 'motorcycle']
@@ -67,7 +69,15 @@ OSMIUM_FILTERS = [
     'nwr/amenity=' + ','.join(sorted(POI_AMENITY)),
     'nwr/shop=' + ','.join(sorted(POI_SHOP)),
     'nwr/tourism=' + ','.join(sorted(POI_TOURISM)),
+    'n/place=' + ','.join(sorted(PLACE_RANK)),
 ]
+
+
+def population(t):
+    try:
+        return int(str(t.get('population', '0')).replace('.', '').replace(' ', '').split(';')[0] or 0)
+    except ValueError:
+        return 0
 
 
 def is_road(t):
@@ -127,16 +137,22 @@ def encode_polyline(coords):
 class Store:
     def __init__(self):
         self.ways = {}    # id -> [id, tags, polyline]
-        self.cells = {}   # (i, j) -> {'w': set(ids), 'p': [poi, ...]}
+        self.cells = {}   # (i, j) -> {'w': set(ids), 'p': [poi, ...], 'l': [ort, ...]}
         self.n_pois = 0
+        self.n_places = 0
         self.n_points = 0
         self.n_points_raw = 0
 
     def cell(self, key):
         c = self.cells.get(key)
         if c is None:
-            c = self.cells[key] = {'w': set(), 'p': []}
+            c = self.cells[key] = {'w': set(), 'p': [], 'l': []}
         return c
+
+    def add_place(self, name, rank, lat, lon, pop):
+        # [Name, Rang, lat, lon, Einwohner]
+        self.cell(cell_of(lat, lon))['l'].append([name, rank, round(lat, 4), round(lon, 4), pop])
+        self.n_places += 1
 
     def add_way(self, wid, tags, coords):
         if wid in self.ways:
@@ -162,8 +178,13 @@ class Collector(osmium.SimpleHandler):
 
     def node(self, n):
         t = n.tags
-        if is_poi(t) and n.location.valid():
+        if not n.location.valid():
+            return
+        if is_poi(t):
             self.s.add_poi('n', n.id, n.location.lat, n.location.lon, pick(t, POI_KEYS))
+        rank = PLACE_RANK.get(t.get('place'))
+        if rank and 'name' in t:
+            self.s.add_place(t.get('name'), rank, n.location.lat, n.location.lon, population(t))
 
     def way(self, w):
         t = w.tags
@@ -248,9 +269,15 @@ def flush(store, out_dir, block_info, region_blocks):
                     recs[rec['k']] = rec
         for (i, j), c in items:
             k = f'{i}:{j}'
-            rec = recs.get(k) or {'k': k, 'w': [], 'p': []}
+            rec = recs.get(k) or {'k': k, 'w': [], 'p': [], 'l': []}
+            rec.setdefault('l', [])
             have_w = {w[0] for w in rec['w']}
             have_p = {(p[0], p[1]) for p in rec['p']}
+            have_l = {(p[0], p[2], p[3]) for p in rec['l']}
+            for pl in c['l']:
+                if (pl[0], pl[2], pl[3]) not in have_l:
+                    rec['l'].append(pl)
+                    have_l.add((pl[0], pl[2], pl[3]))
             for wid in sorted(c['w']):
                 if wid not in have_w:
                     rec['w'].append(store.ways[wid])
@@ -375,7 +402,8 @@ def main():
             Collector(store).apply_file(filtered, locations=True)
             os.remove(filtered)
             red = 100 - 100 * store.n_points / max(1, store.n_points_raw)
-            print(f'    {fmt(len(store.ways))} Schotterwege, {fmt(store.n_pois)} Orte, {fmt(len(store.cells))} Kacheln mit Daten, '
+            print(f'    {fmt(len(store.ways))} Schotterwege, {fmt(store.n_pois)} POI, {fmt(store.n_places)} Ortsnamen, '
+                  f'{fmt(len(store.cells))} Kacheln mit Daten, '
                   f'Linienpunkte -{red:.0f} % durch Vereinfachung', flush=True)
 
             print('  4/4 Schreiben …', flush=True)
@@ -415,6 +443,7 @@ def main():
         'cell': [CELL_LAT, CELL_LON],
         'block': BLOCK,
         'gz': 1,
+        'places': 1,   # Block-Dateien enthalten Ortsnamen (Feld "l")
         'size': total,
         'regions': sorted(index_regions, key=lambda r: r['name']),
         # je Block: [Abdeckungs-Maske der 16 Kacheln als Hex, 1 = Datei vorhanden]

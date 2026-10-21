@@ -59,8 +59,14 @@
   .row label.title { display: block; font-size: 14px; color: var(--muted); margin-bottom: 6px; }
   .colorRow { display: flex; align-items: center; gap: 10px; }
   input[type=color] { width: 56px; height: 44px; border: 1px solid var(--border); border-radius: 8px; padding: 2px; background: #fff; cursor: pointer; }
-  .swatches { display: flex; gap: 6px; flex-wrap: wrap; }
-  .swatch { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px var(--border); cursor: pointer; padding: 0; }
+  /* Qualitätsstufen: Farbfeld + Häkchen + Name */
+  .qRow { display: flex; align-items: center; gap: 10px; min-height: 46px; }
+  .qRow input[type=color] { width: 44px; height: 36px; flex: none; }
+  .qRow .check { flex: 1; min-height: 40px; }
+  .qName { font-weight: 600; }
+  .qHint { display: block; font-size: 12px; color: var(--muted); font-weight: 400; line-height: 1.25; }
+  .qDot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: -1px; margin-right: 4px; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
+  .linkBtn { background: none; border: 0; padding: 4px 0; color: var(--muted); text-decoration: underline; font: inherit; font-size: 13px; cursor: pointer; }
   input[type=range] { width: 100%; height: 32px; accent-color: var(--accent); }
   .check { display: flex; align-items: center; gap: 10px; font-size: 15px; cursor: pointer; min-height: 40px; }
   .check input { width: 24px; height: 24px; accent-color: var(--accent); }
@@ -88,6 +94,17 @@
   .btn { min-height: 44px; padding: 0 16px; border: 0; border-radius: 22px; background: var(--accent); color: #fff; font: 600 15px inherit; font-family: inherit; cursor: pointer; }
   .btn.light { background: #eceff1; color: var(--fg); margin-top: 8px; width: 100%; }
   .hint { font-size: 13px; color: var(--muted); margin-top: 6px; line-height: 1.35; }
+
+  /* ---------- Ortsnamen über den Wegen (weißer Rand = lesbar auf jedem Hintergrund) ---------- */
+  .placeLabel { background: none; border: 0; }
+  .placeLabel span {
+    position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); white-space: nowrap;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 600; font-size: 12px; color: #1a1a1a;
+    text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff, 0 0 4px #fff, 0 0 5px #fff;
+  }
+  .placeLabel.r1 span { font-size: 15px; font-weight: 800; letter-spacing: .3px; }
+  .placeLabel.r2 span { font-size: 13px; font-weight: 700; }
+  .placeLabel.r3 span { font-weight: 600; color: #2a2a2a; }
 
   /* ---------- Orte (POI-Symbole) ---------- */
   .poi-icon { background: none; border: 0; }
@@ -200,11 +217,10 @@
     </summary>
     <div class="secBody">
     <div class="row">
-      <label class="title" for="colorPicker">Farbe der Schotterwege</label>
-      <div class="colorRow">
-        <input type="color" id="colorPicker" value="#e6007e">
-        <div class="swatches" id="swatches"></div>
-      </div>
+      <label class="title">Qualität der Schotterwege</label>
+      <div id="qList"></div>
+      <div class="hint">Häkchen = Stufe anzeigen. Farbfeld antippen = Farbe ändern.</div>
+      <button type="button" id="qReset" class="linkBtn">Standardfarben wiederherstellen</button>
     </div>
     <div class="row">
       <label class="title" for="widthRange">Linienbreite: <span id="widthValue">2</span> px</label>
@@ -213,6 +229,15 @@
     <div class="row">
       <label class="title" for="transpRange">Transparenz: <span id="transpValue">0</span> %</label>
       <input type="range" id="transpRange" min="0" max="100" step="5" value="0">
+    </div>
+    <div class="row">
+      <label class="title" for="bgRange">Hintergrund abschwächen: <span id="bgValue">60</span> %</label>
+      <input type="range" id="bgRange" min="0" max="100" step="10" value="60">
+      <div class="hint">Nimmt der Hintergrundkarte Farbe, damit die Wege klar herausstechen.</div>
+    </div>
+    <div class="row">
+      <label class="check"><input type="checkbox" id="showLabels"> Ortsnamen über den Wegen anzeigen</label>
+      <div class="hint">Städte und Märkte ab Zoom 9, Dörfer ab Zoom 11 – gut lesbar auch zwischen vielen Linien.</div>
     </div>
     <div class="row">
       <label class="check"><input type="checkbox" id="showRestricted"> Auch gesperrte Wege anzeigen</label>
@@ -292,11 +317,12 @@
     'data/v2/',
     'https://bigendurogravelfinder.github.io/gravelfinder/data/v2/'
   ];
-  var MIN_ZOOM = 11;            // darunter keine Abfrage
+  var MIN_ZOOM = 9;             // ab hier Schotterwege (aus Schnell-Daten bzw. Browser-Speicher)
+  var DETAIL_ZOOM = 11;         // ab hier auch Orte (POI) und Overpass-Abfragen (zu viel Last bei größerem Ausschnitt)
   var DEBOUNCE_MS = 800;        // Wartezeit nach dem Verschieben
   var SURFACES = 'gravel|fine_gravel|compacted|unpaved|dirt|ground';
   var STORAGE_KEY = 'schotterkarte.settings';
-  var CASING_COLOR = '#1b1b1b';
+  var CASING_COLOR = '#000000';
   var RESTRICTED_COLOR = '#7a7a7a';
 
   // ================= Gespeicherte Einstellungen =================
@@ -326,15 +352,32 @@
       match: function (t) { return t.tourism === 'viewpoint'; } }
   ];
 
-  var settings = { color: '#e6007e', width: 2, transparency: 0, showRestricted: false, poi: {}, panelOpen: false, openSection: '', offline: [], noAsk: [] };
+  // Qualitätsstufen der Schotterwege mit Standardfarben (Regel siehe wayQuality)
+  // Leuchtende Farben, die es auf der Hintergrundkarte (Pastelltöne) nicht gibt
+  var QUALITY = [
+    { lvl: 1, name: 'hoch',    hint: 'fest und gleichmäßig',                color: '#00e04b', old: '#1fa83c' },
+    { lvl: 2, name: 'mittel',  hint: 'typischer Schotter, lose Stellen',    color: '#ffe600', old: '#ffc107' },
+    { lvl: 3, name: 'niedrig', hint: 'Erde/Naturboden, bei Nässe rutschig', color: '#ff1a4b', old: '#e53935' }
+  ];
+
+  var settings = { width: 2, transparency: 0, bgFade: 60, labels: true, showRestricted: false, poi: {}, q: {}, panelOpen: false, openSection: '', offline: [], noAsk: [] };
   POI_CATS.forEach(function (c) { settings.poi[c.id] = c.on; });
+  QUALITY.forEach(function (q) { settings.q[q.lvl] = { color: q.color, show: true }; });
   try {
     var saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
     if (saved) {
-      if (/^#[0-9a-f]{6}$/i.test(saved.color)) settings.color = saved.color;
+      if (saved.q) QUALITY.forEach(function (q) {
+        var s = saved.q[q.lvl];
+        if (!s) return;
+        // alte Standardfarbe gespeichert? → durch die neue, kräftigere ersetzen; eigene Farben bleiben
+        if (/^#[0-9a-f]{6}$/i.test(s.color) && s.color.toLowerCase() !== q.old) settings.q[q.lvl].color = s.color;
+        if (typeof s.show === 'boolean') settings.q[q.lvl].show = s.show;
+      });
       // früher gespeicherte Werte (bis 8 px) auf den neuen Bereich 1–5 px begrenzen
       if (Number(saved.width) > 0) settings.width = Math.min(5, Math.max(1, Math.round(Number(saved.width))));
       if (saved.transparency >= 0 && saved.transparency <= 100) settings.transparency = Number(saved.transparency);
+      if (saved.bgFade >= 0 && saved.bgFade <= 100) settings.bgFade = Number(saved.bgFade);
+      if (typeof saved.labels === 'boolean') settings.labels = saved.labels;
       if (typeof saved.showRestricted === 'boolean') settings.showRestricted = saved.showRestricted;
       if (typeof saved.openSection === 'string') settings.openSection = saved.openSection;
       if (typeof saved.panelOpen === 'boolean') settings.panelOpen = saved.panelOpen;
@@ -354,7 +397,10 @@
   // Kurz-Zusammenfassung neben den Abschnitts-Titeln (sichtbar auch im zugeklappten Zustand)
   function updateSummaries() {
     var s = document.getElementById('sumStyle');
-    if (s) s.innerHTML = '<span class="line" style="background:' + settings.color + ';height:' + Math.max(2, settings.width) + 'px"></span>' +
+    if (s) s.innerHTML = QUALITY.map(function (q) {
+        return '<span class="line" style="width:14px;background:' + settings.q[q.lvl].color + ';height:' + Math.max(2, settings.width) + 'px;' +
+          (settings.q[q.lvl].show ? '' : 'opacity:.25') + '" title="' + q.name + '"></span>';
+      }).join('') + ' ' +
       settings.width + ' px' + (settings.transparency ? ', ' + settings.transparency + ' % transparent' : '') +
       (settings.showRestricted ? ', mit gesperrten' : '');
     var p = document.getElementById('sumPoi');
@@ -401,6 +447,10 @@
   var renderer = L.canvas({ tolerance: 10, pane: 'roadsPane' });
   // Ebene für die eingefärbten Offline-Länder (beim Herauszoomen), unter den Wegen
   map.createPane('countryPane').style.zIndex = 420;
+  // Ortsnamen ÜBER den Wegen (unter den POI-Symbolen); lässt Klicks durch
+  var labelPane = map.createPane('labelPane');
+  labelPane.style.zIndex = 480;
+  labelPane.style.pointerEvents = 'none';
   var roadLayer = L.layerGroup().addTo(map);
 
   // ================= Datenspeicher =================
@@ -409,7 +459,8 @@
   var CELL_LAT = 0.05, CELL_LON = 0.075;
   var BLOCK = 4;              // bis zu 4 × 4 Kacheln (ca. 22 × 22 km) pro Server-Anfrage
   var MAX_AGE_DAYS = 30;      // ältere Kacheln werden angezeigt und im Hintergrund erneuert
-  var DATA_VERSION = 1;       // bei Änderungen an der Abfrage erhöhen → alte Kacheln werden neu geladen
+  var DATA_VERSION = 2;       // bei Änderungen an der Abfrage erhöhen → alte Kacheln werden neu geladen
+                              // (2 = mit Ortsnamen "l")
   var MAX_WAYS_IN_MEMORY = 120000;
 
   var ways = new Map();       // OSM-ID -> { id, tags, latlngs, bounds, restricted }
@@ -519,7 +570,7 @@
       for (var di = 0; di < BLOCK; di++) for (var dj = 0; dj < BLOCK; dj++) {
         var c = { i: bi * BLOCK + di, j: bj * BLOCK + dj };
         c.k = cellKey(c.i, c.j);
-        var rec = byKey[c.k] || { k: c.k, w: [], p: [] };
+        var rec = byKey[c.k] || { k: c.k, w: [], p: [], l: [] };
         rec.v = DATA_VERSION; rec.t = now;
         if (cellCovered(c)) full.push(rec);
         else if (byKey[c.k]) partial.push(rec);
@@ -668,6 +719,7 @@
       ')->.wege;\n' +
       '(\n' +
       POI_CATS.map(function (c) { return '  ' + c.query + ';\n'; }).join('') +
+      '  node["place"~"^(city|town|village)$"]["name"];\n' +   // Ortsnamen für die Beschriftung
       ')->.orte;\n' +
       '.wege out geom qt;\n' +
       '.orte out center tags qt;';
@@ -682,6 +734,23 @@
     access:        ['no', 'private']
   };
   var ACCESS_KEYS = ['motorcycle', 'motor_vehicle', 'vehicle', 'access'];
+
+  // ================= Qualitätsstufen der Schotterwege =================
+  // 1. Ist "smoothness" eingetragen, entscheidet nur diese Angabe (beschreibt die Befahrbarkeit direkt).
+  // 2. Sonst zählt die SCHLECHTERE von "tracktype" und "surface" (bewusst vorsichtig).
+  // (Namen und Standardfarben der Stufen: QUALITY, weiter oben bei den Einstellungen)
+  var Q_SMOOTH = { excellent: 1, good: 1, intermediate: 1, bad: 2, very_bad: 3, horrible: 3, very_horrible: 3, impassable: 3 };
+  var Q_TRACK = { grade1: 1, grade2: 2, grade3: 3, grade4: 3, grade5: 3 };
+  var Q_SURF = { asphalt: 1, concrete: 1, paved: 1, compacted: 1, fine_gravel: 1, gravel: 2, unpaved: 2, dirt: 3, ground: 3 };
+
+  function wayQuality(t) {
+    if (Q_SMOOTH[t.smoothness]) return { lvl: Q_SMOOTH[t.smoothness], why: 'smoothness ' + t.smoothness };
+    var lvl = 0, why = [];
+    if (Q_TRACK[t.tracktype]) { lvl = Q_TRACK[t.tracktype]; why.push('tracktype ' + t.tracktype); }
+    if (Q_SURF[t.surface]) { lvl = Math.max(lvl, Q_SURF[t.surface]); why.push('surface ' + t.surface); }
+    if (!lvl) return { lvl: 2, why: 'keine Angabe zur Beschaffenheit' };
+    return { lvl: lvl, why: why.join(', ') };
+  }
 
   function isRestricted(tags) {
     for (var i = 0; i < ACCESS_KEYS.length; i++) {
@@ -705,6 +774,7 @@
   var lastCountText = '';
 
   var staticPending = 0;       // noch ausstehende Block-Dateien für den sichtbaren Ausschnitt
+  var overviewGap = false;     // herausgezoomt und Teile des Ausschnitts nur über Overpass verfügbar
 
   function viewBusy() {
     return staticPending > 0 || (running && running.job.kind === 'view') || queue.some(function (j) { return j.kind === 'view'; });
@@ -784,7 +854,7 @@
     }
 
     // Arbeitsspeicher begrenzen: alles vergessen und aus dem Browser-Speicher neu holen
-    if (ways.size > MAX_WAYS_IN_MEMORY) { ways.clear(); pois.clear(); cells.clear(); }
+    if (ways.size > MAX_WAYS_IN_MEMORY) { ways.clear(); pois.clear(); places.clear(); cells.clear(); }
 
     var view = map.getBounds();
     var needed = cellsIn(view.pad(0.1));
@@ -802,6 +872,9 @@
       var missing = needed.filter(needsLoad);
       var fromStatic = staticIndex ? missing.filter(cellCovered) : [];
       var fromOverpass = missing.filter(function (c) { return fromStatic.indexOf(c) === -1; });
+      // Overpass erst ab Zoom 11 – darunter wäre die Abfrage viel zu groß
+      overviewGap = map.getZoom() < DETAIL_ZOOM && fromOverpass.length > 0;
+      if (map.getZoom() < DETAIL_ZOOM) fromOverpass = [];
       // Grenz-Kacheln: die Teil-Daten aus den fertigen Dateien schon einmal anzeigen
       var bks = {};
       missing.forEach(function (c) { if (staticIndex && staticIndex.blocks[blockOf(c)]) bks[blockOf(c)] = true; });
@@ -814,10 +887,11 @@
           if (res) takeBlock(res, true);
           else {
             // Datei nicht erreichbar (z. B. offline): diese Kacheln über Overpass versuchen
-            var failed = fromStatic.filter(function (c) { return blockOf(c) === bk; });
+            var failed = map.getZoom() >= DETAIL_ZOOM ? fromStatic.filter(function (c) { return blockOf(c) === bk; }) : [];
             if (failed.length) { var js = makeJobs(failed, 'view', view.getCenter()); js.forEach(function (j) { j.gen = gen; }); viewTotal += js.length; queue = js.concat(queue); pump(); }
           }
-          render(); renderPois();
+          // nicht nach jeder Datei alles neu zeichnen (bei Zoom 9 sind das zehntausende Wege)
+          scheduleRedraw(staticPending === 0);
         });
       } else staticPending = 0;
 
@@ -842,6 +916,14 @@
     });
   }
 
+  // Neu zeichnen höchstens alle 400 ms während des Ladens; now = sofort (z. B. wenn alles da ist)
+  var redrawTimer = null;
+  function scheduleRedraw(now) {
+    if (now) { clearTimeout(redrawTimer); redrawTimer = null; render(); renderPois(); return; }
+    if (redrawTimer) return;
+    redrawTimer = setTimeout(function () { redrawTimer = null; render(); renderPois(); }, 400);
+  }
+
   function updateViewStatus() {
     if (map.getZoom() < MIN_ZOOM) {
       setStatus('<span>🔍 Bitte weiter hineinzoomen' + (offlineCount ? ' · <span style="color:#2e7d32">grün</span> = offline gespeichert' : '') + '</span>');
@@ -854,7 +936,9 @@
       setStatus(SPINNER + '<span>' + (r ? 'Server ausgelastet – neuer Versuch in ' + r + ' s …' : 'Lade Schotterwege …' + part) + '</span>');
       return;
     }
-    setStatus('<span>' + lastCountText + '</span>');
+    var extra = '';
+    if (map.getZoom() < DETAIL_ZOOM) extra = overviewGap ? ' · für Gebiete außerhalb der Schnell-Daten weiter hineinzoomen' : ' · Orte und Details ab näherem Zoom';
+    setStatus('<span>' + lastCountText + extra + '</span>');
   }
 
   // Schickt eine Abfrage an Overpass. Bei Überlastung automatisch noch 2x versuchen
@@ -927,7 +1011,7 @@
   // Ergebnis: je Kachel ein Datensatz { k, v, t, w: [[id, tags, koordinaten…]], p: [[typ, id, lat, lon, tags]] }
   function splitIntoCells(elements, cellList) {
     var recs = {}, now = Date.now();
-    cellList.forEach(function (c) { recs[c.k] = { k: c.k, v: DATA_VERSION, t: now, w: [], p: [] }; });
+    cellList.forEach(function (c) { recs[c.k] = { k: c.k, v: DATA_VERSION, t: now, w: [], p: [], l: [] }; });
     elements.forEach(function (el) {
       var tags = el.tags || {};
       if (el.type === 'way' && el.geometry) {
@@ -946,13 +1030,23 @@
         var lon = el.lon !== undefined ? el.lon : el.center && el.center.lon;
         if (lat === undefined || lon === undefined) return;
         var rec = recs[cellOf(lat, lon)];
-        if (rec) rec.p.push([el.type.charAt(0), el.id, r5(lat), r5(lon), pick(tags, POI_KEYS)]);
+        if (!rec) return;
+        if (PLACE_RANK[tags.place] && tags.name) {
+          // Ortsname: [Name, Rang, lat, lon, Einwohner]
+          rec.l.push([tags.name, PLACE_RANK[tags.place], Math.round(lat * 1e4) / 1e4, Math.round(lon * 1e4) / 1e4,
+            parseInt(String(tags.population || '0').replace(/[.\s]/g, ''), 10) || 0]);
+        }
+        if (POI_CATS.some(function (c) { return c.match(tags); })) {
+          rec.p.push([el.type.charAt(0), el.id, r5(lat), r5(lon), pick(tags, POI_KEYS)]);
+        }
       }
     });
     return Object.keys(recs).map(function (k) { return recs[k]; });
   }
 
   var POI_TYPES = { n: 'node', w: 'way', r: 'relation' };
+  var PLACE_RANK = { city: 1, town: 2, village: 3 };   // wie im Aufbereitungs-Skript
+  var places = new Map();      // Ortsnamen: "Name|lat|lon" -> { name, rank, lat, lon, pop }
   // Kodierte Linie (Google-Polyline, 5 Nachkommastellen) in Koordinaten umwandeln – so kommen die fertigen Daten an
   function decodePolyline(str) {
     var out = [], lat = 0, lon = 0, i = 0;
@@ -977,13 +1071,18 @@
       if (typeof w[2] === 'string') latlngs = decodePolyline(w[2]);
       else { latlngs = []; for (var i = 0; i < w[2].length; i += 2) latlngs.push([w[2][i], w[2][i + 1]]); }
       if (latlngs.length < 2) return;
-      ways.set(w[0], { id: w[0], tags: w[1], latlngs: latlngs, bounds: L.latLngBounds(latlngs), restricted: isRestricted(w[1]) });
+      ways.set(w[0], { id: w[0], tags: w[1], latlngs: latlngs, bounds: L.latLngBounds(latlngs),
+        restricted: isRestricted(w[1]), q: wayQuality(w[1]) });
     });
     rec.p.forEach(function (p) {
       var key = p[0] + p[1];
       if (pois.has(key)) return;
       var cats = POI_CATS.filter(function (c) { return c.match(p[4]); });
       if (cats.length) pois.set(key, { type: POI_TYPES[p[0]], id: p[1], lat: p[2], lon: p[3], tags: p[4], cats: cats });
+    });
+    (rec.l || []).forEach(function (l) {
+      var key = l[0] + '|' + l[2] + '|' + l[3];
+      if (!places.has(key)) places.set(key, { name: l[0], rank: l[1], lat: l[2], lon: l[3], pop: l[4] || 0 });
     });
     if (markLoaded !== false) cells.set(rec.k, rec.t);
   }
@@ -1162,7 +1261,7 @@
       layer.on('click', function (e) {
         L.popup().setLatLng(e.latlng).setContent(popup).openOn(map);
         var a = document.querySelector('.leaflet-popup .zoomHere');
-        if (a) a.onclick = function (ev) { ev.preventDefault(); map.closePopup(); map.setView(e.latlng, MIN_ZOOM + 1); };
+        if (a) a.onclick = function (ev) { ev.preventDefault(); map.closePopup(); map.setView(e.latlng, DETAIL_ZOOM + 1); };
       });
       layer.addTo(countryLayer);
     });
@@ -1371,11 +1470,15 @@
   }
 
   // ================= Zeichnen =================
-  function lineStyle() { return { color: settings.color, weight: settings.width, opacity: 1, lineCap: 'round', lineJoin: 'round' }; }
-  // Dunkler Rand: bei dünnen Linien (1–2 px) schmaler und heller, damit die Farbe sichtbar bleibt
+  function lineStyle(lvl) { return { color: settings.q[lvl].color, weight: settings.width, opacity: 1, lineCap: 'round', lineJoin: 'round' }; }
+  // Übersicht (Zoom 9–10): dünn, ohne Rand; Zoom 9 noch etwas feiner
+  function overviewStyle(lvl) {
+    var w = map.getZoom() <= 9 ? 1 : Math.min(2, settings.width);
+    return { color: settings.q[lvl].color, weight: w, opacity: 0.9, lineCap: 'round', lineJoin: 'round' };
+  }
+  // Kräftiger schwarzer Rand (1 px je Seite, ab 4 px Linie 1,5 px) – hebt die Farben klar vom Hintergrund ab
   function casingStyle() {
-    var thin = settings.width <= 2;
-    return { color: CASING_COLOR, weight: settings.width + (thin ? 1 : 2), opacity: thin ? 0.55 : 0.85, lineCap: 'round', lineJoin: 'round' };
+    return { color: CASING_COLOR, weight: settings.width + (settings.width >= 4 ? 3 : 2), opacity: 0.95, lineCap: 'round', lineJoin: 'round' };
   }
   function restrictedStyle() { return { color: RESTRICTED_COLOR, weight: Math.max(1, settings.width - 1), opacity: 0.9, dashArray: '6 6', lineCap: 'butt' }; }
 
@@ -1383,22 +1486,64 @@
   // damit der dunkle Rand nicht durch die farbige Linie durchscheint.
   function applyTransparency() { roadsPane.style.opacity = String(1 - settings.transparency / 100); }
 
+  // Hintergrund abschwächen: der Kartenhintergrund verliert Farbe und wird etwas heller
+  function applyBgFade() {
+    var f = settings.bgFade / 100;
+    map.getPane('tilePane').style.filter = f
+      ? 'saturate(' + (1 - 0.9 * f).toFixed(2) + ') brightness(' + (1 + 0.1 * f).toFixed(2) + ') contrast(' + (1 - 0.2 * f).toFixed(2) + ')'
+      : '';
+  }
+
   function render() {
     roadLayer.clearLayers();
     drawn = { lines: [], casings: [], restrictedLines: [] };
+    renderLabels();
     if (map.getZoom() < MIN_ZOOM) return;
 
     var view = map.getBounds();
-    var drawArea = view.pad(0.3);
+    // herausgezoomt kleinerer Rand – der Ausschnitt ist ohnehin groß
+    var drawArea = view.pad(map.getZoom() < DETAIL_ZOOM ? 0.1 : 0.3);
     var visibleOk = [], visibleRestricted = [];
-    var countOk = 0, countRestricted = 0;
+    var countOk = 0, countRestricted = 0, qCount = { 1: 0, 2: 0, 3: 0 };
 
     ways.forEach(function (w) {
       if (!drawArea.intersects(w.bounds)) return;
       var inView = view.intersects(w.bounds);
-      if (w.restricted) { visibleRestricted.push(w); if (inView) countRestricted++; }
-      else { visibleOk.push(w); if (inView) countOk++; }
+      if (w.restricted) { visibleRestricted.push(w); if (inView) countRestricted++; return; }
+      if (inView) qCount[w.q.lvl]++;
+      if (!settings.q[w.q.lvl].show) return; // Stufe ausgeblendet
+      visibleOk.push(w);
+      if (inView) countOk++;
     });
+    // schlechteste Stufe zuerst zeichnen, damit die guten Wege obenauf liegen
+    visibleOk.sort(function (a, b) { return b.q.lvl - a.q.lvl; });
+    QUALITY.forEach(function (q) {
+      var el = document.getElementById('qCount-' + q.lvl);
+      if (el) el.textContent = qCount[q.lvl] ? '(' + qCount[q.lvl] + ')' : '';
+    });
+
+    // Herausgezoomt (unter Zoom 11): alle Wege einer Stufe als EINE Linie mit vielen Teilen zeichnen.
+    // Statt zehntausender Einzel-Linien sind das nur wenige Objekte – Verschieben bleibt flüssig.
+    // Einzelne Wege antippen geht dann erst ab Zoom 11.
+    if (map.getZoom() < DETAIL_ZOOM) {
+      // dünne Linien ohne schwarzen Rand – sonst wird bei so vielen Wegen alles zu einem bunten Teppich
+      var opt = { renderer: renderer, interactive: false, smoothFactor: 1.5 };
+      if (settings.showRestricted && visibleRestricted.length) {
+        var rl = L.polyline(visibleRestricted.map(function (w) { return w.latlngs; }), L.extend({}, opt, restrictedStyle(), { weight: 1 }));
+        rl.addTo(roadLayer); drawn.restrictedLines.push(rl);
+      }
+      [3, 2, 1].forEach(function (lvl) {
+        var parts = visibleOk.filter(function (w) { return w.q.lvl === lvl; }).map(function (w) { return w.latlngs; });
+        if (!parts.length) return;
+        var ql = L.polyline(parts, L.extend({}, opt, overviewStyle(lvl)));
+        ql._qlvl = lvl;
+        ql.addTo(roadLayer); drawn.lines.push(ql);
+      });
+      lastCountText = countOk + (countOk === 1 ? ' Schotterweg' : ' Schotterwege') + ' im Ausschnitt';
+      if (settings.showRestricted && countRestricted) lastCountText += ' (+ ' + countRestricted + ' gesperrt)';
+      updateViewStatus();
+      return;
+    }
 
     // gesperrte zuerst (liegen unten)
     if (settings.showRestricted) {
@@ -1416,7 +1561,8 @@
       drawn.casings.push(c);
     });
     visibleOk.forEach(function (w) {
-      var l = L.polyline(w.latlngs, L.extend({ renderer: renderer }, lineStyle()));
+      var l = L.polyline(w.latlngs, L.extend({ renderer: renderer }, lineStyle(w.q.lvl)));
+      l._qlvl = w.q.lvl;
       l.bindPopup(function () { return popupHtml(w); }, { maxWidth: 300 });
       l.addTo(roadLayer);
       drawn.lines.push(l);
@@ -1429,10 +1575,45 @@
 
   // Farbe/Breite ohne Neuladen anwenden
   function applyStyle() {
-    var ls = lineStyle(), cs = casingStyle(), rs = restrictedStyle();
-    drawn.lines.forEach(function (l) { l.setStyle(ls); });
+    var ls = { 1: lineStyle(1), 2: lineStyle(2), 3: lineStyle(3) }, cs = casingStyle(), rs = restrictedStyle();
+    var low = map.getZoom() < DETAIL_ZOOM;
+    drawn.lines.forEach(function (l) { l.setStyle(low ? overviewStyle(l._qlvl) : ls[l._qlvl]); });
     drawn.casings.forEach(function (l) { l.setStyle(cs); });
     drawn.restrictedLines.forEach(function (l) { l.setStyle(rs); });
+  }
+
+  // ================= Ortsnamen über den Wegen =================
+  // Zoom 9–10: Städte und Märkte, ab Zoom 11 auch Dörfer. Wichtigere zuerst (Rang, dann Einwohner);
+  // ein Name, der einen schon platzierten überdecken würde, wird weggelassen.
+  var labelLayer = L.layerGroup().addTo(map);
+  var MAX_LABELS = 250;
+  function renderLabels() {
+    labelLayer.clearLayers();
+    if (!settings.labels || map.getZoom() < MIN_ZOOM) return;
+    var z = map.getZoom(), view = map.getBounds().pad(0.05);
+    var maxRank = z >= DETAIL_ZOOM ? 3 : 2;
+    var list = [];
+    places.forEach(function (p) { if (p.rank <= maxRank && view.contains([p.lat, p.lon])) list.push(p); });
+    list.sort(function (a, b) { return a.rank - b.rank || b.pop - a.pop; });
+    var boxes = [];
+    for (var i = 0; i < list.length && boxes.length < MAX_LABELS; i++) {
+      var p = list[i];
+      var fs = p.rank === 1 ? 15 : p.rank === 2 ? 13 : 12;
+      var pt = map.latLngToContainerPoint([p.lat, p.lon]);
+      var w = p.name.length * fs * 0.58 + 10, h = fs + 8;
+      var b = [pt.x - w / 2, pt.y - h / 2, pt.x + w / 2, pt.y + h / 2];
+      var hit = false;
+      for (var k = 0; k < boxes.length && !hit; k++) {
+        var o = boxes[k];
+        hit = b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1];
+      }
+      if (hit) continue;
+      boxes.push(b);
+      L.marker([p.lat, p.lon], {
+        pane: 'labelPane', interactive: false, keyboard: false,
+        icon: L.divIcon({ className: 'placeLabel r' + p.rank, html: '<span>' + esc(p.name) + '</span>', iconSize: [0, 0] })
+      }).addTo(labelLayer);
+    }
   }
 
   // ================= Orte (POIs) zeichnen =================
@@ -1450,7 +1631,7 @@
   function renderPois() {
     poiLayer.clearLayers();
     var counts = {};
-    if (map.getZoom() < MIN_ZOOM) { updatePoiCounts(counts); return; }
+    if (map.getZoom() < DETAIL_ZOOM) { updatePoiCounts(counts); return; } // Orte erst ab Zoom 11
     var view = map.getBounds();
     var drawArea = view.pad(0.3);
     pois.forEach(function (p) {
@@ -1526,6 +1707,8 @@
     return '<h3>' + (name ? esc(name) : 'Ohne Namen') + '</h3>' +
       (w.restricted ? '<div class="warn">⛔ Für Motorräder gesperrt / eingeschränkt</div>' : '') +
       '<table>' +
+      '<tr><td>Qualität</td><td><b><span class="qDot" style="background:' + settings.q[w.q.lvl].color + '"></span>' +
+        QUALITY[w.q.lvl - 1].name + '</b> <span style="color:var(--muted)">(' + esc(w.q.why) + ')</span></td></tr>' +
       '<tr><td>Straßentyp</td><td>' + label(t.highway) + '</td></tr>' +
       '<tr><td>Oberfläche</td><td>' + label(t.surface) + '</td></tr>' +
       '<tr><td>Tracktype</td><td>' + label(t.tracktype) + '</td></tr>' +
@@ -1601,17 +1784,36 @@
   L.DomEvent.disableClickPropagation(panel);
   L.DomEvent.disableScrollPropagation(panel);
 
-  var picker = document.getElementById('colorPicker');
   var range = document.getElementById('widthRange');
   var widthValue = document.getElementById('widthValue');
   var restrictedBox = document.getElementById('showRestricted');
 
-  picker.value = settings.color;
   range.value = settings.width;
   widthValue.textContent = settings.width;
   restrictedBox.checked = settings.showRestricted;
 
-  picker.addEventListener('input', function () { settings.color = picker.value; applyStyle(); saveSettings(); });
+  // Qualitätsstufen: je Stufe Farbfeld (sofort wirksam) und Häkchen (ein-/ausblenden)
+  var qList = document.getElementById('qList');
+  var qInputs = {};
+  QUALITY.forEach(function (q) {
+    var row = document.createElement('div');
+    row.className = 'qRow';
+    row.innerHTML = '<input type="color" aria-label="Farbe für Qualität ' + q.name + '">' +
+      '<label class="check"><input type="checkbox">' +
+      '<span><span class="qName">' + q.name + '</span> <span class="poiCount" id="qCount-' + q.lvl + '"></span>' +
+      '<span class="qHint">' + q.hint + '</span></span></label>';
+    var color = row.querySelector('input[type=color]'), box = row.querySelector('input[type=checkbox]');
+    color.value = settings.q[q.lvl].color;
+    box.checked = settings.q[q.lvl].show;
+    color.addEventListener('input', function () { settings.q[q.lvl].color = color.value; applyStyle(); saveSettings(); });
+    box.addEventListener('change', function () { settings.q[q.lvl].show = box.checked; saveSettings(); render(); });
+    qInputs[q.lvl] = color;
+    qList.appendChild(row);
+  });
+  document.getElementById('qReset').addEventListener('click', function () {
+    QUALITY.forEach(function (q) { settings.q[q.lvl].color = q.color; qInputs[q.lvl].value = q.color; });
+    applyStyle(); saveSettings();
+  });
   range.addEventListener('input', function () {
     settings.width = Number(range.value); widthValue.textContent = range.value; applyStyle(); saveSettings();
   });
@@ -1624,6 +1826,20 @@
     settings.transparency = Number(transpRange.value); transpValue.textContent = transpRange.value; applyTransparency(); saveSettings();
   });
   applyTransparency();
+
+  var bgRange = document.getElementById('bgRange');
+  var bgValue = document.getElementById('bgValue');
+  bgRange.value = settings.bgFade;
+  bgValue.textContent = settings.bgFade;
+  bgRange.addEventListener('input', function () {
+    settings.bgFade = Number(bgRange.value); bgValue.textContent = bgRange.value; applyBgFade(); saveSettings();
+  });
+  applyBgFade();
+
+  var labelsBox = document.getElementById('showLabels');
+  labelsBox.checked = settings.labels;
+  labelsBox.addEventListener('change', function () { settings.labels = labelsBox.checked; saveSettings(); renderLabels(); });
+
   restrictedBox.addEventListener('change', function () {
     settings.showRestricted = restrictedBox.checked; saveSettings(); render();
   });
@@ -1643,13 +1859,6 @@
       renderPois(); // alle Orte-Kategorien sind schon geladen – nur neu zeichnen
     });
     poiList.appendChild(lab);
-  });
-
-  ['#ff6a00', '#e6007e', '#0066ff', '#00b050', '#ffd400', '#8a2be2'].forEach(function (c) {
-    var b = document.createElement('button');
-    b.type = 'button'; b.className = 'swatch'; b.style.background = c; b.title = c;
-    b.addEventListener('click', function () { picker.value = c; settings.color = c; applyStyle(); saveSettings(); });
-    document.getElementById('swatches').appendChild(b);
   });
 
   // ================= Mein Standort =================
