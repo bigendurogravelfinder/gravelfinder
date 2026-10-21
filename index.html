@@ -90,6 +90,33 @@
   .cState.upd { color: var(--accent); }
   .btn.wide { width: 100%; }
   .btn:disabled { background: #cfd8dc; color: #546e7a; cursor: default; }
+
+  /* ---------- Route ---------- */
+  .btn.small { min-height: 36px; padding: 0 10px; font-size: 13px; width: auto; margin-top: 6px; }
+  .btn.active { background: #1565c0; }
+  .routeTools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .routeTools .btn.small, .routeBtns .btn.small { width: auto; margin-top: 0; flex: 1 1 auto; }
+  .routePoints .rp { display: flex; align-items: center; gap: 8px; min-height: 38px; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .routePoints .rp:last-child { border-bottom: 0; }
+  .rp .rpName { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rp button { border: 0; background: #eceff1; border-radius: 8px; min-width: 32px; min-height: 32px; font-size: 15px; cursor: pointer; }
+  .rpBadge, .routePin span {
+    display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%;
+    color: #fff; font-weight: 800; font-size: 12px; flex: none; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.5); box-sizing: border-box;
+  }
+  .rpS { background: #2e7d32; } .rpV { background: #1565c0; } .rpZ { background: #c62828; }
+  .routePin { background: none; border: 0; }
+  .routePin span { width: 30px; height: 30px; font-size: 14px; transform: translate(-50%, -50%); position: absolute; left: 0; top: 0; }
+  .routeStats { font-size: 15px; margin-bottom: 6px; }
+  .routeBar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); margin: 6px 0; }
+  .routeLegend { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .routeLegend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 3px 0 6px; vertical-align: -1px; }
+  .routeBtns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .routeErr { color: var(--error); font-size: 14px; }
+  #map.routeMode { cursor: crosshair; }
+  #map.routeMode .leaflet-grab { cursor: crosshair; }
+  .routeToggle a { font-size: 22px; text-decoration: none; }
+  .routeToggle.on a { background: #1565c0 !important; }
   .preloadRow select { flex: 1; min-height: 44px; font: inherit; font-size: 15px; border: 1px solid var(--border); border-radius: 8px; padding: 0 8px; background: #fff; color: var(--fg); }
   .btn { min-height: 44px; padding: 0 16px; border: 0; border-radius: 22px; background: var(--accent); color: #fff; font: 600 15px inherit; font-family: inherit; cursor: pointer; }
   .btn.light { background: #eceff1; color: var(--fg); margin-top: 8px; width: 100%; }
@@ -270,6 +297,35 @@
     </div>
    </details>
 
+   <details class="section" id="secRoute">
+    <summary>
+      <span class="secIcon">🧭</span>
+      <span class="secTitle">Route<span class="secSum" id="sumRoute"></span></span>
+      <span class="secChev">›</span>
+    </summary>
+    <div class="secBody">
+    <div class="row">
+      <button type="button" id="routeModeBtn" class="btn wide">➕ Punkte auf der Karte setzen</button>
+      <div class="hint">Tippe auf die Karte: der erste Punkt ist der Start, jeder weitere wird das neue Ziel
+        (das bisherige wird Zwischenziel). Punkte lassen sich mit dem Finger verschieben. Bei POIs: „Zur Route hinzufügen“.</div>
+    </div>
+    <div class="row">
+      <div id="routePoints" class="routePoints"></div>
+      <div class="routeTools">
+        <button type="button" id="routeFromGps" class="btn light small">📍 Mein Standort als Start</button>
+        <button type="button" id="routeReverse" class="btn light small">⇅ Umkehren</button>
+        <button type="button" id="routeClear" class="btn light small">🗑 Löschen</button>
+      </div>
+    </div>
+    <div class="row">
+      <label class="title" for="prefRange">Schotter-Vorliebe: <span id="prefValue">stark</span></label>
+      <input type="range" id="prefRange" min="1" max="5" step="0.5" value="3">
+      <div class="hint">Wie viel Umweg du für Schotter in Kauf nimmst. Verbindungsstücke auf Straßen bleiben erlaubt.</div>
+    </div>
+    <div class="row" id="routeResult"></div>
+    </div>
+   </details>
+
    <details class="section" id="secOffline">
     <summary>
       <span class="secIcon">💾</span>
@@ -304,11 +360,121 @@
 </button>
 
 <div id="statusWrap">
+  <div id="routeHint" class="pill hidden"></div>
   <div id="updateBox" class="pill offer hidden"></div>
   <div id="offerBox" class="pill offer hidden"></div>
   <div id="preloadStatus" class="pill hidden"></div>
   <div id="status" class="pill"><span>Starte …</span></div>
 </div>
+
+<!-- Routing-Profil für BRouter (wird von der App bei Bedarf hochgeladen) -->
+<script type="text/plain" id="brouterProfile">
+# Gravelfinder Big Enduro – Routing-Profil für BRouter
+# Bevorzugt Schotterwege (grün > gelb > rot, gleiche Regeln wie die Karte), Verbindungen auf Straßen.
+
+---context:global
+
+assign downhillcost 0
+assign downhillcutoff 0
+assign uphillcost 0
+assign uphillcutoff 0
+
+assign validForBikes 0
+assign validForCars 1
+assign turnInstructionMode = 0
+assign pass1coefficient = 1.2
+
+# Wie stark Schotter gegenüber Asphalt bevorzugt wird (Asphalt kostet so viel mal mehr als guter Schotter)
+assign gravel_pref = 3.0   # %gravel_pref% | Schotter-Vorliebe | number
+
+---context:way
+
+# ---------- Zugang: der genaueste vorhandene Schlüssel entscheidet (wie in der Karte) ----------
+assign blocked
+  if motorcycle= then
+    ( if motor_vehicle= then
+        ( if vehicle= then
+            ( access=no|private )
+          else vehicle=no|private )
+      else motor_vehicle=no|private|agricultural|destination )
+  else motorcycle=no|private
+
+# ---------- Schotterweg? (gleicher Filter wie die Karte) ----------
+assign isgravelsurface surface=gravel|fine_gravel|compacted|unpaved|dirt|ground
+assign isgravel
+  if highway=track then
+    ( if tracktype= then isgravelsurface else tracktype=grade1|grade2|grade3 )
+  else if highway=unclassified|tertiary|residential|service then isgravelsurface
+  else false
+
+# ---------- Qualitätsstufe 1 = hoch, 2 = mittel, 3 = niedrig (wie die Karte) ----------
+assign q_smooth
+  if smoothness=excellent|good|intermediate then 1
+  else if smoothness=bad then 2
+  else if smoothness=very_bad|horrible|very_horrible|impassable then 3
+  else 0
+assign q_track
+  if tracktype=grade1 then 1 else if tracktype=grade2 then 2 else if tracktype=grade3|grade4|grade5 then 3 else 0
+assign q_surf
+  if surface=asphalt|concrete|paved|compacted|fine_gravel then 1
+  else if surface=gravel|unpaved then 2
+  else if surface=dirt|ground then 3
+  else 0
+assign quality
+  if greater q_smooth 0 then q_smooth
+  else if greater ( max q_track q_surf ) 0 then max q_track q_surf
+  else 2
+
+# ---------- Kosten je Meter (1 = am liebsten) ----------
+# Straßen (Verbindungsstücke): Grundkosten × Schotter-Vorliebe
+assign roadbase
+  if highway=trunk|trunk_link then 2.0
+  else if highway=primary|primary_link then 1.3
+  else if highway=secondary|secondary_link then 1.15
+  else if highway=tertiary|tertiary_link then 1.0
+  else if highway=unclassified then 1.0
+  else if highway=residential|living_street then 1.2
+  else if highway=service then 1.3
+  else if highway=track then 1.6          # Feldweg ohne Angaben (nicht auf der Karte)
+  else if route=ferry then 2.0
+  else 0
+assign roadcost
+  if highway=motorway|motorway_link then 10000
+  else if equal roadbase 0 then 10000
+  else max 1.0 ( multiply roadbase gravel_pref )
+
+# Schotterwege nach Qualität
+assign gravelcost
+  if equal quality 1 then 1.0
+  else if equal quality 2 then 1.15
+  else 1.7
+
+assign costfactor
+  if blocked then 10000
+  else if isgravel then gravelcost
+  else roadcost
+
+assign turncost 30
+assign initialcost if route=ferry then 10000 else 0
+
+# Angaben, die in der Antwort je Abschnitt mitgeliefert werden sollen (für Einfärbung und Fahrzeit)
+assign dummyUsage smoothness=
+
+---context:node
+
+# Schranken (bei Forststraßen oft geschlossen) und Tore stark bestrafen, Poller und Drängelgitter sperren
+assign nodeblocked
+  if motorcycle=yes|designated|permissive then false
+  else if motor_vehicle=yes|designated|permissive then false
+  else if access=yes|designated|permissive then false
+  else barrier=bollard|cycle_barrier|block|kissing_gate|stile|turnstile
+
+assign initialcost
+  if nodeblocked then 1000000
+  else if barrier=lift_gate then 3000
+  else if barrier=gate then 800
+  else 0
+</script>
 
 <script>
 (function () {
@@ -368,7 +534,7 @@
     { lvl: 3, name: 'niedrig', hint: 'Erde/Naturboden, bei Nässe rutschig', color: '#ff1a4b', old: '#e53935' }
   ];
 
-  var settings = { width: 2, transparency: 0, bgFade: 60, labels: true, showRestricted: false, poi: {}, q: {}, panelOpen: false, openSection: '', offline: [], noAsk: [] };
+  var settings = { width: 2, transparency: 0, bgFade: 60, labels: true, route: { pts: [], pref: 3 }, showRestricted: false, poi: {}, q: {}, panelOpen: false, openSection: '', offline: [], noAsk: [] };
   POI_CATS.forEach(function (c) { settings.poi[c.id] = c.on; });
   QUALITY.forEach(function (q) { settings.q[q.lvl] = { color: q.color, show: true }; });
   try {
@@ -386,6 +552,11 @@
       if (saved.transparency >= 0 && saved.transparency <= 100) settings.transparency = Number(saved.transparency);
       if (saved.bgFade >= 0 && saved.bgFade <= 100) settings.bgFade = Number(saved.bgFade);
       if (typeof saved.labels === 'boolean') settings.labels = saved.labels;
+      if (saved.route && Array.isArray(saved.route.pts)) {
+        settings.route.pts = saved.route.pts.filter(function (p) { return p && isFinite(p.lat) && isFinite(p.lon); })
+          .map(function (p) { return { lat: Number(p.lat), lon: Number(p.lon), name: typeof p.name === 'string' ? p.name : '' }; });
+        if (saved.route.pref >= 1 && saved.route.pref <= 5) settings.route.pref = Number(saved.route.pref);
+      }
       if (typeof saved.showRestricted === 'boolean') settings.showRestricted = saved.showRestricted;
       if (typeof saved.openSection === 'string') settings.openSection = saved.openSection;
       if (typeof saved.panelOpen === 'boolean') settings.panelOpen = saved.panelOpen;
@@ -1925,6 +2096,7 @@
 
     return '<h3>' + cat.emoji + ' ' + esc(name) + '</h3>' +
       '<table>' + rows + '</table>' +
+      '<a href="#" class="osm addRoute" data-lat="' + p.lat + '" data-lon="' + p.lon + '" data-name="' + esc(name) + '">➕ Zur Route hinzufügen</a><br>' +
       '<a class="osm" href="https://www.google.com/maps/dir/?api=1&destination=' + p.lat.toFixed(6) + ',' + p.lon.toFixed(6) + '" target="_blank" rel="noopener">Navigation starten ↗</a><br>' +
       '<a class="osm" href="https://www.openstreetmap.org/' + p.type + '/' + p.id + '" target="_blank" rel="noopener">Auf openstreetmap.org ansehen ↗</a>';
   }
@@ -1940,7 +2112,7 @@
   setCollapsed(!settings.panelOpen);
 
   // Abschnitte: immer nur einer offen (spart Platz am Handy); der zuletzt geöffnete wird gemerkt
-  var sections = ['secStyle', 'secPoi', 'secOffline'].map(function (id) { return document.getElementById(id); });
+  var sections = ['secStyle', 'secPoi', 'secRoute', 'secOffline'].map(function (id) { return document.getElementById(id); });
   sections.forEach(function (sec) {
     sec.open = sec.id === settings.openSection;
     sec.addEventListener('toggle', function () {
@@ -2091,6 +2263,7 @@
       centerOnNextFix = false;
       map.setView(ll, Math.max(map.getZoom(), 14));
     }
+    if (pendingGpsStart) { pendingGpsStart = false; insertGpsStart(ll); } // "Mein Standort als Start"
   }
 
   function onPositionError(err) {
@@ -2098,11 +2271,12 @@
     if (err.code === 1) {
       // Zugriff verweigert: Beobachten beenden, Markierung entfernen
       stopWatch();
-      if (centerOnNextFix) alert('Standort-Zugriff wurde nicht erlaubt. Bitte in den Browser-Einstellungen für diese Seite erlauben.');
-    } else if (centerOnNextFix) {
+      if (centerOnNextFix || pendingGpsStart) alert('Standort-Zugriff wurde nicht erlaubt. Bitte in den Browser-Einstellungen für diese Seite erlauben.');
+    } else if (centerOnNextFix || pendingGpsStart) {
       alert('Standort konnte nicht ermittelt werden. Ist GPS / Ortung eingeschaltet?');
     }
     centerOnNextFix = false;
+    pendingGpsStart = false;
   }
 
   function startWatch() {
@@ -2134,6 +2308,337 @@
       }).catch(function () {});
     }
   } catch (e) {}
+
+  // ================= Routing (BRouter, brouter.de) =================
+  // Das eigene Profil (oben im <script type="text/plain">) wird einmal je Sitzung hochgeladen; BRouter rechnet
+  // die Route und liefert je Abschnitt die OSM-Angaben – damit färbt die App die Route nach Qualitätsstufe ein.
+  var BROUTER = 'https://brouter.de/brouter';
+  var ROUTE_ROAD_COLOR = '#2f6fdf';
+  var routePane = map.createPane('routePane');
+  routePane.style.zIndex = 490;                 // über Wegen und Ortsnamen, unter den POI-Symbolen
+  routePane.style.pointerEvents = 'none';
+  map.createPane('routePinPane').style.zIndex = 640;
+  var routeLayer = L.layerGroup().addTo(map);
+  var routePins = L.layerGroup().addTo(map);
+  var routeMode = false, profileId = null, routeCtrl = null, routeTimer = null, lastRoute = null, pendingGpsStart = false;
+  var routeHintEl = document.getElementById('routeHint');
+
+  // Fahrzeit-Schätzung (km/h): Schotter je Stufe, Straßen je Typ
+  var Q_SPEED = { 1: 35, 2: 28, 3: 18 };
+  var ROAD_SPEED = { trunk: 80, trunk_link: 60, primary: 75, primary_link: 50, secondary: 65, secondary_link: 50,
+    tertiary: 55, tertiary_link: 45, unclassified: 45, residential: 30, living_street: 15, service: 20, track: 20 };
+  var GRAVEL_SURF = /^(gravel|fine_gravel|compacted|unpaved|dirt|ground)$/;
+
+  function isGravelWay(t) {   // gleicher Filter wie die Karte
+    if (t.highway === 'track') return t.tracktype ? /^grade[123]$/.test(t.tracktype) : GRAVEL_SURF.test(t.surface || '');
+    if (/^(unclassified|tertiary|residential|service)$/.test(t.highway || '')) return GRAVEL_SURF.test(t.surface || '');
+    return false;
+  }
+  function parseTags(s) {
+    var t = {};
+    String(s || '').split(' ').forEach(function (kv) { var i = kv.indexOf('='); if (i > 0) t[kv.slice(0, i)] = kv.slice(i + 1); });
+    return t;
+  }
+
+  function routePts() { return settings.route.pts; }
+  function saveRoute() { saveSettings(); renderRoutePoints(); drawRoutePins(); scheduleRoute(); }
+
+  function pointLabel(i, n) { return i === 0 ? 'Start' : i === n - 1 ? 'Ziel' : 'Zwischenziel ' + i; }
+  function pinClass(i, n) { return i === 0 ? 'rpS' : i === n - 1 ? 'rpZ' : 'rpV'; }
+  function pinText(i, n) { return i === 0 ? 'S' : i === n - 1 ? 'Z' : String(i); }
+  function pointName(p) { return p.name || (p.lat.toFixed(4) + ', ' + p.lon.toFixed(4)); }
+
+  function addRoutePoint(ll, name) {
+    routePts().push({ lat: Math.round(ll.lat * 1e6) / 1e6, lon: Math.round((ll.lng !== undefined ? ll.lng : ll.lon) * 1e6) / 1e6, name: name || '' });
+    saveRoute();
+  }
+
+  function drawRoutePins() {
+    routePins.clearLayers();
+    var pts = routePts(), n = pts.length;
+    pts.forEach(function (p, i) {
+      var m = L.marker([p.lat, p.lon], {
+        pane: 'routePinPane', draggable: true, keyboard: false, title: pointLabel(i, n),
+        icon: L.divIcon({ className: 'routePin', html: '<span class="' + pinClass(i, n) + '">' + pinText(i, n) + '</span>', iconSize: [0, 0] })
+      });
+      m.on('dragend', function () {
+        var ll = m.getLatLng();
+        p.lat = Math.round(ll.lat * 1e6) / 1e6; p.lon = Math.round(ll.lng * 1e6) / 1e6; p.name = '';
+        saveRoute();
+      });
+      m.bindPopup(function () {
+        return '<b>' + pointLabel(i, n) + '</b><br>' + esc(pointName(p)) +
+          '<br><a href="#" class="osm rpDel" data-i="' + i + '">Punkt entfernen</a>';
+      });
+      m.addTo(routePins);
+    });
+  }
+
+  function renderRoutePoints() {
+    var box = document.getElementById('routePoints'), pts = routePts(), n = pts.length;
+    if (!n) { box.innerHTML = '<div class="hint">Noch keine Punkte gesetzt.</div>'; }
+    else {
+      box.innerHTML = pts.map(function (p, i) {
+        return '<div class="rp"><span class="rpBadge ' + pinClass(i, n) + '">' + pinText(i, n) + '</span>' +
+          '<span class="rpName" title="' + esc(pointName(p)) + '">' + esc(pointName(p)) + '</span>' +
+          (i > 0 ? '<button type="button" data-act="up" data-i="' + i + '" title="nach oben">↑</button>' : '') +
+          (i < n - 1 ? '<button type="button" data-act="down" data-i="' + i + '" title="nach unten">↓</button>' : '') +
+          '<button type="button" data-act="del" data-i="' + i + '" title="entfernen">✕</button></div>';
+      }).join('');
+    }
+    updateRouteSummary();
+  }
+
+  function updateRouteSummary() {
+    var s = document.getElementById('sumRoute'), n = routePts().length;
+    if (lastRoute && n >= 2) s.textContent = kmText(lastRoute.dist) + ' · ' + Math.round(lastRoute.gravelShare * 100) + ' % Schotter';
+    else s.textContent = n ? (n === 1 ? 'Start gesetzt – Ziel fehlt' : n + ' Punkte') : 'keine Route';
+  }
+  function kmText(m) { return (m / 1000).toFixed(m < 10000 ? 1 : 0).replace('.', ',') + ' km'; }
+  function timeText(h) { var mins = Math.round(h * 60); return mins < 60 ? mins + ' min' : Math.floor(mins / 60) + ' h ' + (mins % 60) + ' min'; }
+
+  function setRouteMode(on) {
+    routeMode = on;
+    map.getContainer().classList.toggle('routeMode', on);
+    roadsPane.style.pointerEvents = on ? 'none' : '';    // Wege nicht antippbar – Tippen setzt einen Punkt
+    var btn = document.getElementById('routeModeBtn');
+    btn.textContent = on ? '✔ Fertig mit Punkte setzen' : '➕ Punkte auf der Karte setzen';
+    btn.classList.toggle('active', on);
+    if (routeToggleEl) routeToggleEl.classList.toggle('on', on);
+    if (on) {
+      routeHintEl.className = 'pill';
+      routeHintEl.innerHTML = '<span>🧭 Tippe auf die Karte, um einen Routenpunkt zu setzen</span><button type="button" id="routeHintDone">Fertig</button>';
+      document.getElementById('routeHintDone').onclick = function () { setRouteMode(false); };
+    } else {
+      routeHintEl.className = 'pill hidden'; routeHintEl.innerHTML = '';
+    }
+    placeLocateBtn();
+  }
+
+  function scheduleRoute() {
+    clearTimeout(routeTimer);
+    if (routeCtrl) { routeCtrl.abort(); routeCtrl = null; }
+    if (routePts().length < 2) { routeLayer.clearLayers(); lastRoute = null; showRouteResult(''); updateRouteSummary(); return; }
+    showRouteResult('<div class="routeStats"><div class="spinner" style="display:inline-block;vertical-align:middle"></div> Route wird berechnet …</div>');
+    routeTimer = setTimeout(computeRoute, 300);
+  }
+
+  function ensureProfile() {
+    if (profileId) return Promise.resolve(profileId);
+    return fetch(BROUTER + '/profile', {
+      method: 'POST', body: document.getElementById('brouterProfile').textContent,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      if (!j.profileid) throw new Error('Routing-Profil wurde nicht angenommen: ' + (j.error || 'unbekannter Fehler'));
+      profileId = j.profileid;
+      return profileId;
+    });
+  }
+
+  function computeRoute(retried) {
+    var pts = routePts().slice();
+    if (pts.length < 2) return;
+    var ctrl = new AbortController();
+    routeCtrl = ctrl;
+    ensureProfile().then(function (id) {
+      var url = BROUTER + '?lonlats=' + pts.map(function (p) { return p.lon.toFixed(6) + ',' + p.lat.toFixed(6); }).join('|') +
+        '&profile=' + encodeURIComponent(id) + '&alternativeidx=0&format=geojson&profile:gravel_pref=' + settings.route.pref;
+      return fetch(url, { signal: ctrl.signal }).then(function (r) { return r.text(); });
+    }).then(function (txt) {
+      if (ctrl !== routeCtrl) return;
+      if (!/^\s*\{/.test(txt)) {
+        // Profil auf dem Server abgelaufen? Einmal neu hochladen und erneut versuchen
+        if (!retried && /profile/i.test(txt)) { profileId = null; computeRoute(true); return; }
+        throw new Error(txt.trim() || 'keine Antwort');
+      }
+      routeCtrl = null;
+      showRoute(JSON.parse(txt), pts);
+    }).catch(function (err) {
+      if (err.name === 'AbortError' || ctrl !== routeCtrl) return;
+      routeCtrl = null;
+      routeLayer.clearLayers(); lastRoute = null;
+      var msg = String(err.message || err);
+      if (/not found|no track|target island|position not mapped|from-position|to-position|via-position/i.test(msg)) {
+        msg = 'Keine Route gefunden. Liegt jeder Punkt in der Nähe einer Straße oder eines Weges?';
+      } else if (err.name === 'TypeError') {
+        msg = 'Der Routing-Server ist nicht erreichbar (Internet?).';
+      }
+      showRouteResult('<div class="routeErr">⚠ ' + esc(msg) + '</div>');
+      updateRouteSummary();
+    });
+  }
+
+  function showRoute(json, pts) {
+    var f = json.features && json.features[0];
+    if (!f) { showRouteResult('<div class="routeErr">⚠ Keine Route gefunden.</div>'); return; }
+    var coords = f.geometry.coordinates, msgs = f.properties.messages || [], head = msgs[0] || [];
+    var iLon = head.indexOf('Longitude'), iLat = head.indexOf('Latitude'), iDist = head.indexOf('Distance'), iTags = head.indexOf('WayTags');
+
+    // Abschnitte bilden: jede Zeile in "messages" endet an ihrem Punkt; dazu passende Koordinaten einsammeln
+    var segs = [], ci = 0, last = null;
+    for (var m = 1; m < msgs.length; m++) {
+      var row = msgs[m], mlon = row[iLon] / 1e6, mlat = row[iLat] / 1e6, tags = parseTags(row[iTags]);
+      var cls = isGravelWay(tags) ? 'q' + wayQuality(tags).lvl : 'road';
+      var line = last ? [last] : [];
+      while (ci < coords.length) {
+        var c = coords[ci++];
+        line.push([c[1], c[0]]);
+        if (Math.abs(c[0] - mlon) < 2e-6 && Math.abs(c[1] - mlat) < 2e-6) break;
+      }
+      last = line[line.length - 1];
+      segs.push({ cls: cls, dist: Number(row[iDist]) || 0, line: line, hw: tags.highway });
+    }
+    while (ci < coords.length && segs.length) { var cc = coords[ci++]; segs[segs.length - 1].line.push([cc[1], cc[0]]); }
+
+    // Auswertung: Anteile, Fahrzeit
+    var total = 0, by = { q1: 0, q2: 0, q3: 0, road: 0 }, hours = 0;
+    segs.forEach(function (s) {
+      total += s.dist; by[s.cls] += s.dist;
+      var v = s.cls === 'road' ? (ROAD_SPEED[s.hw] || 40) : Q_SPEED[s.cls.charAt(1)];
+      hours += s.dist / 1000 / v;
+    });
+    var props = f.properties;
+    var dist = Number(props['track-length']) || total;
+    var ascend = Number(props['filtered ascend']) || 0;
+
+    // Zeichnen: weißer Rand, darüber farbige Abschnitte (Schotter in Stufenfarbe, Straße blau)
+    routeLayer.clearLayers();
+    var all = coords.map(function (c) { return [c[1], c[0]]; });
+    L.polyline(all, { pane: 'routePane', color: '#fff', weight: 11, opacity: 0.95, interactive: false, lineJoin: 'round', lineCap: 'round' }).addTo(routeLayer);
+    var groups = {};
+    segs.forEach(function (s) { (groups[s.cls] = groups[s.cls] || []).push(s.line); });
+    ['road', 'q3', 'q2', 'q1'].forEach(function (cls) {
+      if (!groups[cls]) return;
+      var color = cls === 'road' ? ROUTE_ROAD_COLOR : settings.q[cls.charAt(1)].color;
+      L.polyline(groups[cls], { pane: 'routePane', color: color, weight: 6, opacity: 1, interactive: false, lineJoin: 'round', lineCap: 'round' }).addTo(routeLayer);
+    });
+
+    lastRoute = { coords: coords, dist: dist, by: by, total: total || 1, hours: hours, ascend: ascend, bounds: L.latLngBounds(all),
+      gravelShare: (by.q1 + by.q2 + by.q3) / (total || 1), pts: pts };
+    renderRouteResult();
+    updateRouteSummary();
+  }
+
+  function renderRouteResult() {
+    var r = lastRoute;
+    if (!r) return;
+    var parts = [
+      { cls: 'q1', name: 'hoch', color: settings.q[1].color }, { cls: 'q2', name: 'mittel', color: settings.q[2].color },
+      { cls: 'q3', name: 'niedrig', color: settings.q[3].color }, { cls: 'road', name: 'Straße', color: ROUTE_ROAD_COLOR }
+    ];
+    var pct = function (c) { return Math.round(r.by[c] / r.total * 100); };
+    showRouteResult(
+      '<div class="routeStats"><b>' + kmText(r.dist) + '</b> · ≈ ' + timeText(r.hours) + (r.ascend ? ' · ↑ ' + Math.round(r.ascend) + ' m' : '') + '</div>' +
+      '<div class="routeBar">' + parts.map(function (p) {
+        return r.by[p.cls] ? '<span style="width:' + (r.by[p.cls] / r.total * 100) + '%;background:' + p.color + '"></span>' : '';
+      }).join('') + '</div>' +
+      '<div class="routeLegend">' + parts.map(function (p) { return '<i style="background:' + p.color + '"></i>' + p.name + ' ' + pct(p.cls) + ' %'; }).join(' ') + '</div>' +
+      '<div class="routeBtns"><button type="button" id="routeFit" class="btn light small">🔍 Ganze Route zeigen</button>' +
+      '<button type="button" id="routeGpx" class="btn small">⬇ GPX speichern</button></div>' +
+      '<div class="hint">Fahrzeit grob geschätzt. GPX z. B. für Garmin, OsmAnd, Kurviger.</div>');
+    document.getElementById('routeFit').onclick = function () { map.fitBounds(r.bounds, { padding: [30, 30] }); };
+    document.getElementById('routeGpx').onclick = downloadGpx;
+  }
+
+  function showRouteResult(html) {
+    var el = document.getElementById('routeResult');
+    el.innerHTML = html;
+    el.hidden = !html;
+  }
+
+  function downloadGpx() {
+    var r = lastRoute;
+    if (!r) return;
+    var xml = function (s) { return String(s).replace(/[<>&"]/g, function (c) { return { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]; }); };
+    var n = r.pts.length;
+    var out = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+      '<gpx version="1.1" creator="Gravelfinder Big Enduro" xmlns="http://www.topografix.com/GPX/1/1">\n' +
+      '<metadata><name>Gravelfinder Route</name><desc>' + xml(kmText(r.dist) + ', ' + Math.round(r.gravelShare * 100) + ' % Schotter') + '</desc></metadata>\n';
+    r.pts.forEach(function (p, i) {
+      out += '<wpt lat="' + p.lat.toFixed(6) + '" lon="' + p.lon.toFixed(6) + '"><name>' + xml(pointLabel(i, n) + (p.name ? ': ' + p.name : '')) + '</name></wpt>\n';
+    });
+    out += '<trk><name>Gravelfinder Route</name><trkseg>\n';
+    r.coords.forEach(function (c) {
+      out += '<trkpt lat="' + c[1].toFixed(6) + '" lon="' + c[0].toFixed(6) + '">' + (c[2] !== undefined ? '<ele>' + c[2] + '</ele>' : '') + '</trkpt>\n';
+    });
+    out += '</trkseg></trk>\n</gpx>\n';
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([out], { type: 'application/gpx+xml' }));
+    a.download = 'gravelfinder-route-' + new Date().toISOString().slice(0, 10) + '.gpx';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+  }
+
+  // ---- Bedienung ----
+  map.on('click', function (e) { if (routeMode) addRoutePoint(e.latlng); });
+
+  document.getElementById('routeModeBtn').addEventListener('click', function () { setRouteMode(!routeMode); });
+  document.getElementById('routeReverse').addEventListener('click', function () { settings.route.pts.reverse(); saveRoute(); });
+  document.getElementById('routeClear').addEventListener('click', function () {
+    if (routePts().length && !confirm('Alle Routenpunkte löschen?')) return;
+    settings.route.pts = []; saveRoute();
+  });
+  document.getElementById('routeFromGps').addEventListener('click', function () {
+    if (lastPos && watchId !== null) { insertGpsStart(lastPos); return; }
+    if (!navigator.geolocation) { alert('Dein Browser kann den Standort nicht ermitteln.'); return; }
+    pendingGpsStart = true;
+    locateBtn.classList.add('busy');
+    startWatch();
+  });
+  function insertGpsStart(ll) {
+    var pts = routePts();
+    var p = { lat: Math.round(ll.lat * 1e6) / 1e6, lon: Math.round(ll.lng * 1e6) / 1e6, name: 'Mein Standort' };
+    if (pts.length && pts[0].name === 'Mein Standort') pts[0] = p; else pts.unshift(p);
+    saveRoute();
+  }
+  document.getElementById('routePoints').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-act]');
+    if (!b) return;
+    var i = Number(b.dataset.i), pts = routePts();
+    if (b.dataset.act === 'del') pts.splice(i, 1);
+    if (b.dataset.act === 'up' && i > 0) { var t = pts[i - 1]; pts[i - 1] = pts[i]; pts[i] = t; }
+    if (b.dataset.act === 'down' && i < pts.length - 1) { var u = pts[i + 1]; pts[i + 1] = pts[i]; pts[i] = u; }
+    saveRoute();
+  });
+  // Links in Popups: "Punkt entfernen" (Routenpunkt) und "Zur Route hinzufügen" (POI)
+  document.addEventListener('click', function (e) {
+    var del = e.target.closest('.rpDel');
+    if (del) { e.preventDefault(); map.closePopup(); routePts().splice(Number(del.dataset.i), 1); saveRoute(); return; }
+    var add = e.target.closest('.addRoute');
+    if (add) {
+      e.preventDefault(); map.closePopup();
+      addRoutePoint({ lat: Number(add.dataset.lat), lon: Number(add.dataset.lon) }, add.dataset.name || '');
+    }
+  });
+
+  var PREF_NAMES = { 1: 'gering', 1.5: 'gering', 2: 'mittel', 2.5: 'mittel', 3: 'stark', 3.5: 'stark', 4: 'sehr stark', 4.5: 'sehr stark', 5: 'maximal' };
+  var prefRange = document.getElementById('prefRange'), prefValue = document.getElementById('prefValue');
+  prefRange.value = settings.route.pref;
+  prefValue.textContent = PREF_NAMES[settings.route.pref] || settings.route.pref;
+  prefRange.addEventListener('input', function () { prefValue.textContent = PREF_NAMES[prefRange.value] || prefRange.value; });
+  prefRange.addEventListener('change', function () { settings.route.pref = Number(prefRange.value); saveSettings(); scheduleRoute(); });
+
+  // Schnellknopf 🧭 links unter der Kartenauswahl: Punkte setzen ein/aus
+  var routeToggleEl = null;
+  var RouteToggle = L.Control.extend({
+    options: { position: 'topleft' },
+    onAdd: function () {
+      var el = L.DomUtil.create('div', 'leaflet-bar routeToggle');
+      el.innerHTML = '<a href="#" role="button" title="Routenpunkte setzen">🧭</a>';
+      L.DomEvent.disableClickPropagation(el);
+      el.firstChild.addEventListener('click', function (e) { e.preventDefault(); setRouteMode(!routeMode); });
+      routeToggleEl = el;
+      return el;
+    }
+  });
+  new RouteToggle().addTo(map);
+  L.DomEvent.disableClickPropagation(routeHintEl);
+
+  renderRoutePoints();
+  drawRoutePins();
+  showRouteResult('');
+  if (routePts().length >= 2) scheduleRoute();
 
   // ================= Start =================
   function updateZoomClass() { map.getContainer().classList.toggle('zoom-low', map.getZoom() < 14); }
