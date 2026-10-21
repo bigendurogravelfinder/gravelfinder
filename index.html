@@ -186,6 +186,13 @@
   /* ---------- Leaflet-Anpassungen ---------- */
   .leaflet-touch .leaflet-bar a { width: 44px; height: 44px; line-height: 44px; font-size: 22px; }
   .leaflet-control-layers-toggle { width: 44px !important; height: 44px !important; }
+  /* Zoomstufen-Anzeige unter + / − */
+  .zoomInfo {
+    width: 44px; box-sizing: border-box; background: rgba(255,255,255,.92); text-align: center;
+    font-weight: 700; font-size: 16px; line-height: 1; padding: 4px 0 5px; color: #1d232a; cursor: default; user-select: none;
+  }
+  .leaflet-control.zoomInfo { margin-top: 6px; }
+  .zoomInfo span { display: block; font-size: 9px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 2px; }
   .leaflet-popup-content { font-size: 14px; line-height: 1.45; margin: 12px 14px; }
   .leaflet-popup-content h3 { margin: 0 0 6px; font-size: 16px; }
   .leaflet-popup-content table { border-collapse: collapse; }
@@ -437,6 +444,20 @@
     attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap-Mitwirkende</a>, SRTM | Stil: © <a href="https://opentopomap.org" target="_blank">OpenTopoMap</a> (CC-BY-SA)'
   });
   osm.addTo(map);
+  // Zoomstufe direkt unter den Knöpfen + und − (immer sichtbar, nimmt keinen Platz auf der Karte weg)
+  var ZoomInfo = L.Control.extend({
+    options: { position: 'topleft' },
+    onAdd: function (m) {
+      var el = L.DomUtil.create('div', 'leaflet-bar zoomInfo');
+      el.title = 'Zoomstufe';
+      function upd() { el.innerHTML = '<span>Zoom</span>' + m.getZoom(); }
+      m.on('zoomend', upd);
+      upd();
+      L.DomEvent.disableClickPropagation(el);
+      return el;
+    }
+  });
+  new ZoomInfo().addTo(map);
   L.control.layers({ 'OpenStreetMap': osm, 'Topokarte (Höhenlinien)': topo, 'CyclOSM (Wege & Oberflächen)': cyclosm }, null, { position: 'topleft' }).addTo(map);
   L.control.scale({ imperial: false, position: 'bottomright' }).addTo(map);
 
@@ -543,27 +564,33 @@
   // ("full") und Teil-Daten von Grenz-Kacheln ("partial" – die ergänzt die App über Overpass).
   // Block-Datei holen. Die Dateien liegen gzip-komprimiert auf dem Server (spart 60 % Platz) und werden
   // hier entpackt. Hat der Server sie schon selbst entpackt geliefert, wird das erkannt.
-  function fetchBlockFile(bk) {
+  // Block-Datei roh holen (so komprimiert, wie sie auf dem Server liegt). null = Block hat keine Datei.
+  function fetchRawBlock(bk) {
+    if (!staticIndex.blocks[bk][1]) return Promise.resolve(null);
     var url = staticBase + 'blocks/' + bk.replace(',', '/') + (staticIndex.gz ? '.json.gz' : '.json');
     return fetch(url).then(function (r) {
       if (!r.ok) throw new Error('http' + r.status);
       return r.arrayBuffer();
-    }).then(function (buf) {
-      var b = new Uint8Array(buf);
-      if (b[0] === 0x1f && b[1] === 0x8b) {
-        if (typeof DecompressionStream === 'undefined') throw new Error('Browser zu alt (kein Entpacken möglich)');
-        var stream = new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'));
-        return new Response(stream).json();
-      }
-      return JSON.parse(new TextDecoder().decode(b));
     });
   }
 
-  function fetchBlock(bk) {
-    var info = staticIndex.blocks[bk];
-    var p = info[1] ? fetchBlockFile(bk) : Promise.resolve({ cells: [] });
-    return p.then(function (data) {
-      var now = Date.now(), byKey = {};
+  // Rohe Block-Datei entpacken (gzip). Hat der Server sie schon selbst entpackt geliefert, wird das erkannt.
+  function unpack(buf) {
+    if (!buf) return Promise.resolve({ cells: [] });
+    var b = new Uint8Array(buf);
+    if (b[0] === 0x1f && b[1] === 0x8b) {
+      if (typeof DecompressionStream === 'undefined') return Promise.reject(new Error('Browser zu alt (kein Entpacken möglich)'));
+      var stream = new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'));
+      return new Response(stream).json();
+    }
+    return Promise.resolve(JSON.parse(new TextDecoder().decode(b)));
+  }
+
+  // Block in Kachel-Datensätze zerlegen: vollständig abgedeckte Kacheln ("full") und Teil-Daten
+  // von Grenz-Kacheln ("partial" – die ergänzt die App über Overpass). t = Zeitpunkt des Ladens.
+  function decodeBlock(bk, buf, t) {
+    return unpack(buf).then(function (data) {
+      var byKey = {};
       data.cells.forEach(function (rec) { byKey[rec.k] = rec; });
       var bi = Number(bk.split(',')[0]), bj = Number(bk.split(',')[1]);
       var full = [], partial = [];
@@ -571,36 +598,110 @@
         var c = { i: bi * BLOCK + di, j: bj * BLOCK + dj };
         c.k = cellKey(c.i, c.j);
         var rec = byKey[c.k] || { k: c.k, w: [], p: [], l: [] };
-        rec.v = DATA_VERSION; rec.t = now;
+        rec.v = DATA_VERSION; rec.t = t || Date.now();
         if (cellCovered(c)) full.push(rec);
         else if (byKey[c.k]) partial.push(rec);
       }
-      return { full: full, partial: partial };
+      return { full: full, partial: partial, buf: buf };
     });
   }
 
-  // Mehrere Blöcke parallel laden (4 gleichzeitig). onBlock(bk, ergebnis | null bei Fehler) je Block.
-  function loadBlocks(bks, onBlock, isCancelled) {
+  function fetchBlock(bk) {
+    return fetchRawBlock(bk).then(function (buf) { return decodeBlock(bk, buf); });
+  }
+
+  function coveredCellsOfBlock(bk) {
+    var bi = Number(bk.split(',')[0]), bj = Number(bk.split(',')[1]), out = [];
+    for (var di = 0; di < BLOCK; di++) for (var dj = 0; dj < BLOCK; dj++) {
+      var c = { i: bi * BLOCK + di, j: bj * BLOCK + dj };
+      c.k = cellKey(c.i, c.j);
+      if (cellCovered(c)) out.push(c);
+    }
+    return out;
+  }
+
+  // Mehrere Blöcke parallel holen. load(bk) liefert ein Promise; onBlock(bk, ergebnis | null bei Fehler).
+  function loadBlocks(bks, onBlock, isCancelled, load, parallel) {
     var idx = 0;
+    load = load || fetchBlock;
     function worker() {
       if (idx >= bks.length || (isCancelled && isCancelled())) return Promise.resolve();
       var bk = bks[idx++];
-      return fetchBlock(bk)
+      return load(bk)
         .then(function (res) { onBlock(bk, res); }, function () { onBlock(bk, null); })
         .then(worker);
     }
     var workers = [];
-    for (var n = 0; n < Math.min(4, bks.length); n++) workers.push(worker());
+    for (var n = 0; n < Math.min(parallel || 6, bks.length); n++) workers.push(worker());
     return Promise.all(workers);
   }
 
-  // Ergebnis eines Blocks übernehmen: vollständige Kacheln merken und speichern, Grenz-Kacheln nur anzeigen
-  function takeBlock(res, intoMemory) {
+  // Ergebnis eines Blocks übernehmen: anzeigen (falls gewünscht) und roh speichern
+  function takeBlock(bk, res, intoMemory) {
     if (intoMemory || !dbOk) {
       res.full.forEach(function (r) { ingestRecord(r, true); });
       res.partial.forEach(function (r) { ingestRecord(r, false); });
     }
-    if (dbOk && res.full.length) dbPutCells(res.full);
+    if (res.full.length) storeBlock(bk, res.buf);
+  }
+
+  // ----- Blöcke gesammelt speichern (ein Schreibvorgang für viele Blöcke ist viel schneller) -----
+  var pendingBlocks = [], blockFlushTimer = null;
+  function storeBlock(bk, buf) {
+    if (!dbOk) return;
+    pendingBlocks.push({ bk: bk, buf: buf });
+    if (pendingBlocks.length >= 16) flushBlocks();
+    else if (!blockFlushTimer) blockFlushTimer = setTimeout(flushBlocks, 400);
+  }
+  function flushBlocks() {
+    clearTimeout(blockFlushTimer); blockFlushTimer = null;
+    var list = pendingBlocks; pendingBlocks = [];
+    if (!list.length) return Promise.resolve();
+    if (!persistAsked && navigator.storage && navigator.storage.persist) {
+      persistAsked = true;
+      try { navigator.storage.persist(); } catch (e) {}
+    }
+    var now = Date.now();
+    return dbTx(['blocks', 'idx', 'cells'], 'readwrite', function (tx) {
+      list.forEach(function (it) {
+        var size = it.buf ? it.buf.byteLength : 0;
+        if (it.buf) tx.objectStore('blocks').put({ b: it.bk, v: DATA_VERSION, t: now, data: it.buf });
+        var covered = coveredCellsOfBlock(it.bk);
+        covered.forEach(function (c) {
+          // Verzeichnis-Eintrag je Kachel verweist auf den Block ("b"); alte entpackte Kopie entfernen
+          var e = { k: c.k, t: now, v: DATA_VERSION, s: size / covered.length, b: it.bk };
+          tx.objectStore('idx').put(e);
+          tx.objectStore('cells').delete(c.k);
+          stored.set(c.k, e);
+        });
+      });
+      return true;
+    }).then(updateCacheInfo);
+  }
+
+  // Gespeicherte Blöcke aus dem Browser-Speicher holen und entpacken
+  function dbLoadBlocks(bks) {
+    if (!bks.length) return Promise.resolve([]);
+    return dbTx(['blocks'], 'readonly', function (tx) {
+      var out = {}, st = tx.objectStore('blocks');
+      bks.forEach(function (bk) {
+        var r = st.get(bk);
+        r.onsuccess = function () { if (r.result && r.result.v === DATA_VERSION) out[bk] = r.result; };
+      });
+      return out;
+    }).then(function (found) {
+      found = found || {};
+      return Promise.all(bks.map(function (bk) {
+        var rec = found[bk];
+        if (rec) return decodeBlock(bk, rec.data, rec.t).catch(function () { return null; });
+        // Block ohne Datei (nur leere Kacheln): nur der Verzeichnis-Eintrag existiert
+        if (staticIndex && staticIndex.blocks[bk] && !staticIndex.blocks[bk][1]) {
+          var e = stored.get(coveredCellsOfBlock(bk)[0] ? coveredCellsOfBlock(bk)[0].k : '');
+          return decodeBlock(bk, null, e ? e.t : 0);
+        }
+        return null;
+      }));
+    });
   }
 
   // Fehlende Kacheln zu Server-Aufträgen bündeln. Passt alles in ein Rechteck von höchstens
@@ -636,10 +737,13 @@
   var dbOk = false;
   var dbPromise = new Promise(function (resolve) {
     try {
-      var req = indexedDB.open('schotterkarte', 1);
+      // Version 2: zusätzlich "blocks" – Block-Dateien so komprimiert, wie sie vom Server kommen
+      var req = indexedDB.open('schotterkarte', 2);
       req.onupgradeneeded = function () {
-        req.result.createObjectStore('cells', { keyPath: 'k' });
-        req.result.createObjectStore('idx', { keyPath: 'k' });
+        var db = req.result;
+        if (!db.objectStoreNames.contains('cells')) db.createObjectStore('cells', { keyPath: 'k' });
+        if (!db.objectStoreNames.contains('idx')) db.createObjectStore('idx', { keyPath: 'k' });
+        if (!db.objectStoreNames.contains('blocks')) db.createObjectStore('blocks', { keyPath: 'b' });
       };
       req.onsuccess = function () { dbOk = true; resolve(req.result); };
       req.onerror = function () { resolve(null); };
@@ -699,9 +803,10 @@
     }).then(updateCacheInfo);
   }
   function dbClear() {
-    return dbTx(['cells', 'idx'], 'readwrite', function (tx) {
+    return dbTx(['cells', 'idx', 'blocks'], 'readwrite', function (tx) {
       tx.objectStore('cells').clear();
       tx.objectStore('idx').clear();
+      tx.objectStore('blocks').clear();
       return true;
     }).then(function () { stored.clear(); updateCacheInfo(); });
   }
@@ -862,10 +967,21 @@
     needed.forEach(function (c) { neededKeys[c.k] = true; });
 
     // 1. Zuerst im Browser-Speicher nachsehen
-    var notInMemory = needed.filter(function (c) { return !cells.has(c.k) && stored.has(c.k); }).map(function (c) { return c.k; });
-    dbGetCells(notInMemory).then(function (recs) {
+    // Gespeichert sind entweder ganze Blöcke (komprimiert, Eintrag mit "b") oder einzelne Kacheln (Overpass)
+    var notInMemory = needed.filter(function (c) { return !cells.has(c.k) && stored.has(c.k); });
+    var cellKeys = [], blockKeys = {};
+    notInMemory.forEach(function (c) {
+      var e = stored.get(c.k);
+      if (e.b) blockKeys[e.b] = true; else cellKeys.push(c.k);
+    });
+    Promise.all([dbGetCells(cellKeys), dbLoadBlocks(Object.keys(blockKeys))]).then(function (got) {
       if (gen !== viewGen) return; // Karte wurde inzwischen weiterbewegt
-      recs.forEach(ingestRecord);
+      got[0].forEach(ingestRecord);
+      got[1].forEach(function (res) {
+        if (!res) return;
+        res.full.forEach(function (r) { ingestRecord(r, true); });
+        res.partial.forEach(function (r) { ingestRecord(r, false); });
+      });
 
       // 2. Was fehlt (oder zu alt ist): aus den fertigen Daten holen, wenn das Gebiet aufbereitet ist,
       //    sonst beim Overpass-Server bestellen
@@ -884,7 +1000,7 @@
         loadBlocks(bks, function (bk, res) {
           if (gen !== viewGen) return;
           staticPending--;
-          if (res) takeBlock(res, true);
+          if (res) takeBlock(bk, res, true);
           else {
             // Datei nicht erreichbar (z. B. offline): diese Kacheln über Overpass versuchen
             var failed = map.getZoom() >= DETAIL_ZOOM ? fromStatic.filter(function (c) { return blockOf(c) === bk; }) : [];
@@ -1181,11 +1297,23 @@
     staticIndex.regions.forEach(function (r) {
       if (settings.offline.indexOf(r.id) !== -1) regionCells(r).forEach(function (c) { keep[c.k] = true; });
     });
-    var keys = [];
-    regs.forEach(function (r) { regionCells(r).forEach(function (c) { if (!keep[c.k] && stored.has(c.k)) keys.push(c.k); }); });
+    var keys = [], blocks = {};
+    regs.forEach(function (r) {
+      regionCells(r).forEach(function (c) {
+        if (keep[c.k] || !stored.has(c.k)) return;
+        keys.push(c.k);
+        var e = stored.get(c.k);
+        if (e.b) blocks[e.b] = true;
+      });
+    });
     if (!keys.length) return;
-    dbTx(['cells', 'idx'], 'readwrite', function (tx) {
+    // Block-Datei nur löschen, wenn keine ihrer Kacheln mehr gebraucht wird (Grenz-Blöcke!)
+    var dropBlocks = Object.keys(blocks).filter(function (bk) {
+      return !coveredCellsOfBlock(bk).some(function (c) { return keep[c.k]; });
+    });
+    dbTx(['cells', 'idx', 'blocks'], 'readwrite', function (tx) {
       keys.forEach(function (k) { tx.objectStore('cells').delete(k); tx.objectStore('idx').delete(k); stored.delete(k); });
+      dropBlocks.forEach(function (bk) { tx.objectStore('blocks').delete(bk); });
       return true;
     }).then(updateCacheInfo);
   }
@@ -1379,12 +1507,18 @@
 
     if (bks.length) {
       var view = map.getBounds();
+      // Schnell: Dateien roh holen (8 gleichzeitig) und unverändert speichern – entpackt wird erst beim Ansehen.
+      // Nur Blöcke im sichtbaren Ausschnitt werden gleich entpackt und gezeichnet.
       loadBlocks(bks, function (bk, res) {
         if (preload !== token) return;
         if (res) {
           var bi = Number(bk.split(',')[0]) * BLOCK, bj = Number(bk.split(',')[1]) * BLOCK;
           var bb = L.latLngBounds([bi * CELL_LAT, bj * CELL_LON], [(bi + BLOCK) * CELL_LAT, (bj + BLOCK) * CELL_LON]);
-          takeBlock(res, bb.intersects(view));
+          if (!dbOk || bb.intersects(view)) {
+            decodeBlock(bk, res.buf).then(function (d) { takeBlock(bk, d, true); scheduleRedraw(false); }, function () {});
+          } else {
+            storeBlock(bk, res.buf);
+          }
           preload.done++;
         } else {
           // Datei nicht erreichbar: diese Kacheln über Overpass versuchen
@@ -1394,7 +1528,8 @@
           queue = queue.concat(js); pump();
         }
         updatePreloadStatus();
-      }, function () { return preload !== token; });
+      }, function () { return preload !== token; },
+      function (bk) { return fetchRawBlock(bk).then(function (buf) { return { buf: buf }; }); }, 8);
     }
     queue = queue.filter(function (j) { return j.kind !== 'preload'; }).concat(jobs);
     updatePreloadStatus();
@@ -1428,6 +1563,7 @@
     }
     if (preload.done >= preload.total) {
       preload = null;
+      flushBlocks(); // letzte gesammelte Blöcke sofort speichern
       setPreloadStatus('<span>✔ Vorladen fertig – das Gebiet ist jetzt gespeichert</span>', 'ok');
       preloadHideTimer = setTimeout(function () { setPreloadStatus(''); }, 6000);
       updateCountryList();
