@@ -107,6 +107,18 @@
   .qName { font-weight: 600; }
   .qSep { margin: 8px 0 2px; padding-top: 6px; border-top: 1px dashed var(--border); font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
   .qSep.first { margin-top: 0; padding-top: 0; border-top: 0; }
+  .tabPanel > .qSep { margin-top: 14px; }
+  /* Grenzlinie: Vorschau-Strich und Stil-Auswahl (3 Knöpfe nebeneinander) */
+  .borderSample { display: inline-block; width: 34px; height: 0; border-top: 3px dashed #6d28d9; vertical-align: middle; }
+  .seg { display: flex; gap: 6px; margin-top: 8px; }
+  .seg button {
+    flex: 1; min-height: 40px; border: 1px solid var(--border); border-radius: 10px; background: #fff; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; padding: 0 6px;
+  }
+  .seg button svg { width: 52px; height: 10px; fill: none; stroke: #546e7a; stroke-width: 3; stroke-linecap: round; }
+  .seg button.on { background: var(--accent-soft); border-color: var(--accent); }
+  .seg button.on svg { stroke: var(--accent); }
+  .seg button:disabled { opacity: .45; cursor: default; }
   .qHint { display: block; font-size: 12px; color: var(--muted); font-weight: 400; line-height: 1.25; }
   .qDot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: -1px; margin-right: 4px; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
   /* kompakte Schieber-Zeile: Symbol + Kurzwort | Schieber | Wert */
@@ -514,6 +526,21 @@
     <div class="srow" title="Hintergrundkarte blasser machen, damit die Wege herausstechen"><span class="sLbl"><svg class="ic"><use href="#i-map"/></svg>Karte blasser</span>
       <input type="range" id="bgRange" min="0" max="100" step="10" value="60" aria-label="Hintergrund abschwächen">
       <span class="sVal"><span id="bgValue">60</span> %</span></div>
+
+    <!-- Staatsgrenzen: ein/aus, Farbe, Stil, Stärke -->
+    <div class="qSep">Staatsgrenzen</div>
+    <div class="qRow">
+      <input type="color" id="borderColor" aria-label="Farbe der Grenzlinie" title="Farbe ändern">
+      <label class="check"><input type="checkbox" id="borderShow"> <span id="borderSample" class="borderSample"></span> anzeigen</label>
+    </div>
+    <div class="seg" id="borderStyle" role="radiogroup" aria-label="Stil der Grenzlinie">
+      <button type="button" data-style="dashdot" title="Strich-Punkt"><svg viewBox="0 0 44 8"><path d="M2 4h12M20 4h2M28 4h12"/></svg></button>
+      <button type="button" data-style="dashed" title="gestrichelt"><svg viewBox="0 0 44 8"><path d="M2 4h9M17 4h9M32 4h9"/></svg></button>
+      <button type="button" data-style="solid" title="durchgehend"><svg viewBox="0 0 44 8"><path d="M2 4h40"/></svg></button>
+    </div>
+    <div class="srow" title="Stärke der Grenzlinie"><span class="sLbl"><svg class="ic"><use href="#i-width"/></svg>Stärke</span>
+      <input type="range" id="borderWidth" min="1" max="6" step="1" value="3" aria-label="Stärke der Grenzlinie">
+      <span class="sVal"><span id="borderWidthValue">3</span> px</span></div>
    </div>
 
    <!-- ===================== POI ===================== -->
@@ -864,7 +891,8 @@ assign initialcost
     { id: 'steep',    on: false, icon: 'mountain', label: 'Steilstücke', hint: 'starke Steigungen bergauf/bergab vermeiden' }
   ];
 
-  var settings = { width: 2, transparency: 0, bgFade: 60, poiMinZoom: 11, route: { pts: [], pref: 3, width: 4, transp: 0, opt: {} }, showRestricted: false, poi: {}, q: {}, panelOpen: false, tab: 'way', offline: [], noAsk: [], wakeLock: false };
+  var settings = { width: 2, transparency: 0, bgFade: 60, poiMinZoom: 11, route: { pts: [], pref: 3, width: 4, transp: 0, opt: {} }, showRestricted: false, poi: {}, q: {}, panelOpen: false, tab: 'way', offline: [], noAsk: [], wakeLock: false,
+    border: { show: true, color: '#6d28d9', style: 'dashdot', width: 3 } };
   POI_CATS.forEach(function (c) { settings.poi[c.id] = c.on; });
   ROUTE_OPTS.forEach(function (o) { settings.route.opt[o.id] = o.on; });
   QUALITY.forEach(function (q) { settings.q[q.lvl] = { color: q.color, show: q.show }; });
@@ -899,6 +927,13 @@ assign initialcost
       if (/^(way|poi|route|gpx|off|app)$/.test(saved.tab)) settings.tab = saved.tab;
       if (typeof saved.panelOpen === 'boolean') settings.panelOpen = saved.panelOpen;
       if (typeof saved.wakeLock === 'boolean') settings.wakeLock = saved.wakeLock;
+      if (saved.border) {
+        var sb = saved.border, b = settings.border;
+        if (typeof sb.show === 'boolean') b.show = sb.show;
+        if (/^#[0-9a-f]{6}$/i.test(sb.color)) b.color = sb.color;
+        if (/^(dashdot|dashed|solid)$/.test(sb.style)) b.style = sb.style;
+        if (sb.width >= 1 && sb.width <= 6) b.width = Number(sb.width);
+      }
       if (Array.isArray(saved.offline)) settings.offline = saved.offline.filter(function (x) { return typeof x === 'string'; });
       if (Array.isArray(saved.noAsk)) settings.noAsk = saved.noAsk.filter(function (x) { return typeof x === 'string'; });
       if (saved.poi) POI_CATS.forEach(function (c) {
@@ -983,6 +1018,10 @@ assign initialcost
   var renderer = L.canvas({ tolerance: 10, pane: 'roadsPane' });
   // Ebene für die eingefärbten Offline-Länder (beim Herauszoomen), unter den Wegen
   map.createPane('countryPane').style.zIndex = 420;
+  // Staatsgrenzen: über Karte, Offline-Flächen und Schotterwegen (450), unter GPX, Route und Ortsnamen; Klicks gehen durch
+  var borderPane = map.createPane('borderPane');
+  borderPane.style.zIndex = 455;
+  borderPane.style.pointerEvents = 'none';
   // Ortsnamen ÜBER den Wegen (unter den POI-Symbolen); lässt Klicks durch
   var labelPane = map.createPane('labelPane');
   labelPane.style.zIndex = 610;            // Ortsnamen immer obenauf – auch über den POI-Symbolen (600)
@@ -1071,6 +1110,7 @@ assign initialcost
           showDataInfo();
           buildCountryList();
           loadOutlines();
+          loadBorders();
         })
         .catch(next);
     }
@@ -1883,6 +1923,78 @@ assign initialcost
       })
       .catch(function () { /* ältere Daten ohne Umrisse: Ersatz-Darstellung über Blöcke */ });
   }
+
+  // ================= Staatsgrenzen (borders.json) – in allen Zoomstufen markant =================
+  // Eine Datei für ganz Europa (echte OSM-Grenzlinien, auf 15 m vereinfacht). Wird im Browser gespeichert,
+  // damit die Grenzen auch ohne Netz da sind. Darstellung: weißer Rand + violette Strich-Punkt-Linie.
+  var borderLines = null, borderRenderer = L.canvas({ pane: 'borderPane', padding: 0.3 });
+  function loadBorders() {
+    fetch(staticBase + 'borders.json', { cache: 'no-cache' })
+      .then(function (r) { if (!r.ok) throw new Error(); return r.text(); })
+      .then(function (txt) {
+        showBorders(txt);
+        dbTx(['blocks'], 'readwrite', function (tx) { tx.objectStore('blocks').put({ b: 'borders', v: DATA_VERSION, t: Date.now(), data: txt }); });
+      })
+      .catch(function () {   // ohne Netz (oder ältere Daten ohne Grenzen): gespeicherte Fassung verwenden
+        dbTx(['blocks'], 'readonly', function (tx) {
+          var out = {}, r = tx.objectStore('blocks').get('borders');
+          r.onsuccess = function () { if (r.result && typeof r.result.data === 'string') out.txt = r.result.data; };
+          return out;
+        }).then(function (out) { if (out && out.txt) showBorders(out.txt); });
+      });
+  }
+  function showBorders(txt) {
+    var parts;
+    try { parts = JSON.parse(txt).b.map(decodePolyline); } catch (e) { return; }
+    if (borderLines) borderLines.forEach(function (l) { map.removeLayer(l); });
+    var opt = { renderer: borderRenderer, interactive: false, lineCap: 'round', lineJoin: 'round', smoothFactor: 1 };
+    borderLines = [
+      L.polyline(parts, L.extend({}, opt, { color: '#ffffff', opacity: 0.9 })),        // heller Rand: lesbar auf jeder Karte
+      L.polyline(parts, L.extend({}, opt, { opacity: 0.95 }))
+    ];
+    styleBorders();
+  }
+  // Nach Einstellungen (ein/aus, Farbe, Stil, Stärke) zeichnen. Stärke gilt ab Zoom 10,
+  // herausgezoomt schlanker, damit Europa nicht zugekleistert wird; das Muster wächst mit der Stärke mit.
+  function borderDash(style, w) {
+    if (style === 'solid') return null;
+    var u = Math.max(w, 2);
+    return style === 'dashed' ? [u * 3, u * 2].join(' ') : [u * 3.5, u * 1.6, u * 0.7, u * 1.6].join(' ');
+  }
+  function styleBorders() {
+    var b = settings.border, sample = document.getElementById('borderSample');
+    if (sample) {
+      sample.style.borderTopColor = b.color;
+      sample.style.borderTopStyle = b.style === 'solid' ? 'solid' : 'dashed';
+      sample.style.borderTopWidth = Math.min(b.width, 4) + 'px';
+    }
+    if (!borderLines) return;
+    borderLines.forEach(function (l) { if (b.show && !map.hasLayer(l)) l.addTo(map); if (!b.show && map.hasLayer(l)) map.removeLayer(l); });
+    if (!b.show) return;
+    var z = map.getZoom(), w = z < 7 ? Math.max(1, b.width * 0.55) : z < 10 ? Math.max(1.5, b.width * 0.8) : b.width;
+    borderLines[0].setStyle({ weight: w + Math.max(3, w * 0.9) });
+    borderLines[1].setStyle({ weight: w, color: b.color, dashArray: borderDash(b.style, w) });
+  }
+  map.on('zoomend', styleBorders);
+
+  // Bedienelemente im Tab "Wege" → Abschnitt Staatsgrenzen
+  (function () {
+    var b = settings.border;
+    var show = document.getElementById('borderShow'), color = document.getElementById('borderColor');
+    var width = document.getElementById('borderWidth'), widthVal = document.getElementById('borderWidthValue');
+    var styleBtns = Array.prototype.slice.call(document.querySelectorAll('#borderStyle button'));
+    function syncUi() {
+      show.checked = b.show; color.value = b.color; width.value = b.width; widthVal.textContent = b.width;
+      styleBtns.forEach(function (btn) { btn.classList.toggle('on', btn.dataset.style === b.style); btn.disabled = !b.show; btn.setAttribute('aria-checked', String(btn.dataset.style === b.style)); });
+      color.disabled = width.disabled = !b.show;
+    }
+    function changed() { syncUi(); styleBorders(); saveSettings(); }
+    show.addEventListener('change', function () { b.show = show.checked; changed(); });
+    color.addEventListener('input', function () { b.color = color.value; changed(); });
+    width.addEventListener('input', function () { b.width = Number(width.value); changed(); });
+    styleBtns.forEach(function (btn) { btn.addEventListener('click', function () { b.style = btn.dataset.style; changed(); }); });
+    syncUi(); styleBorders();
+  })();
 
   function renderCountries() {
     countryLayer.clearLayers();

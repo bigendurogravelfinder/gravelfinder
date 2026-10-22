@@ -42,6 +42,7 @@ Veröffentlicht wird (GitHub Pages):
 index.html, manifest.webmanifest, sw.js, die vier Symbole
 data/v2/index.json            Verzeichnis (Länder, Blöcke, Abdeckung, Größen)
 data/v2/outlines.json         vereinfachte Länder-Umrisse
+data/v2/borders.json          echte Staatsgrenzen (OSM admin_level=2, an Land) für die Grenzlinien
 data/v2/blocks/<bi>/<bj>.json.gz   Daten je Block
 ```
 
@@ -485,6 +486,21 @@ Anstieg (`filtered ascend`), Farbbalken und Anteile hoch/mittel/niedrig/Straße,
 - Test: Datenstand der gespeicherten Blöcke künstlich auf „alt“ setzen → Hinweis erscheint; Deutschland
   (882 Blöcke, 86 MB) in ca. 24 s aktualisiert; danach kein Hinweis mehr.
 
+## 10d. Staatsgrenzen (alle Zoomstufen)
+
+- Aus `borders.json` (siehe Aufbereitung); nach dem Laden im Browser-Speicher (Tabelle `blocks`, Schlüssel
+  `borders`) – ohne Netz von dort. Fehlt die Datei (ältere Daten), keine Grenzlinien, kein Fehler.
+- Eigene Pane `borderPane` zIndex 455 (über Karte, Offline-Flächen 420 und Schotterwegen 450 – sonst verschwindet
+  die Grenze in wegreichen Gebieten; unter GPX 470, Route 490 und Ortsnamen 610),
+  `pointer-events: none`, eigener Canvas-Renderer; alle Abschnitte als EINE Linie mit vielen Teilen (schnell).
+- Stil: weißer Rand (Deckkraft 0,9) und darüber die farbige Linie (Deckkraft 0,95).
+- **Einstellbar** im Tab „Wege“ unter der Überschrift „STAATSGRENZEN“ (gespeichert in `settings.border`):
+  - Farbfeld + Häkchen „anzeigen“ mit kleiner Vorschau-Linie (Standard: an, Violett #6d28d9),
+  - Stil als drei Knöpfe nebeneinander mit Linien-Vorschau: **Strich-Punkt** (Standard), **gestrichelt**, **durchgehend**,
+  - „Stärke“ 1–6 px (Standard 3). Aus = Farbe, Stil und Stärke ausgegraut.
+  - Stärke gilt ab Zoom 10; unter 10 × 0,8 (mind. 1,5), unter 7 × 0,55 (mind. 1). Weißer Rand = Stärke + max(3, 0,9 × Stärke).
+    Muster wächst mit (u = max(Stärke, 2)): Strich-Punkt `3,5u 1,6u 0,7u 1,6u`, gestrichelt `3u 2u`.
+
 ## 11. Herausgezoomt (unter Zoom 9)
 
 - Keine Wege/Orte, Hinweis „🔍 Bitte weiter hineinzoomen · grün = offline gespeichert“.
@@ -538,6 +554,10 @@ Am Ende:
   damit Kacheln auf Grenzen zwischen zwei aufbereiteten Ländern als vollständig gelten.
 - Größe je Land (Summe der komprimierten Blöcke, in denen es Daten hat) und Gesamtgröße in `index.json`.
 - `outlines.json`: GeoJSON der Ländergrenzen, vereinfacht mit 0,01° und auf 3 Nachkommastellen gerundet.
+  (Geofabrik-Grenzlinien sind gepuffert und ungenau – nur für die Offline-Einfärbung, nicht als Grenzlinie.)
+- `borders.json`: `{v: 1, b: [Polyline, …]}` – alle Wege mit `admin_level=2` + `boundary=administrative`
+  (Vorfilter `w/admin_level=2`), ohne Seegrenzen (`maritime=yes`, `border_type` territorial/baseline/maritime/eez/
+  contiguous, `natural=coastline`), je Weg-ID nur einmal (Grenzwege liegen in beiden Länderdateien), Douglas-Peucker 15 m.
 - Ausgabe: Länder, Dateien, MB, Dauer, größte Länder, übersprungene Länder.
 - **Abbruch**, wenn mehr als 95 % von 1 GB (Grenze von GitHub Pages) – dann bleibt die alte Version online.
 

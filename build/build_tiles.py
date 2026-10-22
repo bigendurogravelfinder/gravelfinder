@@ -73,7 +73,17 @@ OSMIUM_FILTERS = [
     'nwr/shop=' + ','.join(sorted(POI_SHOP)),
     'nwr/tourism=' + ','.join(sorted(POI_TOURISM)),
     'n/place=' + ','.join(sorted(PLACE_RANK)),
+    'w/admin_level=2',          # Staatsgrenzen (für die Grenzlinien in der App)
 ]
+# Staatsgrenzen: Linien mit admin_level=2 an Land (Seegrenzen weglassen), vereinfacht auf 15 m
+BORDER_SIMPLIFY_M = 15.0
+SEA_BORDER = {'territorial', 'baseline', 'maritime', 'eez', 'contiguous'}
+
+
+def is_land_border(t):
+    if t.get('admin_level') != '2' or t.get('boundary', 'administrative') != 'administrative':
+        return False
+    return t.get('maritime') != 'yes' and t.get('border_type') not in SEA_BORDER and t.get('natural') != 'coastline'
 
 
 def population(t):
@@ -107,7 +117,7 @@ def cell_of(lat, lon):
     return (math.floor(lat / CELL_LAT), math.floor(lon / CELL_LON))
 
 
-def simplify(coords):
+def simplify(coords, tol=SIMPLIFY_M):
     """Douglas-Peucker in Metern (lokale Projektion). Behält Anfangs- und Endpunkt."""
     if len(coords) <= 2:
         return coords
@@ -115,7 +125,7 @@ def simplify(coords):
     kx = 111320.0 * math.cos(math.radians(lat0))
     ky = 110540.0
     xy = [(lon * kx, lat * ky) for lat, lon in coords]
-    simple = LineString(xy).simplify(SIMPLIFY_M, preserve_topology=False)
+    simple = LineString(xy).simplify(tol, preserve_topology=False)
     out = [(y / ky, x / kx) for x, y in simple.coords]
     return out if len(out) >= 2 else [coords[0], coords[-1]]
 
@@ -175,9 +185,10 @@ class Store:
 
 
 class Collector(osmium.SimpleHandler):
-    def __init__(self, store):
+    def __init__(self, store, borders):
         super().__init__()
         self.s = store
+        self.borders = borders     # gemeinsam für alle Länder: Weg-ID -> kodierte Grenzlinie (Grenzwege nur einmal)
 
     def node(self, n):
         t = n.tags
@@ -191,10 +202,15 @@ class Collector(osmium.SimpleHandler):
 
     def way(self, w):
         t = w.tags
-        if not is_road(t):
+        border = is_land_border(t)
+        if not border and not is_road(t):
             return
         coords = [(nd.lat, nd.lon) for nd in w.nodes if nd.location.valid()]
-        if len(coords) >= 2:
+        if len(coords) < 2:
+            return
+        if border and w.id not in self.borders:
+            self.borders[w.id] = encode_polyline(simplify(coords, BORDER_SIMPLIFY_M))
+        if is_road(t):
             self.s.add_way(w.id, pick(t, WAY_KEYS), coords)
 
     def area(self, a):
@@ -352,6 +368,14 @@ def write_outlines(index_regions, shapes_by_id, out_dir):
     print(f'  Länder-Umrisse: {len(features)} Länder, {os.path.getsize(os.path.join(out_dir, "outlines.json")) / 1e3:.0f} KB', flush=True)
 
 
+def write_borders(borders, out_dir):
+    """Staatsgrenzen (admin_level=2, an Land) als eine Datei – die App zeichnet sie in allen Zoomstufen."""
+    path = os.path.join(out_dir, 'borders.json')
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump({'v': 1, 'b': [borders[k] for k in sorted(borders)]}, f, separators=(',', ':'))
+    print(f'  Grenzlinien: {fmt(len(borders))} Abschnitte, {os.path.getsize(path) / 1e3:.0f} KB', flush=True)
+
+
 # ------------------------------------------------------------------ Hauptprogramm
 def main():
     ap = argparse.ArgumentParser()
@@ -378,6 +402,7 @@ def main():
     index_regions = []
     shapes = []
     shapes_by_id = {}
+    borders = {}
     failed = []
     t_all = time.time()
 
@@ -402,7 +427,7 @@ def main():
 
             print('  3/4 Auswerten (pyosmium) …', flush=True)
             store = Store()
-            Collector(store).apply_file(filtered, locations=True)
+            Collector(store, borders).apply_file(filtered, locations=True)
             os.remove(filtered)
             red = 100 - 100 * store.n_points / max(1, store.n_points_raw)
             print(f'    {fmt(len(store.ways))} Schotterwege, {fmt(store.n_pois)} POI, {fmt(store.n_places)} Ortsnamen, '
@@ -456,6 +481,7 @@ def main():
         json.dump(index, f, ensure_ascii=False, separators=(',', ':'))
 
     write_outlines(index_regions, shapes_by_id, args.out)
+    write_borders(borders, args.out)
 
     files = sum(1 for v in block_info.values() if v['d']) + 1
     print(f'\nGesamt: {len(index_regions)} Länder, {fmt(files)} Dateien, {total / 1e6:.0f} MB, {(time.time() - t_all) / 60:.0f} min', flush=True)
