@@ -266,10 +266,14 @@ Sieben Kategorien, einzeln ein-/ausschaltbar, mit Anzahl im Ausschnitt:
 
 ## 8. Menü (Tab-Stil)
 
-- Kasten oben rechts (Breite 300 px, max. Bildschirmbreite − 76 px), Kopfzeile „☰ Menü“ zum Ein-/Ausklappen.
+- Kasten oben rechts (Breite 300 px, max. Bildschirmbreite − 76 px). **Keine eigene „Menü“-Kopfzeile:** die
+  Tab-Leiste ist die Kopfzeile und auch im eingeklappten Zustand sichtbar (dann ohne hervorgehobenen Tab).
   Liegt über „Mein Standort“ und der Statusleiste (z-index höher).
+- Tab antippen → Menü klappt auf und zeigt diesen Teil; den bereits offenen Tab nochmals antippen → einklappen.
+  Rechts in der Tab-Leiste ein eigener **Einklapp-Knopf ▲** (dunkler runder Knopf, 42 px breit, „Menü einklappen“),
+  nur bei offenem Menü sichtbar.
 - **Beim ersten Start ist alles eingeklappt**; danach werden Menü-Zustand, aktiver Tab und offener Unterpunkt gemerkt.
-- **Tab-Leiste** (bleibt beim Scrollen oben) mit vier Hauptpunkten – Symbol, Name und darunter klein der aktuelle Stand:
+- **Tab-Leiste** mit vier Hauptpunkten (Einstellungen etwas breiter, damit der Name ganz passt) – Symbol, Name und darunter klein der aktuelle Stand:
   | Tab | Inhalt | Kurzstand unter dem Tab |
   |---|---|---|
   | ⚙ **Einstellungen** | drei aufklappbare Unterpunkte (siehe unten) | – |
@@ -332,14 +336,29 @@ Sieben Kategorien, einzeln ein-/ausschaltbar, mit Anzahl im Ausschnitt:
 „Gravelfinder Big Enduro“ steht in `index.html` als `<script type="text/plain" id="brouterProfile">` und wird
 einmal je Sitzung per `POST https://brouter.de/brouter/profile` hochgeladen (Antwort `{ profileid: "custom_…" }`;
 läuft das Profil auf dem Server ab, automatisch neu hochladen). Routenabfrage:
-`GET …/brouter?lonlats=lon,lat|lon,lat|…&profile=<id>&alternativeidx=0&format=geojson&profile:gravel_pref=<1–5>`.
+`GET …/brouter?lonlats=lon,lat|lon,lat|…&profile=<id>&alternativeidx=0&format=geojson&profile:gravel_pref=<1–5>`
+plus je Routing-Option `&profile:avoid_<id>=1|0` (BRouter akzeptiert nur Zahlen, nicht `true`).
 
 **Profil (BRouter-Profilsprache):**
 - Zugang wie die Karte (genauester Schlüssel motorcycle → motor_vehicle → vehicle → access); gesperrt = Kosten 10000.
 - Schotterweg = gleicher Filter wie die Karte; Qualitätsstufe wie die Karte (smoothness vor schlechterer von tracktype/surface).
 - Kosten je Meter: Schotter hoch 1,0 · mittel 1,15 · niedrig 1,7.
   Straßen = Grundkosten × `gravel_pref` (Standard 3): tertiary/unclassified 1,0 · secondary 1,15 · primary 1,3 ·
-  residential 1,2 · service 1,3 · trunk 2,0 · Feldweg ohne Angaben 1,6 · Fähre 2,0; Autobahn und Fuß-/Radwege gesperrt.
+  residential 1,2 · service 1,3 · trunk 2,0 · Feldweg ohne Angaben 1,6 · Fähre 2,0 (+10000 Einstieg) ·
+  Autobahn 0,9 (nur wenn erlaubt); Fuß-/Radwege gesperrt.
+- **Routing-Optionen** (Profil-Parameter `avoid_*`, 1 = ja; Kosten werden mit dem Faktor multipliziert):
+  | Option | Standard | Wirkung |
+  |---|---|---|
+  | Autobahnen vermeiden (`motorway`) | **an** | motorway/motorway_link ×10000 |
+  | Schnellstraßen vermeiden (`trunk`) | aus | trunk/trunk_link und `motorroad=yes` ×50 |
+  | Mautstraßen vermeiden (`toll`) | aus | `toll=yes` ×50, Knoten `barrier=toll_booth` +100000 |
+  | Fähren vermeiden (`ferry`) | aus | Einstieg `route=ferry` +1000000 statt +10000 (Insel bleibt erreichbar) |
+  | Furten vermeiden (`ford`) | **an** | Weg `ford=yes|stepping_stones` ×10000, Knoten +1000000 |
+  | Schwierige Wege meiden (`hard`) | aus | Schotter Stufe niedrig 6,0 statt 1,7; sonstige schwierige Wege (grade4/5, smoothness very_bad+, `4wd_only`, `informal=yes`, schlechte `trail_visibility`) ×20 |
+  | Ortsgebiet meiden (`town`) | aus | residential/living_street ×4 |
+  | Starke Steigungen meiden (`steep`) | aus | uphillcost 60 ab 8 %, downhillcost 40 ab 10 % (sonst Höhe ignoriert) |
+  Werte in BRouter-`lookups.dat` prüfen: nur dort gelistete Werte sind erlaubt (z. B. `informal=true`, `4wd_only=Yes`,
+  `trail_visibility=poor` sind nur Aliasse → Profilfehler „unknown lookup value“).
 - Knoten: Poller/Drängelgitter/Steinblock/Drehkreuz gesperrt (außer Zugang erlaubt), Schranke (`lift_gate`) +3000,
   Tor (`gate`) +800 – Forststraßen-Schranken sind oft geschlossen.
 - Auswirkung (Test Wels → Ried): Vorliebe 2 → 10 % Schotter, 3 → 26 %.
@@ -361,7 +380,11 @@ läuft das Profil auf dem Server ab, automatisch neu hochladen). Routenabfrage:
   `pointer-events: none` – sonst fangen leere Canvas/SVG-Flächen alle Klicks ab; Marker und Greif-Linie bekommen
   ihre Klick-Freigabe einzeln.
 - Schieberegler „Schotter-Vorliebe“ 1–5 (gering … maximal, Standard 3 „stark“).
-- Route und Vorliebe werden gespeichert (überstehen Neuladen).
+- Darunter aufklappbarer Kasten **„🚧 Vermeiden & Routing-Optionen“** (Zusammenfassung „2 aktiv“) mit den acht
+  Häkchen samt kurzer Erklärung; jede Änderung rechnet die Route sofort neu. Hinweis: „Vermeiden“ = nur wenn es
+  gar nicht anders geht.
+- Fahrzeit-Schätzung kennt auch Autobahn (110 km/h, Auffahrt 60).
+- Route, Vorliebe und Optionen werden gespeichert (überstehen Neuladen).
 
 **Linienstärke:** Schieber „Linienstärke der Route“ im Tab Route, 2–10 px (Standard 4 px), weißer Rand = Stärke + 4 px.
 **Transparenz:** senkrechter Schieber „Transparenz für angezeigte Route“ als Kartensteuerung in der **linken

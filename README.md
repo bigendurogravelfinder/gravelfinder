@@ -63,6 +63,7 @@ geöffnet wird (bei einem anderen GitHub-Konto den Benutzernamen dort ersetzen).
 | Sofort aktualisieren | Actions → Kartendaten aufbereiten → Run workflow |
 | Land hinzufügen | Auf GitHub `regions.json` öffnen → Stift-Symbol → beim Land `"active": false` auf `true` ändern → Commit changes. Die Daten werden danach automatisch neu aufbereitet. |
 | App ändern | neue `index.html` hochladen (Add file → Upload files). Die Daten werden dabei nicht neu aufbereitet, das dauert nur ca. 1 Minute. |
+| Routing-Optionen | Menü → 🧭 Route → „🚧 Vermeiden & Routing-Optionen“: Autobahn, Schnellstraße, Maut, Fähre, Furten, schwierige Wege, Ortsgebiet, starke Steigungen. |
 | Als App am Handy | `https://bigendurogravelfinder.github.io/gravelfinder/` in Chrome öffnen → Menü ⋮ → **App installieren** (oder in der App: Menü → Einstellungen → 📱 App → „Als App installieren“). Startet dann im Vollbild und dreht mit ins Querformat. Dort auch „Bildschirm wach halten“. |
 | Fehler | GitHub schickt bei einem fehlgeschlagenen Lauf eine E-Mail. Unter Actions den roten Lauf öffnen – die Meldungen dort helfen bei der Fehlersuche. |
 

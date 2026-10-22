@@ -34,27 +34,32 @@
     background: var(--bg); border-radius: 12px; box-shadow: var(--shadow);
     overflow: hidden;
   }
-  #panelToggle {
-    width: 100%; min-height: 48px; border: 0; background: var(--bg);
-    font: 600 16px/1 inherit; font-family: inherit; color: var(--fg);
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 14px; cursor: pointer;
-  }
-  #panelToggle .chev { transition: transform .2s; font-size: 14px; }
-  #panel.collapsed #panelToggle .chev { transform: rotate(-90deg); }
   #panel.collapsed #panelBody { display: none; }
-  #panelBody { border-top: 1px solid var(--border); }
 
-  /* ---------- Tab-Leiste (Hauptpunkte) ---------- */
-  .tabs { display: flex; background: #f5f6f7; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 2; }
+  /* ---------- Tab-Leiste (Hauptpunkte) = Kopfzeile des Menüs ---------- */
+  .tabs { display: flex; background: #f5f6f7; border-bottom: 1px solid var(--border); }
+  #panel.collapsed .tabs { border-bottom: 0; background: var(--bg); }
+  #panel.collapsed .tab.active { color: var(--muted); background: none; border-bottom-color: transparent; }
+  /* Einklappen: eigener, deutlich sichtbarer Knopf rechts in der Tab-Leiste (nur bei offenem Menü) */
+  .tabClose {
+    flex: none; width: 42px; border: 0; border-left: 1px solid var(--border); background: #eceff1; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; padding: 0;
+  }
+  .tabClose span {
+    width: 30px; height: 30px; border-radius: 50%; background: var(--fg); color: #fff;
+    display: flex; align-items: center; justify-content: center; font-size: 13px; line-height: 1;
+  }
+  .tabClose:hover span { background: var(--accent); }
+  #panel.collapsed .tabClose { display: none; }
   .tab {
     flex: 1; min-width: 0; border: 0; background: none; cursor: pointer; font-family: inherit; color: var(--muted);
     min-height: 56px; padding: 6px 2px 4px; display: flex; flex-direction: column; align-items: center; gap: 1px;
     border-bottom: 3px solid transparent;
   }
+  .tab[data-tab="set"] { flex: 1.45; }   /* längster Name – sonst abgeschnitten */
   .tab.active { color: var(--fg); background: var(--bg); border-bottom-color: var(--accent); }
   .tabIcon { font-size: 19px; line-height: 1.1; }
-  .tabName { font-size: 11px; font-weight: 700; }
+  .tabName { font-size: 10.5px; font-weight: 700; letter-spacing: -.2px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
   .tabSum { font-size: 10px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tabSum:empty { display: none; }
   .tabPanel { display: none; }
@@ -97,7 +102,7 @@
   .check input { width: 24px; height: 24px; accent-color: var(--accent); }
   .legend { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin-top: 4px; }
   .legend svg { flex: none; }
-  #panelBody { max-height: calc(100vh - 90px); overflow-y: auto; box-sizing: border-box; }
+  #panelBody { max-height: calc(100vh - 86px); overflow-y: auto; box-sizing: border-box; }
   .poiSym { width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; flex: none; }
   .poiCount { color: var(--muted); font-size: 13px; }
   .preloadRow { display: flex; gap: 8px; }
@@ -154,6 +159,14 @@
   .routeLegend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 3px 0 6px; vertical-align: -1px; }
   .routeBtns { display: flex; gap: 6px; flex-wrap: wrap; }
   .routeErr { color: var(--error); font-size: 14px; }
+  .optBox { margin-top: 12px; border: 1px solid var(--border); border-radius: 10px; padding: 0 10px; }
+  .optBox > summary { cursor: pointer; font-weight: 600; font-size: 14px; min-height: 44px; display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; list-style: none; }
+  .optBox > summary::-webkit-details-marker { display: none; }
+  .optBox > summary::after { content: '›'; margin-left: auto; font-size: 20px; color: var(--muted); transition: transform .2s; }
+  .optBox[open] > summary::after { transform: rotate(90deg); }
+  .optBox[open] { padding-bottom: 10px; }
+  .optBox .check { min-height: 38px; font-size: 14px; align-items: flex-start; padding-top: 6px; }
+  .optBox .check input { flex: none; margin: 0; }
   /* senkrechter Schieber "Transparenz für angezeigte Route" am rechten Kartenrand */
   /* sitzt als Kartensteuerung in der linken Knopfleiste unter 🧭 – wird vom Menü nie verdeckt */
   .sideSlider {
@@ -302,10 +315,10 @@
     #panel { top: 6px; right: 6px; width: 330px; max-width: 45vw; }
     #panel:not(.collapsed) { bottom: 6px; display: flex; flex-direction: column; }
     #panel:not(.collapsed) #panelBody { flex: 1; min-height: 0; max-height: none; }
-    #panelToggle { min-height: 42px; flex: none; }
+    #panel .tabs { flex: none; }
     .tab { min-height: 46px; }
     /* "Mein Standort" unten rechts (über Maßstab und Quellenangabe), nur Symbol */
-    #locateBtn { left: auto; right: 10px; bottom: 48px; width: 52px; padding: 0; justify-content: center; font-size: 0; gap: 0; }
+    #locateBtn { left: auto; right: 10px; bottom: 48px !important; width: 52px; padding: 0; justify-content: center; font-size: 0; gap: 0; }
     #locateBtn svg { width: 26px; height: 26px; }
     /* Hinweise unten in der Mitte: Platz für Knöpfe links und rechts lassen */
     #statusWrap { bottom: 12px; max-width: calc(100vw - 180px); }
@@ -326,17 +339,15 @@
 <div id="map"></div>
 
 <div id="panel">
-  <button id="panelToggle" type="button" aria-expanded="true">
-    <span>☰ Menü</span><span class="chev">▼</span>
-  </button>
+  <!-- Tab-Leiste = Kopfzeile des Menüs: Antippen öffnet den Teil, ▲ klappt das Menü wieder ein -->
+  <div class="tabs" role="tablist">
+    <button type="button" class="tab" role="tab" data-tab="set"><span class="tabIcon">⚙</span><span class="tabName">Einstellungen</span></button>
+    <button type="button" class="tab" role="tab" data-tab="route"><span class="tabIcon">🧭</span><span class="tabName">Route</span><span class="tabSum" id="sumRoute"></span></button>
+    <button type="button" class="tab" role="tab" data-tab="gpx"><span class="tabIcon">📂</span><span class="tabName">GPX</span><span class="tabSum" id="sumGpx"></span></button>
+    <button type="button" class="tab" role="tab" data-tab="off"><span class="tabIcon">💾</span><span class="tabName">Offline</span><span class="tabSum" id="sumOffline"></span></button>
+    <button type="button" id="panelClose" class="tabClose" title="Menü einklappen" aria-label="Menü einklappen"><span>▲</span></button>
+  </div>
   <div id="panelBody">
-   <!-- Tab-Leiste: Hauptpunkte -->
-   <div class="tabs" role="tablist">
-     <button type="button" class="tab" role="tab" data-tab="set"><span class="tabIcon">⚙</span><span class="tabName">Einstellungen</span></button>
-     <button type="button" class="tab" role="tab" data-tab="route"><span class="tabIcon">🧭</span><span class="tabName">Route</span><span class="tabSum" id="sumRoute"></span></button>
-     <button type="button" class="tab" role="tab" data-tab="gpx"><span class="tabIcon">📂</span><span class="tabName">GPX</span><span class="tabSum" id="sumGpx"></span></button>
-     <button type="button" class="tab" role="tab" data-tab="off"><span class="tabIcon">💾</span><span class="tabName">Offline</span><span class="tabSum" id="sumOffline"></span></button>
-   </div>
 
    <!-- ===================== Einstellungen ===================== -->
    <div class="tabPanel" data-tab="set" role="tabpanel">
@@ -467,6 +478,11 @@
       <input type="range" id="prefRange" min="1" max="5" step="0.5" value="3">
       <div class="hint">Wie viel Umweg du für Schotter in Kauf nimmst. Verbindungsstücke auf Straßen bleiben erlaubt.</div>
     </div>
+    <details class="optBox" id="routeOptBox">
+      <summary>🚧 Vermeiden &amp; Routing-Optionen <span class="secSum" id="routeOptSum"></span></summary>
+      <div id="routeOpts"></div>
+      <div class="hint">„Vermeiden“ heißt: nur wenn es gar nicht anders geht (z. B. Fähre auf eine Insel).</div>
+    </details>
     <div class="row">
       <label class="title" for="routeWidth">Linienstärke der Route: <span id="routeWidthValue">4</span> px</label>
       <input type="range" id="routeWidth" min="2" max="10" step="1" value="4">
@@ -540,11 +556,6 @@
 
 ---context:global
 
-assign downhillcost 0
-assign downhillcutoff 0
-assign uphillcost 0
-assign uphillcutoff 0
-
 assign validForBikes 0
 assign validForCars 1
 assign turnInstructionMode = 0
@@ -552,6 +563,22 @@ assign pass1coefficient = 1.2
 
 # Wie stark Schotter gegenüber Asphalt bevorzugt wird (Asphalt kostet so viel mal mehr als guter Schotter)
 assign gravel_pref = 3.0   # %gravel_pref% | Schotter-Vorliebe | number
+
+# Routing-Optionen (in der App unter Route → Routing-Optionen; 1 = ja, 0 = nein)
+assign avoid_motorway = 1  # %avoid_motorway% | Autobahnen vermeiden | number
+assign avoid_trunk    = 0  # %avoid_trunk% | Schnellstraßen/Kraftfahrstraßen vermeiden | number
+assign avoid_toll     = 0  # %avoid_toll% | Mautstraßen vermeiden | number
+assign avoid_ferry    = 0  # %avoid_ferry% | Fähren vermeiden | number
+assign avoid_ford     = 1  # %avoid_ford% | Furten vermeiden | number
+assign avoid_hard     = 0  # %avoid_hard% | Schwierige Wege meiden | number
+assign avoid_town     = 0  # %avoid_town% | Ortsgebiet meiden | number
+assign avoid_steep    = 0  # %avoid_steep% | Starke Steigungen meiden | number
+
+# Steigungen nur berücksichtigen, wenn gewünscht (Kosten je Höhenmeter über der Schwelle in %)
+assign uphillcost     = if equal avoid_steep 1 then 60 else 0
+assign uphillcutoff   = if equal avoid_steep 1 then 8 else 0
+assign downhillcost   = if equal avoid_steep 1 then 40 else 0
+assign downhillcutoff = if equal avoid_steep 1 then 10 else 0
 
 ---context:way
 
@@ -594,7 +621,8 @@ assign quality
 # ---------- Kosten je Meter (1 = am liebsten) ----------
 # Straßen (Verbindungsstücke): Grundkosten × Schotter-Vorliebe
 assign roadbase
-  if highway=trunk|trunk_link then 2.0
+  if highway=motorway|motorway_link then 0.9     # nur wenn "Autobahnen vermeiden" aus ist: schnelle Überstellung statt Landstraße
+  else if highway=trunk|trunk_link then 2.0
   else if highway=primary|primary_link then 1.3
   else if highway=secondary|secondary_link then 1.15
   else if highway=tertiary|tertiary_link then 1.0
@@ -605,23 +633,42 @@ assign roadbase
   else if route=ferry then 2.0
   else 0
 assign roadcost
-  if highway=motorway|motorway_link then 10000
-  else if equal roadbase 0 then 10000
+  if equal roadbase 0 then 10000
   else max 1.0 ( multiply roadbase gravel_pref )
+
+# Schwierige Wege: Stufe "niedrig", grade4/5, sehr schlechte Oberfläche, nur für Geländewagen, inoffizielle Pfade
+assign ishard
+  or ( equal quality 3 )
+  or tracktype=grade4|grade5
+  or smoothness=very_bad|horrible|very_horrible|impassable
+  or 4wd_only=yes|recommended
+  or informal=yes
+     trail_visibility=bad|horrible|no
 
 # Schotterwege nach Qualität
 assign gravelcost
   if equal quality 1 then 1.0
   else if equal quality 2 then 1.15
+  else if equal avoid_hard 1 then 6.0
   else 1.7
+
+# Gewählte Optionen: "vermeiden" = sehr teuer (nur wenn es gar nicht anders geht)
+assign optcost
+  if and ( equal avoid_motorway 1 ) highway=motorway|motorway_link then 10000
+  else if and ( equal avoid_trunk 1 ) ( or highway=trunk|trunk_link motorroad=yes ) then 50
+  else if and ( equal avoid_toll 1 ) toll=yes then 50
+  else if and ( equal avoid_ford 1 ) ford=yes|stepping_stones then 10000
+  else if and ( equal avoid_hard 1 ) ( and ishard ( not isgravel ) ) then 20
+  else if and ( equal avoid_town 1 ) highway=residential|living_street then 4
+  else 1
 
 assign costfactor
   if blocked then 10000
-  else if isgravel then gravelcost
-  else roadcost
+  else multiply optcost ( if isgravel then gravelcost else roadcost )
 
 assign turncost 30
-assign initialcost if route=ferry then 10000 else 0
+# Fähre: normal leicht bestraft, mit "Fähren vermeiden" nur, wenn es keinen Landweg gibt
+assign initialcost if route=ferry then ( if equal avoid_ferry 1 then 1000000 else 10000 ) else 0
 
 # Angaben, die in der Antwort je Abschnitt mitgeliefert werden sollen (für Einfärbung und Fahrzeit)
 assign dummyUsage smoothness=
@@ -637,6 +684,8 @@ assign nodeblocked
 
 assign initialcost
   if nodeblocked then 1000000
+  else if and ( equal avoid_ford 1 ) ford=yes|stepping_stones then 1000000
+  else if and ( equal avoid_toll 1 ) barrier=toll_booth then 100000
   else if barrier=lift_gate then 3000
   else if barrier=gate then 800
   else 0
@@ -700,9 +749,22 @@ assign initialcost
     { lvl: 3, name: 'niedrig', hint: 'Erde/Naturboden, bei Nässe rutschig', color: '#ff1a4b', old: '#e53935' }
   ];
 
+  // Routing-Optionen: id = Parameter im BRouter-Profil (avoid_<id>), on = Standard
+  var ROUTE_OPTS = [
+    { id: 'motorway', on: true,  label: 'Autobahnen vermeiden', hint: 'aus = schnelle Überstellung über die Autobahn erlaubt' },
+    { id: 'trunk',    on: false, label: 'Schnellstraßen vermeiden', hint: 'Schnell- und Kraftfahrstraßen' },
+    { id: 'toll',     on: false, label: 'Mautstraßen vermeiden', hint: 'Mautstraßen und Mautstellen (soweit in OSM eingetragen)' },
+    { id: 'ferry',    on: false, label: 'Fähren vermeiden', hint: '' },
+    { id: 'ford',     on: true,  label: 'Furten vermeiden', hint: 'Bachdurchfahrten – mit schwerem Motorrad heikel' },
+    { id: 'hard',     on: false, label: 'Schwierige Wege meiden', hint: 'rote Stufe, grade4/5, sehr schlechte Oberfläche, nur für Geländewagen – gut bei Nässe, Gepäck oder Sozius' },
+    { id: 'town',     on: false, label: 'Ortsgebiet meiden', hint: 'Wohngebiete möglichst umfahren' },
+    { id: 'steep',    on: false, label: 'Starke Steigungen meiden', hint: 'steile Rampen bergauf/bergab (nach Höhendaten)' }
+  ];
+
   var settings = { width: 2, transparency: 0, bgFade: 60, labels: true, labelsOverPoi: true,
-    labelColor: '#1a1a1a', labelTransp: 0, labelHalo: 100, poiMinZoom: 11, route: { pts: [], pref: 3, width: 4, transp: 0 }, showRestricted: false, poi: {}, q: {}, panelOpen: false, openSection: '', tab: 'set', offline: [], noAsk: [], wakeLock: false };
+    labelColor: '#1a1a1a', labelTransp: 0, labelHalo: 100, poiMinZoom: 11, route: { pts: [], pref: 3, width: 4, transp: 0, opt: {} }, showRestricted: false, poi: {}, q: {}, panelOpen: false, openSection: '', tab: 'set', offline: [], noAsk: [], wakeLock: false };
   POI_CATS.forEach(function (c) { settings.poi[c.id] = c.on; });
+  ROUTE_OPTS.forEach(function (o) { settings.route.opt[o.id] = o.on; });
   QUALITY.forEach(function (q) { settings.q[q.lvl] = { color: q.color, show: true }; });
   try {
     var saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
@@ -730,6 +792,9 @@ assign initialcost
         if (saved.route.pref >= 1 && saved.route.pref <= 5) settings.route.pref = Number(saved.route.pref);
         if (saved.route.width >= 2 && saved.route.width <= 10) settings.route.width = Number(saved.route.width);
         if (saved.route.transp >= 0 && saved.route.transp <= 90) settings.route.transp = Number(saved.route.transp);
+        if (saved.route.opt) ROUTE_OPTS.forEach(function (o) {
+          if (typeof saved.route.opt[o.id] === 'boolean') settings.route.opt[o.id] = saved.route.opt[o.id];
+        });
       }
       if (typeof saved.showRestricted === 'boolean') settings.showRestricted = saved.showRestricted;
       if (typeof saved.openSection === 'string') settings.openSection = saved.openSection;
@@ -2291,10 +2356,13 @@ assign initialcost
 
   // ================= Bedienfeld =================
   var panel = document.getElementById('panel');
-  var toggle = document.getElementById('panelToggle');
   function setCollapsed(c) {
     panel.classList.toggle('collapsed', c);
-    toggle.setAttribute('aria-expanded', String(!c));
+    panel.setAttribute('aria-expanded', String(!c));
+  }
+  function setPanelOpen(open) {
+    setCollapsed(!open);
+    if (settings.panelOpen !== open) { settings.panelOpen = open; saveSettings(); }
   }
   // Beim ersten Start eingeklappt; danach wie zuletzt gewählt
   setCollapsed(!settings.panelOpen);
@@ -2309,7 +2377,16 @@ assign initialcost
     document.getElementById('panelBody').scrollTop = 0;
     if (settings.tab !== name) { settings.tab = name; saveSettings(); }
   }
-  tabButtons.forEach(function (b) { b.addEventListener('click', function () { showTab(b.dataset.tab); }); });
+  // Tab antippen: Menü geht (falls zu) auf und zeigt diesen Teil; nochmals den offenen Tab antippen = einklappen
+  tabButtons.forEach(function (b) {
+    b.addEventListener('click', function () {
+      var collapsed = panel.classList.contains('collapsed');
+      if (!collapsed && settings.tab === b.dataset.tab) { setPanelOpen(false); return; }
+      showTab(b.dataset.tab);
+      if (collapsed) setPanelOpen(true);
+    });
+  });
+  document.getElementById('panelClose').addEventListener('click', function () { setPanelOpen(false); });
   showTab(settings.tab || 'set');
 
   // Unterpunkte unter "Einstellungen": immer nur einer offen (spart Platz am Handy); der zuletzt geöffnete wird gemerkt
@@ -2377,12 +2454,6 @@ assign initialcost
     wakeHint.textContent = 'Wird von diesem Browser nicht unterstützt (geht mit Chrome ab Android, über die GitHub-Adresse).';
   }
   updateSummaries();
-  toggle.addEventListener('click', function () {
-    var open = panel.classList.contains('collapsed');
-    setCollapsed(!open);
-    settings.panelOpen = open;
-    saveSettings();
-  });
   L.DomEvent.disableClickPropagation(panel);
   L.DomEvent.disableScrollPropagation(panel);
 
@@ -2768,7 +2839,7 @@ assign initialcost
 
   // Fahrzeit-Schätzung (km/h): Schotter je Stufe, Straßen je Typ
   var Q_SPEED = { 1: 35, 2: 28, 3: 18 };
-  var ROAD_SPEED = { trunk: 80, trunk_link: 60, primary: 75, primary_link: 50, secondary: 65, secondary_link: 50,
+  var ROAD_SPEED = { motorway: 110, motorway_link: 60, trunk: 80, trunk_link: 60, primary: 75, primary_link: 50, secondary: 65, secondary_link: 50,
     tertiary: 55, tertiary_link: 45, unclassified: 45, residential: 30, living_street: 15, service: 20, track: 20 };
   var GRAVEL_SURF = /^(gravel|fine_gravel|compacted|unpaved|dirt|ground)$/;
 
@@ -2887,7 +2958,8 @@ assign initialcost
     routeCtrl = ctrl;
     ensureProfile().then(function (id) {
       var url = BROUTER + '?lonlats=' + pts.map(function (p) { return p.lon.toFixed(6) + ',' + p.lat.toFixed(6); }).join('|') +
-        '&profile=' + encodeURIComponent(id) + '&alternativeidx=0&format=geojson&profile:gravel_pref=' + settings.route.pref;
+        '&profile=' + encodeURIComponent(id) + '&alternativeidx=0&format=geojson&profile:gravel_pref=' + settings.route.pref +
+        ROUTE_OPTS.map(function (o) { return '&profile:avoid_' + o.id + '=' + (settings.route.opt[o.id] ? 1 : 0); }).join('');
       return fetch(url, { signal: ctrl.signal }).then(function (r) { return r.text(); });
     }).then(function (txt) {
       if (ctrl !== routeCtrl) return;
@@ -3169,6 +3241,24 @@ assign initialcost
   prefRange.addEventListener('input', function () { prefValue.textContent = PREF_NAMES[prefRange.value] || prefRange.value; });
   prefRange.addEventListener('change', function () { settings.route.pref = Number(prefRange.value); saveSettings(); scheduleRoute(); });
 
+  // Routing-Optionen (Häkchen) – jede Änderung rechnet die Route neu
+  var routeOptsEl = document.getElementById('routeOpts');
+  function updateRouteOptSum() {
+    var on = ROUTE_OPTS.filter(function (o) { return settings.route.opt[o.id]; });
+    document.getElementById('routeOptSum').textContent = on.length ? on.length + ' aktiv' : 'keine';
+  }
+  routeOptsEl.innerHTML = ROUTE_OPTS.map(function (o) {
+    return '<label class="check"><input type="checkbox" data-opt="' + o.id + '"' + (settings.route.opt[o.id] ? ' checked' : '') + '>' +
+      '<span>' + o.label + (o.hint ? '<span class="qHint">' + o.hint + '</span>' : '') + '</span></label>';
+  }).join('');
+  routeOptsEl.addEventListener('change', function (e) {
+    var id = e.target.dataset && e.target.dataset.opt;
+    if (!id) return;
+    settings.route.opt[id] = e.target.checked;
+    saveSettings(); updateRouteOptSum(); scheduleRoute();
+  });
+  updateRouteOptSum();
+
   var routeWidthEl = document.getElementById('routeWidth');
   routeWidthEl.value = settings.route.width;
   routeWidthEl.addEventListener('input', function () { settings.route.width = Number(routeWidthEl.value); applyRouteWidth(); });
@@ -3237,6 +3327,7 @@ assign initialcost
   var statusWrapEl = document.getElementById('statusWrap');
   var LANDSCAPE = matchMedia('(orientation: landscape) and (max-height: 520px)');
   if (LANDSCAPE.addEventListener) LANDSCAPE.addEventListener('change', function () { placeLocateBtn(); map.invalidateSize(); });
+  window.addEventListener('resize', function () { placeLocateBtn(); });   // Drehen des Handys
   function placeLocateBtn() {
     if (!statusWrapEl || !locateBtn) return; // beim Start noch nicht bereit
     if (LANDSCAPE.matches) { locateBtn.style.bottom = ''; return; } // Querformat: fester Platz unten rechts (CSS)
