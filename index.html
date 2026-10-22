@@ -56,7 +56,6 @@
     min-height: 56px; padding: 6px 2px 4px; display: flex; flex-direction: column; align-items: center; gap: 1px;
     border-bottom: 3px solid transparent;
   }
-  .tab[data-tab="set"] { flex: 1.45; }   /* längster Name – sonst abgeschnitten */
   .tab.active { color: var(--fg); background: var(--bg); border-bottom-color: var(--accent); }
   .tabIcon { font-size: 19px; line-height: 1.1; }
   .tabName { font-size: 10.5px; font-weight: 700; letter-spacing: -.2px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
@@ -64,7 +63,7 @@
   .tabSum:empty { display: none; }
   .tabPanel { display: none; }
   .tabPanel.active { display: block; }
-  .tabPanel:not([data-tab="set"]) { padding: 0 14px 14px; }
+  .tabPanel { padding: 0 12px 14px; }
   .tabHead { font-weight: 700; font-size: 15px; padding: 12px 0 0; }
 
   /* ---------- Abschnitte im Bedienfeld (aufklappbar) ---------- */
@@ -96,6 +95,33 @@
   .qName { font-weight: 600; }
   .qHint { display: block; font-size: 12px; color: var(--muted); font-weight: 400; line-height: 1.25; }
   .qDot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: -1px; margin-right: 4px; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
+  /* kompakte Schieber-Zeile: Symbol + Kurzwort | Schieber | Wert */
+  .srow { display: flex; align-items: center; gap: 8px; margin-top: 8px; min-height: 40px; }
+  .srow .sLbl { flex: none; width: 104px; font-size: 14px; color: var(--muted); white-space: nowrap; }
+  .srow input[type=range] { flex: 1; min-width: 0; width: auto; }
+  .srow .sVal { flex: none; min-width: 42px; text-align: right; font-size: 14px; font-weight: 700; white-space: nowrap; }
+  .srow .sVal.wide { min-width: 70px; }
+  .srow .sLbl.free { flex: 1; width: auto; white-space: normal; line-height: 1.25; }   /* längerer Text statt Schieber */
+  .tabPanel > .srow { margin-top: 10px; }
+  .row.rowTop { margin-top: 14px; }
+  /* aufklappbare Kurzhilfe */
+  .tip { margin-top: 6px; font-size: 13px; color: var(--muted); }
+  .tip > summary { cursor: pointer; list-style: none; display: inline-block; padding: 4px 0; }
+  .tip > summary::-webkit-details-marker { display: none; }
+  .tip ul { margin: 2px 0 0; padding-left: 18px; line-height: 1.5; }
+  /* Symbol-Kacheln (an/aus) */
+  .chips { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .chip { position: relative; cursor: pointer; }
+  .chip input { position: absolute; opacity: 0; pointer-events: none; }
+  .chip span {
+    display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 10px; box-sizing: border-box;
+    border: 1px solid var(--border); border-radius: 10px; font-size: 13px; background: #fff; user-select: none; white-space: nowrap;
+  }
+  .chip input:checked + span { background: #ffe9dc; border-color: var(--accent); font-weight: 700; }
+  .chip input:checked + span::after { content: '✕'; margin-left: auto; color: var(--accent); font-size: 12px; }
+  .chip input:focus-visible + span { outline: 2px solid var(--accent); }
+  .check.sub { padding-left: 24px; }   /* Unterpunkt, gehört zur Zeile darüber */
+  .optLine { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 14px; font-weight: 600; }
   .linkBtn { background: none; border: 0; padding: 4px 0; color: var(--muted); text-decoration: underline; font: inherit; font-size: 13px; cursor: pointer; }
   input[type=range] { width: 100%; height: 32px; accent-color: var(--accent); }
   .check { display: flex; align-items: center; gap: 10px; font-size: 15px; cursor: pointer; min-height: 40px; }
@@ -199,18 +225,18 @@
 
   /* ---------- Ortsnamen über den Wegen (weißer Rand = lesbar auf jedem Hintergrund) ---------- */
   .placeLabel { background: none; border: 0; }
-  /* Farbe, Transparenz und Leuchtrand kommen als CSS-Variablen aus den Einstellungen (--lbl-color, --lbl-op, --lbl-halo) */
-  .placeLabel span, .placeSample {
-    white-space: nowrap;
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 600; font-size: 12px;
-    color: var(--lbl-color, #1a1a1a); opacity: var(--lbl-op, 1);
-    text-shadow: 0 0 2px var(--lbl-halo, #fff), 0 0 2px var(--lbl-halo, #fff), 0 0 3px var(--lbl-halo, #fff),
-                 0 0 4px var(--lbl-halo, #fff), 0 0 5px var(--lbl-halo, #fff);
+  /* Fest eingestellt (keine Optionen): fast schwarz, fett, dicker weißer Rand ringsum – immer über Wegen und POIs */
+  .placeLabel span {
+    position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); white-space: nowrap;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 700; font-size: 13px;
+    color: #111;
+    text-shadow:
+      -2px -2px 0 #fff, 0 -2px 0 #fff, 2px -2px 0 #fff, 2px 0 0 #fff,
+       2px  2px 0 #fff, 0  2px 0 #fff, -2px 2px 0 #fff, -2px 0 0 #fff,
+       0 0 4px #fff, 0 0 6px #fff;
   }
-  .placeLabel span { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); }
-  .placeLabel.r1 span { font-size: 15px; font-weight: 800; letter-spacing: .3px; }
-  .placeLabel.r2 span { font-size: 13px; font-weight: 700; }
-  .placeSample { font-size: 15px; font-weight: 800; padding: 6px 12px; border-radius: 8px; background: #b9c4a8; }
+  .placeLabel.r1 span { font-size: 17px; font-weight: 900; letter-spacing: .4px; }
+  .placeLabel.r2 span { font-size: 15px; font-weight: 800; }
 
   /* ---------- Orte (POI-Symbole) ---------- */
   .poi-icon { background: none; border: 0; }
@@ -345,188 +371,116 @@
 <div id="panel">
   <!-- Tab-Leiste = Kopfzeile des Menüs: Antippen öffnet den Teil, ▲ klappt das Menü wieder ein -->
   <div class="tabs" role="tablist">
-    <button type="button" class="tab" role="tab" data-tab="set"><span class="tabIcon">⚙</span><span class="tabName">Einstellungen</span></button>
-    <button type="button" class="tab" role="tab" data-tab="route"><span class="tabIcon">🧭</span><span class="tabName">Route</span><span class="tabSum" id="sumRoute"></span></button>
-    <button type="button" class="tab" role="tab" data-tab="gpx"><span class="tabIcon">📂</span><span class="tabName">GPX</span><span class="tabSum" id="sumGpx"></span></button>
-    <button type="button" class="tab" role="tab" data-tab="off"><span class="tabIcon">💾</span><span class="tabName">Offline</span><span class="tabSum" id="sumOffline"></span></button>
+    <button type="button" class="tab" role="tab" data-tab="way" title="Schotterwege: Qualität, Farben, Linie"><span class="tabIcon">〰️</span><span class="tabName">Wege</span></button>
+    <button type="button" class="tab" role="tab" data-tab="poi" title="Tankstellen, Lebensmittel …"><span class="tabIcon">📍</span><span class="tabName">POI</span><span class="tabSum" id="sumPoi"></span></button>
+    <button type="button" class="tab" role="tab" data-tab="route" title="Route planen"><span class="tabIcon">🧭</span><span class="tabName">Route</span><span class="tabSum" id="sumRoute"></span></button>
+    <button type="button" class="tab" role="tab" data-tab="gpx" title="Eigene GPX-Tracks"><span class="tabIcon">📂</span><span class="tabName">GPX</span><span class="tabSum" id="sumGpx"></span></button>
+    <button type="button" class="tab" role="tab" data-tab="off" title="Länder offline speichern"><span class="tabIcon">💾</span><span class="tabName">Offline</span><span class="tabSum" id="sumOffline"></span></button>
+    <button type="button" class="tab" role="tab" data-tab="app" title="Installieren, Bildschirm wach halten"><span class="tabIcon">📱</span><span class="tabName">App</span></button>
     <button type="button" id="panelClose" class="tabClose" title="Menü einklappen" aria-label="Menü einklappen"><span>▲</span></button>
   </div>
   <div id="panelBody">
 
-   <!-- ===================== Einstellungen ===================== -->
-   <div class="tabPanel" data-tab="set" role="tabpanel">
-   <details class="section" id="secStyle">
-    <summary>
-      <span class="secIcon">〰️</span>
-      <span class="secTitle">Schotterwege<span class="secSum" id="sumStyle"></span></span>
-      <span class="secChev">›</span>
-    </summary>
-    <div class="secBody">
-    <div class="row">
-      <label class="title">Qualität der Schotterwege</label>
-      <div id="qList"></div>
-      <div class="hint">Häkchen = Stufe anzeigen. Farbfeld antippen = Farbe ändern.</div>
-      <button type="button" id="qReset" class="linkBtn">Standardfarben wiederherstellen</button>
-    </div>
-    <div class="row">
-      <label class="title" for="widthRange">Linienbreite: <span id="widthValue">2</span> px</label>
-      <input type="range" id="widthRange" min="1" max="5" step="1" value="2">
-    </div>
-    <div class="row">
-      <label class="title" for="transpRange">Transparenz: <span id="transpValue">0</span> %</label>
-      <input type="range" id="transpRange" min="0" max="100" step="5" value="0">
-    </div>
-    <div class="row">
-      <label class="check"><input type="checkbox" id="showRestricted"> Auch gesperrte Wege anzeigen</label>
-      <div class="legend">
-        <svg width="34" height="8"><line x1="0" y1="4" x2="34" y2="4" stroke="#777" stroke-width="3" stroke-dasharray="6 5"/></svg>
-        = gesperrt / nur Anrainer, Land- oder Forstwirtschaft
-      </div>
-    </div>
-    </div>
-   </details>
+   <!-- ===================== Schotterwege ===================== -->
+   <div class="tabPanel" data-tab="way" role="tabpanel">
+    <div class="row rowTop" id="qList"></div>
+    <button type="button" id="qReset" class="linkBtn">↺ Standardfarben</button>
+    <div class="srow" title="Linienbreite der Schotterwege"><span class="sLbl">▬ Breite</span>
+      <input type="range" id="widthRange" min="1" max="5" step="1" value="2" aria-label="Linienbreite">
+      <span class="sVal"><span id="widthValue">2</span> px</span></div>
+    <div class="srow" title="Transparenz der Schotterwege"><span class="sLbl">◐ Transparenz</span>
+      <input type="range" id="transpRange" min="0" max="100" step="5" value="0" aria-label="Transparenz">
+      <span class="sVal"><span id="transpValue">0</span> %</span></div>
+    <div class="srow" title="Hintergrundkarte blasser machen, damit die Wege herausstechen"><span class="sLbl">Karte blasser</span>
+      <input type="range" id="bgRange" min="0" max="100" step="10" value="60" aria-label="Hintergrund abschwächen">
+      <span class="sVal"><span id="bgValue">60</span> %</span></div>
+   </div>
 
-   <details class="section" id="secMap">
-    <summary>
-      <span class="secIcon">🗺️</span>
-      <span class="secTitle">Karte &amp; Ortsnamen<span class="secSum" id="sumMap"></span></span>
-      <span class="secChev">›</span>
-    </summary>
-    <div class="secBody">
-    <div class="row">
-      <label class="title" for="bgRange">Hintergrund abschwächen: <span id="bgValue">60</span> %</label>
-      <input type="range" id="bgRange" min="0" max="100" step="10" value="60">
-      <div class="hint">Nimmt der Hintergrundkarte Farbe, damit die Wege klar herausstechen.</div>
-    </div>
-    <div class="row">
-      <label class="check"><input type="checkbox" id="showLabels"> Ortsnamen über den Wegen anzeigen</label>
-      <label class="check"><input type="checkbox" id="labelsOverPoi"> Ortsnamen über den POI-Symbolen</label>
-      <div class="hint">Städte und Märkte ab Zoom 9, Dörfer ab Zoom 11 – gut lesbar auch zwischen vielen Linien.</div>
-    </div>
-    <div class="row" id="labelStyleRow">
-      <label class="title">Ortsnamen: Farbe, Transparenz, Leuchtrand</label>
-      <div class="qRow">
-        <input type="color" id="labelColor" aria-label="Farbe der Ortsnamen">
-        <span class="placeSample" id="labelSample">Wels</span>
-      </div>
-      <label class="title" for="labelTransp">Transparenz: <span id="labelTranspValue">0</span> %</label>
-      <input type="range" id="labelTransp" min="0" max="80" step="10" value="0">
-      <label class="title" for="labelHalo">Weißer Leuchtrand: <span id="labelHaloValue">100</span> %</label>
-      <input type="range" id="labelHalo" min="0" max="100" step="10" value="100">
-    </div>
-    </div>
-   </details>
-
-   <details class="section" id="secPoi">
-    <summary>
-      <span class="secIcon">📍</span>
-      <span class="secTitle">POI<span class="secSum" id="sumPoi"></span></span>
-      <span class="secChev">›</span>
-    </summary>
-    <div class="secBody">
-    <div class="row">
-      <label class="title">Orte auf der Karte anzeigen</label>
-      <div id="poiList"></div>
-    </div>
-    <div class="row">
-      <label class="title">POIs ab Zoomstufe einblenden</label>
+   <!-- ===================== POI ===================== -->
+   <div class="tabPanel" data-tab="poi" role="tabpanel">
+    <div class="row rowTop" id="poiList"></div>
+    <div class="srow" title="Kleinere Zahl = POI schon weiter herausgezoomt sichtbar (bei vielen POI langsamer)"><span class="sLbl free">POI ab Zoomstufe anzeigen</span>
       <div class="stepper">
         <button type="button" id="poiZoomMinus" aria-label="früher einblenden">−</button>
         <span id="poiZoomValue">11</span>
         <button type="button" id="poiZoomPlus" aria-label="später einblenden">+</button>
-      </div>
-      <div class="hint">Kleinere Zahl = POIs schon weiter herausgezoomt sichtbar (ab 9, bei vielen POIs langsamer).
-        Unter Zoom 11 nur in Gebieten mit Schnell-Daten.</div>
-    </div>
-    </div>
-   </details>
+      </div></div>
+   </div>
 
-   <details class="section" id="secApp">
-    <summary>
-      <span class="secIcon">📱</span>
-      <span class="secTitle">App<span class="secSum" id="sumApp"></span></span>
-      <span class="secChev">›</span>
-    </summary>
-    <div class="secBody">
-    <div class="row">
-      <button type="button" id="installBtn" class="btn wide" hidden>📲 Als App installieren</button>
+   <!-- ===================== App ===================== -->
+   <div class="tabPanel" data-tab="app" role="tabpanel">
+    <div class="row rowTop">
+      <button type="button" id="installBtn" class="btn wide" hidden>📲 Installieren</button>
       <div class="hint" id="installHint"></div>
     </div>
-    <div class="row">
-      <label class="check"><input type="checkbox" id="wakeLock"> Bildschirm wach halten</label>
-      <div class="hint" id="wakeHint">Das Display geht nicht aus, solange die Karte offen ist (braucht mehr Akku – am Motorrad mit Ladekabel ideal).</div>
-    </div>
-    </div>
-   </details>
+    <label class="check"><input type="checkbox" id="wakeLock"> ☀️ Bildschirm wach halten</label>
+    <div class="hint" id="wakeHint">braucht mehr Akku</div>
    </div>
 
    <!-- ===================== Route planen ===================== -->
    <div class="tabPanel" data-tab="route" role="tabpanel">
-    <div class="tabHead">🧭 Route planen</div>
-    <div class="row">
-      <button type="button" id="routeModeBtn" class="btn wide">➕ Punkte auf der Karte setzen</button>
-      <div class="hint">Tippe auf die Karte: der erste Punkt ist der Start, jeder weitere wird das neue Ziel
-        (das bisherige wird Zwischenziel). Punkte lassen sich mit dem Finger verschieben. Bei POIs: „Zur Route hinzufügen“.
-        <b>Route anfassen und ziehen</b> = neues Zwischenziel an der Stelle, wo du loslässt.</div>
+    <div class="row rowTop">
+      <button type="button" id="routeModeBtn" class="btn wide">➕ Punkte setzen</button>
+      <details class="tip"><summary>ⓘ So geht's</summary>
+        <ul>
+          <li>Tippen = Punkt (erster = Start, letzter = Ziel)</li>
+          <li>Punkt ziehen = verschieben</li>
+          <li>Route ziehen = Zwischenziel</li>
+          <li>POI → „Zur Route“</li>
+        </ul></details>
     </div>
     <div class="row">
       <div id="routePoints" class="routePoints"></div>
       <div class="routeTools">
-        <button type="button" id="routeFromGps" class="btn light small">📍 Mein Standort als Start</button>
-        <button type="button" id="routeReverse" class="btn light small">⇅ Umkehren</button>
-        <button type="button" id="routeClear" class="btn light small">🗑 Löschen</button>
+        <button type="button" id="routeFromGps" class="btn light small" title="Mein Standort als Start">📍 Start hier</button>
+        <button type="button" id="routeReverse" class="btn light small" title="Richtung umkehren">⇅ Umkehren</button>
+        <button type="button" id="routeClear" class="btn light small" title="Alle Punkte löschen">🗑 Löschen</button>
       </div>
     </div>
     <!-- Ergebnis gleich unter den Punkten: Länge, Zeit, Anteile, "Ganze Route zeigen" -->
     <div class="row" id="routeResult"></div>
-    <div class="row">
-      <label class="title" for="prefRange">Schotter-Vorliebe: <span id="prefValue">stark</span></label>
-      <input type="range" id="prefRange" min="1" max="5" step="0.5" value="3">
-      <div class="hint">Wie viel Umweg du für Schotter in Kauf nimmst. Verbindungsstücke auf Straßen bleiben erlaubt.</div>
-    </div>
+    <div class="srow" title="Wie viel Umweg du für Schotter in Kauf nimmst"><span class="sLbl">🪨 Schotter</span>
+      <input type="range" id="prefRange" min="1" max="5" step="0.5" value="3" aria-label="Schotter-Vorliebe">
+      <span class="sVal wide" id="prefValue">stark</span></div>
+    <div class="srow" title="Linienstärke der Route (Transparenz: Schieber links auf der Karte)"><span class="sLbl">▬ Linie</span>
+      <input type="range" id="routeWidth" min="2" max="10" step="1" value="4" aria-label="Linienstärke der Route">
+      <span class="sVal"><span id="routeWidthValue">4</span> px</span></div>
     <details class="optBox" id="routeOptBox">
-      <summary>🚧 Vermeiden &amp; Routing-Optionen <span class="secSum" id="routeOptSum"></span></summary>
-      <div id="routeOpts"></div>
-      <div class="hint">„Vermeiden“ heißt: nur wenn es gar nicht anders geht (z. B. Fähre auf eine Insel).</div>
+      <summary>🚫 Vermeiden <span class="secSum" id="routeOptSum"></span></summary>
+      <div id="routeOpts" class="chips"></div>
+      <div class="hint">nur wenn es gar nicht anders geht</div>
+      <div class="optLine">⛔ Gesperrte Wege: nie in der Route</div>
+      <label class="check sub" title="gesperrt / nur Anrainer, Land- oder Forstwirtschaft – als graue Strichlinie"><input type="checkbox" id="showRestricted">
+        <svg width="28" height="8"><line x1="0" y1="4" x2="28" y2="4" stroke="#777" stroke-width="3" stroke-dasharray="6 5"/></svg> auf der Karte zeigen</label>
     </details>
-    <div class="row">
-      <label class="title" for="routeWidth">Linienstärke der Route: <span id="routeWidthValue">4</span> px</label>
-      <input type="range" id="routeWidth" min="2" max="10" step="1" value="4">
-      <div class="hint">Die Transparenz der Route stellst du mit dem Schieber links unter dem 🧭-Knopf ein (erscheint, sobald eine Route angezeigt wird).</div>
-    </div>
    </div>
 
    <!-- ===================== GPX-Tracks ===================== -->
    <div class="tabPanel" data-tab="gpx" role="tabpanel">
-    <div class="tabHead">📂 GPX-Tracks</div>
-    <div class="row">
-      <label class="btn wide fileBtn">📂 GPX-Datei laden …
+    <div class="row rowTop">
+      <label class="btn wide fileBtn" title="Eigene Tracks anzeigen, z. B. TET – bleiben gespeichert">📂 GPX laden
         <input type="file" id="gpxFile" accept=".gpx,application/gpx+xml,application/xml,text/xml" multiple hidden>
       </label>
-      <div class="hint">Zeigt eigene Tracks auf der Karte (z. B. TET-Abschnitte). Mehrere Dateien und Abschnitte möglich;
-        die Tracks bleiben im Browser gespeichert.</div>
     </div>
     <div class="row" id="gpxList"></div>
    </div>
 
    <!-- ===================== Offline Karten ===================== -->
    <div class="tabPanel" data-tab="off" role="tabpanel">
-    <div class="tabHead">💾 Offline Karten</div>
-    <div class="row" id="countryBox" hidden>
-      <label class="title">Länder offline speichern</label>
-      <label class="check allEurope">
+    <div class="row rowTop" id="countryBox" hidden>
+      <label class="check allEurope" title="Häkchen = auch ohne Netz verfügbar">
         <input type="checkbox" id="cbAll">
-        <span class="cName">Ganz Europa</span>
+        <span class="cName">🌍 Ganz Europa</span>
         <span class="cSize" id="sizeAll"></span>
       </label>
       <div id="countryList" class="countryList"></div>
-      <button type="button" id="countryApply" class="btn wide">Ausgewählte laden</button>
-      <div class="hint">Häkchen = Land ist auch ohne Netz verfügbar. Häkchen entfernen = gespeicherte Daten des Landes löschen. ✔ gespeichert · ⟳ neuer Datenstand verfügbar</div>
+      <button type="button" id="countryApply" class="btn wide">⬇ Laden</button>
+      <div class="hint">✔ gespeichert · ⟳ Update da · Häkchen weg = löschen</div>
     </div>
     <div class="row">
       <div class="hint" id="dataInfo"></div>
       <div class="hint" id="cacheInfo">…</div>
-      <button type="button" id="clearCacheBtn" class="btn light">Alle gespeicherten Daten löschen</button>
+      <button type="button" id="clearCacheBtn" class="btn light">🗑 Alles löschen</button>
     </div>
    </div>
   </div>
@@ -759,18 +713,17 @@ assign initialcost
 
   // Routing-Optionen: id = Parameter im BRouter-Profil (avoid_<id>), on = Standard
   var ROUTE_OPTS = [
-    { id: 'motorway', on: true,  label: 'Autobahnen vermeiden', hint: 'aus = schnelle Überstellung über die Autobahn erlaubt' },
-    { id: 'trunk',    on: false, label: 'Schnellstraßen vermeiden', hint: 'Schnell- und Kraftfahrstraßen' },
-    { id: 'toll',     on: false, label: 'Mautstraßen vermeiden', hint: 'Mautstraßen und Mautstellen (soweit in OSM eingetragen)' },
-    { id: 'ferry',    on: false, label: 'Fähren vermeiden', hint: '' },
-    { id: 'ford',     on: true,  label: 'Furten vermeiden', hint: 'Bachdurchfahrten – mit schwerem Motorrad heikel' },
-    { id: 'hard',     on: false, label: 'Schwierige Wege meiden', hint: 'rote Stufe, grade4/5, sehr schlechte Oberfläche, nur für Geländewagen – gut bei Nässe, Gepäck oder Sozius' },
-    { id: 'town',     on: false, label: 'Ortsgebiet meiden', hint: 'Wohngebiete möglichst umfahren' },
-    { id: 'steep',    on: false, label: 'Starke Steigungen meiden', hint: 'steile Rampen bergauf/bergab (nach Höhendaten)' }
+    { id: 'motorway', on: true,  icon: '🛣️', label: 'Autobahn', hint: 'Autobahnen vermeiden (aus = schnelle Überstellung erlaubt)' },
+    { id: 'trunk',    on: false, icon: '🚗', label: 'Schnellstraße', hint: 'Schnell- und Kraftfahrstraßen vermeiden' },
+    { id: 'toll',     on: false, icon: '💶', label: 'Maut', hint: 'Mautstraßen und Mautstellen vermeiden (soweit eingetragen)' },
+    { id: 'ferry',    on: false, icon: '⛴️', label: 'Fähre', hint: 'Fähren vermeiden' },
+    { id: 'ford',     on: true,  icon: '🌊', label: 'Furt', hint: 'Bachdurchfahrten vermeiden' },
+    { id: 'hard',     on: false, icon: '🪨', label: 'Grobes', hint: 'rote Stufe, grade4/5, nur für Geländewagen – gut bei Nässe, Gepäck oder Sozius' },
+    { id: 'town',     on: false, icon: '🏘️', label: 'Ortsgebiet', hint: 'Wohngebiete möglichst umfahren' },
+    { id: 'steep',    on: false, icon: '⛰️', label: 'Steilstücke', hint: 'starke Steigungen bergauf/bergab vermeiden' }
   ];
 
-  var settings = { width: 2, transparency: 0, bgFade: 60, labels: true, labelsOverPoi: true,
-    labelColor: '#1a1a1a', labelTransp: 0, labelHalo: 100, poiMinZoom: 11, route: { pts: [], pref: 3, width: 4, transp: 0, opt: {} }, showRestricted: false, poi: {}, q: {}, panelOpen: false, openSection: '', tab: 'set', offline: [], noAsk: [], wakeLock: false };
+  var settings = { width: 2, transparency: 0, bgFade: 60, poiMinZoom: 11, route: { pts: [], pref: 3, width: 4, transp: 0, opt: {} }, showRestricted: false, poi: {}, q: {}, panelOpen: false, tab: 'way', offline: [], noAsk: [], wakeLock: false };
   POI_CATS.forEach(function (c) { settings.poi[c.id] = c.on; });
   ROUTE_OPTS.forEach(function (o) { settings.route.opt[o.id] = o.on; });
   QUALITY.forEach(function (q) { settings.q[q.lvl] = { color: q.color, show: true }; });
@@ -788,11 +741,6 @@ assign initialcost
       if (Number(saved.width) > 0) settings.width = Math.min(5, Math.max(1, Math.round(Number(saved.width))));
       if (saved.transparency >= 0 && saved.transparency <= 100) settings.transparency = Number(saved.transparency);
       if (saved.bgFade >= 0 && saved.bgFade <= 100) settings.bgFade = Number(saved.bgFade);
-      if (typeof saved.labels === 'boolean') settings.labels = saved.labels;
-      if (typeof saved.labelsOverPoi === 'boolean') settings.labelsOverPoi = saved.labelsOverPoi;
-      if (/^#[0-9a-f]{6}$/i.test(saved.labelColor)) settings.labelColor = saved.labelColor;
-      if (saved.labelTransp >= 0 && saved.labelTransp <= 80) settings.labelTransp = Number(saved.labelTransp);
-      if (saved.labelHalo >= 0 && saved.labelHalo <= 100) settings.labelHalo = Number(saved.labelHalo);
       if (saved.poiMinZoom >= 9 && saved.poiMinZoom <= 18) settings.poiMinZoom = Number(saved.poiMinZoom);
       if (saved.route && Array.isArray(saved.route.pts)) {
         settings.route.pts = saved.route.pts.filter(function (p) { return p && isFinite(p.lat) && isFinite(p.lon); })
@@ -805,8 +753,9 @@ assign initialcost
         });
       }
       if (typeof saved.showRestricted === 'boolean') settings.showRestricted = saved.showRestricted;
-      if (typeof saved.openSection === 'string') settings.openSection = saved.openSection;
-      if (/^(set|route|gpx|off)$/.test(saved.tab)) settings.tab = saved.tab;
+      // früherer Tab "Einstellungen" (set) hatte die Unterpunkte – zuletzt offener Unterpunkt wird zum Tab
+      if (saved.tab === 'set') saved.tab = { secPoi: 'poi', secApp: 'app' }[saved.openSection] || 'way';
+      if (/^(way|poi|route|gpx|off|app)$/.test(saved.tab)) settings.tab = saved.tab;
       if (typeof saved.panelOpen === 'boolean') settings.panelOpen = saved.panelOpen;
       if (typeof saved.wakeLock === 'boolean') settings.wakeLock = saved.wakeLock;
       if (Array.isArray(saved.offline)) settings.offline = saved.offline.filter(function (x) { return typeof x === 'string'; });
@@ -829,15 +778,12 @@ assign initialcost
         return '<span class="line" style="width:14px;background:' + settings.q[q.lvl].color + ';height:' + Math.max(2, settings.width) + 'px;' +
           (settings.q[q.lvl].show ? '' : 'opacity:.25') + '" title="' + q.name + '"></span>';
       }).join('') + ' ' +
-      settings.width + ' px' + (settings.transparency ? ', ' + settings.transparency + ' % transparent' : '') +
-      (settings.showRestricted ? ', mit gesperrten' : '');
-    var mp = document.getElementById('sumMap');
-    if (mp) mp.textContent = 'Hintergrund ' + settings.bgFade + ' % · Ortsnamen ' +
-      (settings.labels ? (settings.labelsOverPoi ? 'über allem' : 'an') : 'aus');
+      settings.width + ' px' + (settings.transparency ? ', ' + settings.transparency + ' % transparent' : '');
     var p = document.getElementById('sumPoi');
     if (p) {
       var on = POI_CATS.filter(function (c) { return settings.poi[c.id]; });
-      p.textContent = on.length ? on.map(function (c) { return c.emoji; }).join(' ') + '  (' + on.length + ' von ' + POI_CATS.length + ') · ab Zoom ' + settings.poiMinZoom : 'keine eingeschaltet';
+      // kurz – steht klein unter dem Tab
+      p.textContent = on.length > 2 ? on.length + ' an' : on.map(function (c) { return c.emoji; }).join('');
     }
     var ap = document.getElementById('sumApp');
     if (ap) ap.textContent = (typeof isStandalone !== 'undefined' && isStandalone ? 'installiert' : 'im Browser') +
@@ -897,7 +843,7 @@ assign initialcost
   map.createPane('countryPane').style.zIndex = 420;
   // Ortsnamen ÜBER den Wegen (unter den POI-Symbolen); lässt Klicks durch
   var labelPane = map.createPane('labelPane');
-  labelPane.style.zIndex = 480;
+  labelPane.style.zIndex = 610;            // Ortsnamen immer obenauf – auch über den POI-Symbolen (600)
   labelPane.style.pointerEvents = 'none';
   var roadLayer = L.layerGroup().addTo(map);
 
@@ -1485,7 +1431,7 @@ assign initialcost
     }
     var extra = '', z = map.getZoom();
     if (z < DETAIL_ZOOM && overviewGap) extra = ' · für Gebiete außerhalb der Schnell-Daten weiter hineinzoomen';
-    else if (z < settings.poiMinZoom) extra = ' · POIs ab Zoom ' + settings.poiMinZoom;
+    else if (z < settings.poiMinZoom) extra = ' · POI ab Zoom ' + settings.poiMinZoom;
     else if (z < DETAIL_ZOOM) extra = ' · Details ab Zoom ' + DETAIL_ZOOM;
     setStatus('<span>' + lastCountText + extra + '</span>');
   }
@@ -1955,9 +1901,9 @@ assign initialcost
     var btn = document.getElementById('countryApply');
     var m = selectedMissing();
     if (preload && !preload.error) { btn.disabled = true; btn.textContent = 'Wird geladen …'; }
-    else if (!sel) { btn.disabled = true; btn.textContent = 'Länder auswählen'; }
-    else if (!m.cells.length) { btn.disabled = true; btn.textContent = '✔ Ausgewählte Länder sind gespeichert'; }
-    else { btn.disabled = false; btn.textContent = 'Ausgewählte laden (≈ ' + sizeText(m.bytes) + ')'; }
+    else if (!sel) { btn.disabled = true; btn.textContent = 'Länder anhaken'; }
+    else if (!m.cells.length) { btn.disabled = true; btn.textContent = '✔ Alles gespeichert'; }
+    else { btn.disabled = false; btn.textContent = '⬇ Laden (≈ ' + sizeText(m.bytes) + ')'; }
     renderCountries();
     if (map.getZoom() < MIN_ZOOM) updateViewStatus();
   }
@@ -2055,9 +2001,10 @@ assign initialcost
   function showDataInfo() {
     var d = new Date(staticBuilt);
     var n = staticIndex.regions.length;
-    document.getElementById('dataInfo').textContent = 'Schnell-Daten für ' +
-      (n > 6 ? n + ' Länder' : staticIndex.regions.map(function (r) { return r.name; }).join(', ')) +
-      ' (Stand ' + d.toLocaleDateString('de-AT') + '). Andere Gebiete werden langsamer über Overpass geladen.';
+    var di = document.getElementById('dataInfo');
+    di.textContent = '📅 Daten vom ' + d.toLocaleDateString('de-AT') + ' · ' +
+      (n > 6 ? n + ' Länder' : staticIndex.regions.map(function (r) { return r.name; }).join(', '));
+    di.title = 'Andere Gebiete werden langsamer über Overpass geladen.';
   }
 
   function updateCacheInfo() {
@@ -2065,14 +2012,14 @@ assign initialcost
     var sum = document.getElementById('sumOffline');
     if (!el) return;
     if (!dbOk) {
-      el.textContent = 'Dauerhaftes Speichern ist in diesem Browser nicht möglich – Daten bleiben nur bis zum Schließen der Seite.';
+      el.textContent = '⚠ Speichern hier nicht möglich (nur bis zum Schließen)';
       sum.textContent = 'nicht möglich';
       return;
     }
     var n = 0, bytes = 0;
     stored.forEach(function (e) { if (e.v === DATA_VERSION) { n++; bytes += e.s || 0; } });
     var mb = (bytes / 1048576).toFixed(1).replace('.', ',') + ' MB';
-    el.textContent = n ? 'Im Browser gespeichert: ' + n + ' Kacheln (je ca. 5 × 5 km), ca. ' + mb : 'Noch nichts gespeichert.';
+    el.textContent = n ? '💾 ' + mb + ' gespeichert (' + n + ' Kacheln)' : '💾 noch nichts gespeichert';
     var nc = settings.offline.length;
     // kurz – steht klein unter dem Tab
     sum.textContent = n ? mb : '';
@@ -2199,7 +2146,7 @@ assign initialcost
   var MAX_LABELS = 250;
   function renderLabels() {
     labelLayer.clearLayers();
-    if (!settings.labels || map.getZoom() < MIN_ZOOM) return;
+    if (map.getZoom() < MIN_ZOOM) return;
     var z = map.getZoom(), view = map.getBounds().pad(0.05);
     var maxRank = z >= DETAIL_ZOOM ? 3 : 2;
     var list = [];
@@ -2379,7 +2326,7 @@ assign initialcost
   var tabButtons = Array.prototype.slice.call(document.querySelectorAll('.tab'));
   var tabPanels = Array.prototype.slice.call(document.querySelectorAll('.tabPanel'));
   function showTab(name) {
-    if (!tabPanels.some(function (p) { return p.dataset.tab === name; })) name = 'set';
+    if (!tabPanels.some(function (p) { return p.dataset.tab === name; })) name = 'way';
     tabButtons.forEach(function (b) { var on = b.dataset.tab === name; b.classList.toggle('active', on); b.setAttribute('aria-selected', String(on)); });
     tabPanels.forEach(function (p) { p.classList.toggle('active', p.dataset.tab === name); });
     document.getElementById('panelBody').scrollTop = 0;
@@ -2395,22 +2342,7 @@ assign initialcost
     });
   });
   document.getElementById('panelClose').addEventListener('click', function () { setPanelOpen(false); });
-  showTab(settings.tab || 'set');
-
-  // Unterpunkte unter "Einstellungen": immer nur einer offen (spart Platz am Handy); der zuletzt geöffnete wird gemerkt
-  var sections = ['secStyle', 'secMap', 'secPoi', 'secApp'].map(function (id) { return document.getElementById(id); });
-  sections.forEach(function (sec) {
-    sec.open = sec.id === settings.openSection;
-    sec.addEventListener('toggle', function () {
-      if (sec.open) {
-        sections.forEach(function (o) { if (o !== sec) o.open = false; });
-        settings.openSection = sec.id;
-      } else if (settings.openSection === sec.id) {
-        settings.openSection = '';
-      }
-      saveSettings();
-    });
-  });
+  showTab(settings.tab || 'way');
 
   // ---------- App: installieren und Bildschirm wach halten ----------
   var isStandalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
@@ -2418,14 +2350,14 @@ assign initialcost
   var installPrompt = null;
   function showInstallState() {
     installBtn.hidden = !installPrompt;
-    if (isStandalone) installHint.textContent = '✔ Läuft als installierte App – Vollbild, dreht mit dem Handy mit (Hoch- und Querformat).';
-    else if (installPrompt) installHint.textContent = 'Legt ein Symbol auf den Startbildschirm. Die App startet dann im Vollbild ohne Adressleiste und dreht sich mit dem Handy mit.';
-    else if (location.protocol === 'file:') installHint.textContent = 'Installieren geht nur, wenn die Seite aus dem Internet geöffnet wird (GitHub-Adresse), nicht als lokale Datei.';
-    else installHint.textContent = 'Installieren: im Chrome-Menü ⋮ „App installieren“ bzw. „Zum Startbildschirm hinzufügen“ antippen. (Auf dem iPhone in Safari: Teilen → „Zum Home-Bildschirm“.)';
+    if (isStandalone) installHint.textContent = '✔ installiert';
+    else if (installPrompt) installHint.textContent = 'Symbol am Startbildschirm, Vollbild, dreht mit';
+    else if (location.protocol === 'file:') installHint.textContent = 'Installieren nur über die GitHub-Adresse';
+    else installHint.textContent = 'Installieren: Chrome-Menü ⋮ → „App installieren“ (iPhone: Teilen → „Zum Home-Bildschirm“)';
     updateSummaries();
   }
   window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); installPrompt = e; showInstallState(); });
-  window.addEventListener('appinstalled', function () { installPrompt = null; installHint.textContent = '✔ Installiert – du findest die App jetzt am Startbildschirm.'; installBtn.hidden = true; });
+  window.addEventListener('appinstalled', function () { installPrompt = null; installHint.textContent = '✔ installiert – Symbol am Startbildschirm'; installBtn.hidden = true; });
   installBtn.addEventListener('click', function () {
     if (!installPrompt) return;
     var p = installPrompt; installPrompt = null;
@@ -2459,7 +2391,7 @@ assign initialcost
     requestWake();
   } else {
     wakeEl.disabled = true;
-    wakeHint.textContent = 'Wird von diesem Browser nicht unterstützt (geht mit Chrome ab Android, über die GitHub-Adresse).';
+    wakeHint.textContent = 'hier nicht möglich (Chrome / Android)';
   }
   updateSummaries();
   L.DomEvent.disableClickPropagation(panel);
@@ -2479,10 +2411,10 @@ assign initialcost
   QUALITY.forEach(function (q) {
     var row = document.createElement('div');
     row.className = 'qRow';
-    row.innerHTML = '<input type="color" aria-label="Farbe für Qualität ' + q.name + '">' +
-      '<label class="check"><input type="checkbox">' +
-      '<span><span class="qName">' + q.name + '</span> <span class="poiCount" id="qCount-' + q.lvl + '"></span>' +
-      '<span class="qHint">' + q.hint + '</span></span></label>';
+    row.title = q.hint;
+    row.innerHTML = '<input type="color" aria-label="Farbe für Qualität ' + q.name + '" title="Farbe ändern">' +
+      '<label class="check"><input type="checkbox" title="anzeigen">' +
+      '<span><span class="qName">' + q.name + '</span> <span class="poiCount" id="qCount-' + q.lvl + '"></span></span></label>';
     var color = row.querySelector('input[type=color]'), box = row.querySelector('input[type=checkbox]');
     color.value = settings.q[q.lvl].color;
     box.checked = settings.q[q.lvl].show;
@@ -2517,10 +2449,6 @@ assign initialcost
   });
   applyBgFade();
 
-  var labelsBox = document.getElementById('showLabels');
-  labelsBox.checked = settings.labels;
-  labelsBox.addEventListener('change', function () { settings.labels = labelsBox.checked; saveSettings(); renderLabels(); });
-
   // POIs ab Zoomstufe (− / +)
   function updatePoiZoomUi() {
     document.getElementById('poiZoomValue').textContent = settings.poiMinZoom;
@@ -2534,27 +2462,6 @@ assign initialcost
     });
   });
   updatePoiZoomUi();
-
-  // Ortsnamen: über/unter den POI-Symbolen, Farbe, Transparenz, Leuchtrand
-  function applyLabelStyle() {
-    labelPane.style.zIndex = settings.labelsOverPoi ? 610 : 480;   // POI-Symbole liegen bei 600
-    var root = document.documentElement.style;
-    root.setProperty('--lbl-color', settings.labelColor);
-    root.setProperty('--lbl-op', String(1 - settings.labelTransp / 100));
-    root.setProperty('--lbl-halo', 'rgba(255,255,255,' + (settings.labelHalo / 100) + ')');
-  }
-  var overPoiBox = document.getElementById('labelsOverPoi');
-  overPoiBox.checked = settings.labelsOverPoi;
-  overPoiBox.addEventListener('change', function () { settings.labelsOverPoi = overPoiBox.checked; applyLabelStyle(); saveSettings(); });
-  var lblColor = document.getElementById('labelColor');
-  lblColor.value = settings.labelColor;
-  lblColor.addEventListener('input', function () { settings.labelColor = lblColor.value; applyLabelStyle(); saveSettings(); });
-  [['labelTransp', 'labelTranspValue', 'labelTransp'], ['labelHalo', 'labelHaloValue', 'labelHalo']].forEach(function (d) {
-    var r = document.getElementById(d[0]), v = document.getElementById(d[1]);
-    r.value = settings[d[2]]; v.textContent = settings[d[2]];
-    r.addEventListener('input', function () { settings[d[2]] = Number(r.value); v.textContent = r.value; applyLabelStyle(); saveSettings(); });
-  });
-  applyLabelStyle();
 
   restrictedBox.addEventListener('change', function () {
     settings.showRestricted = restrictedBox.checked; saveSettings(); render();
@@ -2772,7 +2679,7 @@ assign initialcost
 
   function renderGpxList() {
     var box = document.getElementById('gpxList');
-    if (!gpxTracks.length) { box.innerHTML = '<div class="hint">Noch keine Tracks geladen.</div>'; }
+    if (!gpxTracks.length) { box.innerHTML = '<div class="hint">Noch keine Tracks.</div>'; }
     else box.innerHTML = gpxTracks.map(function (t, i) {
       return '<div class="gpxItem" data-i="' + i + '">' +
         '<div class="gpxName" title="' + esc(t.name) + '">' + esc(t.name) + '</div>' +
@@ -2782,10 +2689,12 @@ assign initialcost
           (t.lines.length === 1 ? ' Abschnitt' : ' Abschnitte') + '</span>' +
         '<button type="button" data-a="zoom" title="Track ganz zeigen">🔍</button>' +
         '<button type="button" data-a="del" title="entfernen">✕</button></div>' +
-        '<label class="title">Linienstärke: <span>' + t.width + '</span> px</label>' +
-        '<input type="range" data-k="width" min="1" max="10" step="1" value="' + t.width + '">' +
-        '<label class="title">Transparenz: <span>' + t.transp + '</span> %</label>' +
-        '<input type="range" data-k="transp" min="0" max="90" step="10" value="' + t.transp + '">' +
+        '<div class="srow" title="Linienstärke"><span class="sLbl">▬ Breite</span>' +
+        '<input type="range" data-k="width" min="1" max="10" step="1" value="' + t.width + '" aria-label="Linienstärke">' +
+        '<span class="sVal"><span>' + t.width + '</span> px</span></div>' +
+        '<div class="srow" title="Transparenz"><span class="sLbl">◐ Transparenz</span>' +
+        '<input type="range" data-k="transp" min="0" max="90" step="10" value="' + t.transp + '" aria-label="Transparenz">' +
+        '<span class="sVal"><span>' + t.transp + '</span> %</span></div>' +
         '</div>';
     }).join('');
     var sum = document.getElementById('sumGpx');
@@ -2804,7 +2713,7 @@ assign initialcost
     if (!item || !k || k === 'show') return;
     var t = gpxTracks[Number(item.dataset.i)];
     t[k] = k === 'color' ? e.target.value : Number(e.target.value);
-    if (e.target.type === 'range') e.target.previousElementSibling.querySelector('span').textContent = e.target.value;
+    if (e.target.type === 'range') e.target.parentNode.querySelector('.sVal span').textContent = e.target.value;
     restyleGpx(t);
   });
   gpxListEl.addEventListener('change', function (e) {
@@ -2898,7 +2807,7 @@ assign initialcost
 
   function renderRoutePoints() {
     var box = document.getElementById('routePoints'), pts = routePts(), n = pts.length;
-    if (!n) { box.innerHTML = '<div class="hint">Noch keine Punkte gesetzt.</div>'; }
+    if (!n) { box.innerHTML = '<div class="hint">Noch keine Punkte.</div>'; }
     else {
       box.innerHTML = pts.map(function (p, i) {
         return '<div class="rp"><span class="rpBadge ' + pinClass(i, n) + '">' + pinText(i, n) + '</span>' +
@@ -2925,13 +2834,13 @@ assign initialcost
     map.getContainer().classList.toggle('routeMode', on);
     roadsPane.style.pointerEvents = on ? 'none' : '';    // Wege nicht antippbar – Tippen setzt einen Punkt
     var btn = document.getElementById('routeModeBtn');
-    btn.textContent = on ? '✔ Fertig mit Punkte setzen' : '➕ Punkte auf der Karte setzen';
+    btn.textContent = on ? '✔ Fertig' : '➕ Punkte setzen';
     btn.classList.toggle('active', on);
     if (routeToggleEl) routeToggleEl.classList.toggle('on', on);
     if (on) showTab('route');   // Menü zeigt gleich die Routenpunkte
     if (on) {
       routeHintEl.className = 'pill';
-      routeHintEl.innerHTML = '<span>🧭 Tippe auf die Karte, um einen Routenpunkt zu setzen</span><button type="button" id="routeHintDone">Fertig</button>';
+      routeHintEl.innerHTML = '<span>🧭 Tippen = Routenpunkt</span><button type="button" id="routeHintDone">Fertig</button>';
       document.getElementById('routeHintDone').onclick = function () { setRouteMode(false); };
     } else {
       routeHintEl.className = 'pill hidden'; routeHintEl.innerHTML = '';
@@ -3194,8 +3103,7 @@ assign initialcost
         return r.by[p.cls] ? '<span style="width:' + (r.by[p.cls] / r.total * 100) + '%;background:' + p.color + '"></span>' : '';
       }).join('') + '</div>' +
       '<div class="routeLegend">' + parts.map(function (p) { return '<i style="background:' + p.color + '"></i>' + p.name + ' ' + pct(p.cls) + ' %'; }).join(' ') + '</div>' +
-      '<div class="routeBtns"><button type="button" id="routeGpx" class="btn light small">⬇ GPX speichern</button></div>' +
-      '<div class="hint">Fahrzeit grob geschätzt. GPX z. B. für Garmin, OsmAnd, Kurviger.</div>');
+      '<div class="routeBtns"><button type="button" id="routeGpx" class="btn light small" title="z. B. für Garmin, OsmAnd, Kurviger">⬇ GPX speichern</button></div>');
     document.getElementById('routeFit').onclick = function () { fitRoute(true); };
     document.getElementById('routeGpx').onclick = downloadGpx;
   }
@@ -3283,11 +3191,11 @@ assign initialcost
   var routeOptsEl = document.getElementById('routeOpts');
   function updateRouteOptSum() {
     var on = ROUTE_OPTS.filter(function (o) { return settings.route.opt[o.id]; });
-    document.getElementById('routeOptSum').textContent = on.length ? on.length + ' aktiv' : 'keine';
+    document.getElementById('routeOptSum').textContent = on.length ? on.map(function (o) { return o.icon; }).join(' ') : 'nichts';
   }
   routeOptsEl.innerHTML = ROUTE_OPTS.map(function (o) {
-    return '<label class="check"><input type="checkbox" data-opt="' + o.id + '"' + (settings.route.opt[o.id] ? ' checked' : '') + '>' +
-      '<span>' + o.label + (o.hint ? '<span class="qHint">' + o.hint + '</span>' : '') + '</span></label>';
+    return '<label class="chip" title="' + o.hint + '"><input type="checkbox" data-opt="' + o.id + '"' + (settings.route.opt[o.id] ? ' checked' : '') + '>' +
+      '<span>' + o.icon + ' ' + o.label + '</span></label>';
   }).join('');
   routeOptsEl.addEventListener('change', function (e) {
     var id = e.target.dataset && e.target.dataset.opt;
@@ -3364,7 +3272,7 @@ assign initialcost
 
   // Bedienelemente zum Vorladen und für den Speicher
   document.getElementById('clearCacheBtn').addEventListener('click', function () {
-    if (!confirm('Alle gespeicherten Schotterwege und Orte löschen? Sie werden dann bei Bedarf neu geladen.')) return;
+    if (!confirm('Alle Offline-Daten löschen? Sie werden dann bei Bedarf neu geladen.')) return;
     settings.offline = [];
     if (staticIndex) staticIndex.regions.forEach(function (r) { if (r._cb) r._cb.checked = false; });
     saveSettings();

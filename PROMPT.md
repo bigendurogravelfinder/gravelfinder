@@ -119,15 +119,13 @@ Die Ortsnamen der Hintergrundkarte liegen unter den Wegen und gehen dort unter (
 Bild gibt es nur noch mit API-Schlüssel). Darum beschriftet die App selbst:
 - Daten: `place=city` (Rang 1), `town` (2), `village` (3) mit `name` – in den Schnell-Daten je Kachel als
   `l: [[Name, Rang, lat, lon, Einwohner], …]`, über Overpass zusätzlich `node["place"~"^(city|town|village)$"]["name"]`.
-- Eigene Leaflet-Pane über den Wegen (zIndex 480, unter POI 600) mit `pointer-events: none` – Klicks gehen durch.
+- **Immer an, ohne Einstellungen** (keine Schalter, keine Farbe/Transparenz/Leuchtrand – alte gespeicherte Werte
+  werden ignoriert). Eigene Leaflet-Pane **zIndex 610 – über Wegen, Route und POI-Symbolen (600)**, mit
+  `pointer-events: none` – Klicks gehen durch.
 - Zoom 9–10: Städte und Märkte, ab Zoom 11 auch Dörfer. Reihenfolge Rang, dann Einwohner; überlappende Namen
   werden weggelassen (einfache Rechteck-Prüfung), höchstens 250 Namen.
-- Stil: dunkle Schrift mit weißem Schein (text-shadow), Städte 15 px extra fett, Märkte 13 px fett, Dörfer 12 px.
-- Schalter „Ortsnamen über den Wegen anzeigen“ (Standard an).
-- Schalter „Ortsnamen über den POI-Symbolen“ (Standard an): Namen-Pane zIndex 610 statt 480 (POIs 600);
-  Klicks gehen trotzdem durch (pointer-events none).
-- Frei einstellbar: Farbe (Farbfeld, Standard #1a1a1a), Transparenz 0–80 %, weißer Leuchtrand 0–100 %
-  (CSS-Variablen `--lbl-color`, `--lbl-op`, `--lbl-halo`); Vorschaufeld „Wels“ im Menü zeigt die Wirkung sofort.
+- Stil (fest, stark hervorgehoben): Schrift #111, dicker weißer Rand ringsum (8 text-shadows mit 2 px Versatz +
+  weicher Schein 4/6 px); Städte 17 px Stärke 900, Märkte 15 px 800, Dörfer 13 px 700.
 - Slowenien: 4.889 Ortsnamen, Datenmenge praktisch unverändert.
 
 ### Popup beim Antippen eines Weges
@@ -272,25 +270,33 @@ Sieben Kategorien, einzeln ein-/ausschaltbar, mit Anzahl im Ausschnitt:
 - Tab antippen → Menü klappt auf und zeigt diesen Teil; den bereits offenen Tab nochmals antippen → einklappen.
   Rechts in der Tab-Leiste ein eigener **Einklapp-Knopf ▲** (dunkler runder Knopf, 42 px breit, „Menü einklappen“),
   nur bei offenem Menü sichtbar.
-- **Beim ersten Start ist alles eingeklappt**; danach werden Menü-Zustand, aktiver Tab und offener Unterpunkt gemerkt.
-- **Tab-Leiste** mit vier Hauptpunkten (Einstellungen etwas breiter, damit der Name ganz passt) – Symbol, Name und darunter klein der aktuelle Stand:
+- **Beim ersten Start ist alles eingeklappt**; danach werden Menü-Zustand und aktiver Tab gemerkt.
+- **Tab-Leiste mit sechs Hauptpunkten, keine Unterpunkte** (früherer Tab „Einstellungen“ mit aufklappbaren
+  Unterpunkten wurde aufgelöst; gespeichert `tab: 'set'` → zuletzt offener Unterpunkt wird der Tab, sonst „Wege“).
+  Je Tab Symbol, kurzer Name, darunter klein der Stand; `title` mit Erklärung:
   | Tab | Inhalt | Kurzstand unter dem Tab |
   |---|---|---|
-  | ⚙ **Einstellungen** | drei aufklappbare Unterpunkte (siehe unten) | – |
-  | 🧭 **Route** | „Route planen“ (Abschnitt 10a) | z. B. „41 km“ / „2 Punkte“ |
+  | 〰️ **Wege** | Qualitätsstufen (Farbe + Ein/Aus, Anzahl), „↺ Standardfarben“, „▬ Breite“, „◐ Transparenz“, „Karte blasser“ | – |
+  | 📍 **POI** | 7 Kategorien, „POI ab Zoomstufe anzeigen“ (− / +) | Symbole der aktiven (bis 2), sonst „3 an“ |
+  | 🧭 **Route** | Route planen (Abschnitt 10a) | z. B. „41 km“ / „2 Punkte“ |
   | 📂 **GPX** | eigene GPX-Tracks (Abschnitt 10c) | z. B. „2 Tracks“ / „1/2 Tracks“ |
   | 💾 **Offline** | Offline Karten (Abschnitt 9) | z. B. „56 MB“ |
-- **Unterpunkte von „Einstellungen“** (`<details>`, immer nur einer offen, mit Kurz-Zusammenfassung):
-  1. **〰️ Schotterwege** – Qualitätsstufen (Farbe + Ein/Aus), Linienbreite, Transparenz, „Auch gesperrte Wege anzeigen“.
-     Zusammenfassung: drei Farbproben (ausgeblendete blass), „2 px, 30 % transparent, mit gesperrten“.
-  2. **🗺️ Karte & Ortsnamen** – Hintergrund abschwächen, Ortsnamen an/aus, über POIs, Farbe/Transparenz/Leuchtrand.
-     Zusammenfassung: „Hintergrund 60 % · Ortsnamen über allem“.
-  3. **📍 POI** – 7 Kategorien, „POIs ab Zoomstufe“ (− / +). Zusammenfassung: „⛽ (1 von 7) · ab Zoom 11“.
-  4. **📱 App** – Knopf „📲 Als App installieren“ (nur wenn der Browser `beforeinstallprompt` liefert) mit Hinweistext
-     (installiert / Chrome-Menü ⋮ / iPhone: Teilen → Zum Home-Bildschirm / bei `file://` nicht möglich) und
-     Schalter **„Bildschirm wach halten“** (Screen Wake Lock, gespeichert; bei `visibilitychange` neu anfordern;
-     ohne Unterstützung ausgegraut). Zusammenfassung: „im Browser · Bildschirm normal“ bzw. „installiert · Bildschirm bleibt wach“.
-  (Bewusst „Darstellung“ in „Schotterwege“ und „Karte & Ortsnamen“ geteilt – sonst zu lang am Handy.)
+  | 📱 **App** | „📲 Installieren“ (nur wenn der Browser `beforeinstallprompt` liefert) mit Einzeiler-Hinweis (installiert / Chrome-Menü ⋮ / iPhone: Teilen → Zum Home-Bildschirm / `file://` nicht möglich) und „☀️ Bildschirm wach halten“ (Screen Wake Lock, gespeichert, bei `visibilitychange` neu anfordern, ohne Unterstützung ausgegraut) | – |
+  Alle Tabs gleich breit (6 × ca. 43 px + ▲ 42 px bei 300 px Menübreite); Namen passen ungekürzt.
+  „Gesperrte Wege“ steht im Route-Tab (Kasten „🚫 Vermeiden“). Ortsnamen haben keine Optionen.
+  Keine Mini-Emojis wie 🏷/🌫 vor Texten – Windows zeigt sie winzig und unverständlich.
+- **Beschriftungen auf das Minimum** (selbsterklärend durch Symbole):
+  - Schieber als eine Zeile `.srow`: „Symbol + Kurzwort“ (104 px) | Schieber | Wert rechts (fett, „2 px“, „60 %“, „stark“).
+  - Keine Erklär-Absätze mehr; Erklärungen stehen als `title` (Tooltip) an Zeile/Kachel, Qualitäts-Beschreibung als
+    Tooltip der Stufenzeile. Kurzwörter: „↺ Standardfarben“, „POI ab Zoomstufe anzeigen“ (Schreibweise in der App überall „POI“, auch Mehrzahl) (− / + rechts daneben; Kurzform „ab Zoom“ war unverständlich), „☀️ Bildschirm wach halten“
+    („braucht mehr Akku“), „📲 Installieren“ mit Einzeiler-Hinweis.
+  - Keine Überschrift im Tab (der Tab sagt es schon). Route: „➕ Punkte setzen“ / „✔ Fertig“, aufklappbar „ⓘ So geht's“
+    (4 Stichpunkte: Tippen = Punkt, Punkt ziehen = verschieben, Route ziehen = Zwischenziel, POI → „Zur Route“),
+    Knöpfe „📍 Start hier“, „⇅ Umkehren“, „🗑 Löschen“, Leiste unten „🧭 Tippen = Routenpunkt [Fertig]“.
+  - GPX: „📂 GPX laden“, je Track „▬ Breite“ / „◐ Transparenz“ als Schieber-Zeilen, leer „Noch keine Tracks.“
+  - Offline: „🌍 Ganz Europa“ (keine Flaggen-Emojis – Windows zeigt sie als Buchstaben), Knopf „⬇ Laden (≈ X MB)“ /
+    „✔ Alles gespeichert“ / „Länder anhaken“, Legende „✔ gespeichert · ⟳ Update da · Häkchen weg = löschen“,
+    „📅 Daten vom … · 47 Länder“, „💾 0,9 MB gespeichert (24 Kacheln)“, „🗑 Alles löschen“.
 - Der Kartenknopf 🧭 (Punkte setzen) schaltet das Menü automatisch auf den Tab „Route“.
 - Inhalt scrollbar (max. Bildschirmhöhe − 90 px), große Bedienelemente (mind. 40–44 px hoch).
 
@@ -385,9 +391,14 @@ plus je Routing-Option `&profile:avoid_<id>=1|0` (BRouter akzeptiert nur Zahlen,
   `pointer-events: none` – sonst fangen leere Canvas/SVG-Flächen alle Klicks ab; Marker und Greif-Linie bekommen
   ihre Klick-Freigabe einzeln.
 - Schieberegler „Schotter-Vorliebe“ 1–5 (gering … maximal, Standard 3 „stark“).
-- Darunter aufklappbarer Kasten **„🚧 Vermeiden & Routing-Optionen“** (Zusammenfassung „2 aktiv“) mit den acht
-  Häkchen samt kurzer Erklärung; jede Änderung rechnet die Route sofort neu. Hinweis: „Vermeiden“ = nur wenn es
-  gar nicht anders geht.
+- Reihenfolge im Tab: Punkte setzen · Punktliste · Ergebnis · „🪨 Schotter“ · „▬ Linie“ · Vermeiden.
+- Aufklappbarer Kasten **„🚫 Vermeiden“** (Zusammenfassung = Symbole der aktiven Optionen, z. B. „🛣️ 🌊“, sonst „nichts“)
+  mit acht **Symbol-Kacheln** in 2 Spalten (an = orange hinterlegt mit ✕): 🛣️ Autobahn · 🚗 Schnellstraße · 💶 Maut ·
+  ⛴️ Fähre · 🌊 Furt · 🪨 Grobes · 🏘️ Ortsgebiet · ⛰️ Steilstücke (Erklärung als Tooltip); jede Änderung rechnet sofort
+  neu. Darunter klein „nur wenn es gar nicht anders geht“.
+  Danach (Trennlinie) fest „⛔ Gesperrte Wege: nie in der Route“ und eingerückt das Häkchen
+  „- - - auf der Karte zeigen“ (= frühere Einstellung „Auch gesperrte Wege anzeigen“, `settings.showRestricted`,
+  nur Anzeige – das Routing sperrt diese Wege immer).
 - Fahrzeit-Schätzung kennt auch Autobahn (110 km/h, Auffahrt 60).
 - **Ergebnis direkt unter den Routenpunkten** (vor Schotter-Vorliebe): Länge · Zeit · Höhenmeter, darunter groß und
   blau über die volle Breite **„🔍 Ganze Route zeigen“**, dann Anteils-Balken, Legende und „⬇ GPX speichern“.
