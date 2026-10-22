@@ -352,11 +352,16 @@ plus je Routing-Option `&profile:avoid_<id>=1|0` (BRouter akzeptiert nur Zahlen,
   | Autobahnen vermeiden (`motorway`) | **an** | motorway/motorway_link ×10000 |
   | Schnellstraßen vermeiden (`trunk`) | aus | trunk/trunk_link und `motorroad=yes` ×50 |
   | Mautstraßen vermeiden (`toll`) | aus | `toll=yes` ×50, Knoten `barrier=toll_booth` +100000 |
-  | Fähren vermeiden (`ferry`) | aus | Einstieg `route=ferry` +1000000 statt +10000 (Insel bleibt erreichbar) |
+  | Fähren vermeiden (`ferry`) | aus | `route=ferry` ×1000 je Meter (Einstieg immer +10000). Kein Landweg (Insel) → Server bricht ab bzw. App bricht nach **12 s** ab → App rechnet automatisch mit `avoid_ferry=0` neu und zeigt „⛴ Ohne Fähre wurde keine Route gefunden …“ (nur wenn die Ersatz-Route wirklich `route=ferry` enthält) |
   | Furten vermeiden (`ford`) | **an** | Weg `ford=yes|stepping_stones` ×10000, Knoten +1000000 |
   | Schwierige Wege meiden (`hard`) | aus | Schotter Stufe niedrig 6,0 statt 1,7; sonstige schwierige Wege (grade4/5, smoothness very_bad+, `4wd_only`, `informal=yes`, schlechte `trail_visibility`) ×20 |
   | Ortsgebiet meiden (`town`) | aus | residential/living_street ×4 |
   | Starke Steigungen meiden (`steep`) | aus | uphillcost 60 ab 8 %, downhillcost 40 ab 10 % (sonst Höhe ignoriert) |
+  **Stolperstein:** Im Weg-Kontext wirkt `initialcost` nicht, wenn er von einem Parameter abhängt (auch nicht über eine
+  globale Hilfsvariable) – Weg-Optionen daher immer über `costfactor`. Im Knoten-Kontext funktionieren bedingte `initialcost`.
+  Zu hohe Strafen auf langen Abschnitten lassen die Suche auf dem Server ablaufen („thread-priority-watchdog“,
+  „pass0 timeout“) – die App meldet das verständlich („Der Routing-Server hat zu lange gerechnet …“).
+  Getestet: Donaufähre Ottensheim → 19 km über die Brücke; Elbfähre Glückstadt → 139 km Landweg; Krk → Cres → mit Fähre + Hinweis.
   Werte in BRouter-`lookups.dat` prüfen: nur dort gelistete Werte sind erlaubt (z. B. `informal=true`, `4wd_only=Yes`,
   `trail_visibility=poor` sind nur Aliasse → Profilfehler „unknown lookup value“).
 - Knoten: Poller/Drängelgitter/Steinblock/Drehkreuz gesperrt (außer Zugang erlaubt), Schranke (`lift_gate`) +3000,

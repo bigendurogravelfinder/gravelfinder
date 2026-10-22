@@ -654,7 +654,8 @@ assign gravelcost
 
 # Gewählte Optionen: "vermeiden" = sehr teuer (nur wenn es gar nicht anders geht)
 assign optcost
-  if and ( equal avoid_motorway 1 ) highway=motorway|motorway_link then 10000
+  if and ( equal avoid_ferry 1 ) route=ferry then 1000
+  else if and ( equal avoid_motorway 1 ) highway=motorway|motorway_link then 10000
   else if and ( equal avoid_trunk 1 ) ( or highway=trunk|trunk_link motorroad=yes ) then 50
   else if and ( equal avoid_toll 1 ) toll=yes then 50
   else if and ( equal avoid_ford 1 ) ford=yes|stepping_stones then 10000
@@ -667,8 +668,10 @@ assign costfactor
   else multiply optcost ( if isgravel then gravelcost else roadcost )
 
 assign turncost 30
-# Fähre: normal leicht bestraft, mit "Fähren vermeiden" nur, wenn es keinen Landweg gibt
-assign initialcost if route=ferry then ( if equal avoid_ferry 1 then 1000000 else 10000 ) else 0
+# Fähre: Einstieg kostet immer etwas (Wartezeit); "Fähren vermeiden" macht jeden Fähr-Meter sehr teuer (siehe optcost).
+# Achtung: Im Weg-Kontext wirkt initialcost NICHT, wenn er von einer Einstellung abhängt (getestet) – daher über costfactor.
+# Gibt es keinen Landweg (Insel), bricht der Server die Suche ab; die App rechnet dann mit Fähre neu.
+assign initialcost if route=ferry then 10000 else 0
 
 # Angaben, die in der Antwort je Abschnitt mitgeliefert werden sollen (für Einfärbung und Fahrzeit)
 assign dummyUsage smoothness=
@@ -2951,31 +2954,48 @@ assign initialcost
     });
   }
 
-  function computeRoute(retried) {
+  // allowFerry: zweiter Versuch, wenn es mit "Fähren vermeiden" keine Route gibt (z. B. Insel ohne Brücke –
+  // der Server bricht die Suche nach einem Landweg dann nach einigen Sekunden ab)
+  function computeRoute(retried, allowFerry) {
     var pts = routePts().slice();
     if (pts.length < 2) return;
-    var ctrl = new AbortController();
+    var ctrl = new AbortController(), ferryTimedOut = false;
     routeCtrl = ctrl;
     ensureProfile().then(function (id) {
       var url = BROUTER + '?lonlats=' + pts.map(function (p) { return p.lon.toFixed(6) + ',' + p.lat.toFixed(6); }).join('|') +
         '&profile=' + encodeURIComponent(id) + '&alternativeidx=0&format=geojson&profile:gravel_pref=' + settings.route.pref +
-        ROUTE_OPTS.map(function (o) { return '&profile:avoid_' + o.id + '=' + (settings.route.opt[o.id] ? 1 : 0); }).join('');
+        ROUTE_OPTS.map(function (o) {
+          var on = settings.route.opt[o.id] && !(o.id === 'ferry' && allowFerry);
+          return '&profile:avoid_' + o.id + '=' + (on ? 1 : 0);
+        }).join('');
+      // Mit "Fähren vermeiden" höchstens 12 s auf einen Landweg warten, danach mit Fähre rechnen
+      if (settings.route.opt.ferry && !allowFerry) {
+        setTimeout(function () { if (routeCtrl === ctrl) { ferryTimedOut = true; ctrl.abort(); } }, 12000);
+      }
       return fetch(url, { signal: ctrl.signal }).then(function (r) { return r.text(); });
     }).then(function (txt) {
       if (ctrl !== routeCtrl) return;
       if (!/^\s*\{/.test(txt)) {
         // Profil auf dem Server abgelaufen? Einmal neu hochladen und erneut versuchen
-        if (!retried && /profile/i.test(txt)) { profileId = null; computeRoute(true); return; }
+        if (!retried && /profile/i.test(txt)) { profileId = null; computeRoute(true, allowFerry); return; }
         throw new Error(txt.trim() || 'keine Antwort');
       }
       routeCtrl = null;
       showRoute(JSON.parse(txt), pts);
+      // Hinweis nur, wenn die Ersatz-Route wirklich eine Fähre enthält (sonst war die Route nur lang)
+      if (lastRoute && allowFerry && /route=ferry/.test(txt)) { lastRoute.ferryForced = true; renderRouteResult(); }
     }).catch(function (err) {
-      if (err.name === 'AbortError' || ctrl !== routeCtrl) return;
+      if (ctrl !== routeCtrl) return;
+      if (err.name === 'AbortError' && !ferryTimedOut) return;
+      var msg = String(err.message || err);
+      var noRoute = ferryTimedOut || /not found|no track|target island|watchdog|timeout/i.test(msg);
+      // Ohne Fähre nicht lösbar? Dann mit Fähre rechnen und darauf hinweisen
+      if (noRoute && settings.route.opt.ferry && !allowFerry) { computeRoute(retried, true); return; }
       routeCtrl = null;
       routeLayer.clearLayers(); clearRouteHit(); lastRoute = null;
-      var msg = String(err.message || err);
-      if (/not found|no track|target island|position not mapped|from-position|to-position|via-position/i.test(msg)) {
+      if (/watchdog|timeout/i.test(msg)) {
+        msg = 'Der Routing-Server hat zu lange gerechnet. Zwischenziele setzen oder einzelne „Vermeiden“-Optionen ausschalten.';
+      } else if (/not found|no track|target island|position not mapped|from-position|to-position|via-position/i.test(msg)) {
         msg = 'Keine Route gefunden. Liegt jeder Punkt in der Nähe einer Straße oder eines Weges?';
       } else if (err.name === 'TypeError') {
         msg = 'Der Routing-Server ist nicht erreichbar (Internet?).';
@@ -3151,6 +3171,7 @@ assign initialcost
     var pct = function (c) { return Math.round(r.by[c] / r.total * 100); };
     showRouteResult(
       '<div class="routeStats"><b>' + kmText(r.dist) + '</b> · ≈ ' + timeText(r.hours) + (r.ascend ? ' · ↑ ' + Math.round(r.ascend) + ' m' : '') + '</div>' +
+      (r.ferryForced ? '<div class="routeErr">⛴ Ohne Fähre wurde keine Route gefunden – diese Route enthält daher eine Fähre.</div>' : '') +
       '<div class="routeBar">' + parts.map(function (p) {
         return r.by[p.cls] ? '<span style="width:' + (r.by[p.cls] / r.total * 100) + '%;background:' + p.color + '"></span>' : '';
       }).join('') + '</div>' +
