@@ -389,6 +389,12 @@ plus je Routing-Option `&profile:avoid_<id>=1|0` (BRouter akzeptiert nur Zahlen,
   Häkchen samt kurzer Erklärung; jede Änderung rechnet die Route sofort neu. Hinweis: „Vermeiden“ = nur wenn es
   gar nicht anders geht.
 - Fahrzeit-Schätzung kennt auch Autobahn (110 km/h, Auffahrt 60).
+- **Ergebnis direkt unter den Routenpunkten** (vor Schotter-Vorliebe): Länge · Zeit · Höhenmeter, darunter groß und
+  blau über die volle Breite **„🔍 Ganze Route zeigen“**, dann Anteils-Balken, Legende und „⬇ GPX speichern“.
+- **„Ganze Route zeigen“ auch als Kartenknopf** in der linken Knopfleiste direkt unter 🧭 (Symbol: Rahmen-Ecken mit
+  blauer Linie), nur sichtbar solange eine Route angezeigt wird.
+  Zoomt mit Rand (oben/links 70 px, unten 90 px, rechts 30 px bzw. Menübreite + 30 px, wenn das Menü offen
+  daneben liegt). Antippen im Menü am Handy hochkant klappt das Menü zuerst ein.
 - Route, Vorliebe und Optionen werden gespeichert (überstehen Neuladen).
 
 **Linienstärke:** Schieber „Linienstärke der Route“ im Tab Route, 2–10 px (Standard 4 px), weißer Rand = Stärke + 4 px.

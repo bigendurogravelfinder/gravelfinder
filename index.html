@@ -159,6 +159,7 @@
   .routeLegend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 3px 0 6px; vertical-align: -1px; }
   .routeBtns { display: flex; gap: 6px; flex-wrap: wrap; }
   .routeErr { color: var(--error); font-size: 14px; }
+  .btn.fitBtn { background: #1565c0; margin: 4px 0 8px; }
   .optBox { margin-top: 12px; border: 1px solid var(--border); border-radius: 10px; padding: 0 10px; }
   .optBox > summary { cursor: pointer; font-weight: 600; font-size: 14px; min-height: 44px; display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; list-style: none; }
   .optBox > summary::-webkit-details-marker { display: none; }
@@ -188,6 +189,9 @@
   #map.routeMode .leaflet-grab { cursor: crosshair; }
   .routeToggle a { font-size: 22px; text-decoration: none; }
   .routeToggle.on a { background: #1565c0 !important; }
+  .routeFitCtl.hidden { display: none; }
+  .routeFitCtl a { display: flex !important; align-items: center; justify-content: center; color: var(--fg); }
+  .routeFitCtl svg { display: block; }
   .preloadRow select { flex: 1; min-height: 44px; font: inherit; font-size: 15px; border: 1px solid var(--border); border-radius: 8px; padding: 0 8px; background: #fff; color: var(--fg); }
   .btn { min-height: 44px; padding: 0 16px; border: 0; border-radius: 22px; background: var(--accent); color: #fff; font: 600 15px inherit; font-family: inherit; cursor: pointer; }
   .btn.light { background: #eceff1; color: var(--fg); margin-top: 8px; width: 100%; }
@@ -473,6 +477,8 @@
         <button type="button" id="routeClear" class="btn light small">🗑 Löschen</button>
       </div>
     </div>
+    <!-- Ergebnis gleich unter den Punkten: Länge, Zeit, Anteile, "Ganze Route zeigen" -->
+    <div class="row" id="routeResult"></div>
     <div class="row">
       <label class="title" for="prefRange">Schotter-Vorliebe: <span id="prefValue">stark</span></label>
       <input type="range" id="prefRange" min="1" max="5" step="0.5" value="3">
@@ -488,7 +494,6 @@
       <input type="range" id="routeWidth" min="2" max="10" step="1" value="4">
       <div class="hint">Die Transparenz der Route stellst du mit dem Schieber links unter dem 🧭-Knopf ein (erscheint, sobald eine Route angezeigt wird).</div>
     </div>
-    <div class="row" id="routeResult"></div>
    </div>
 
    <!-- ===================== GPX-Tracks ===================== -->
@@ -3111,7 +3116,19 @@ assign initialcost
     routePane.style.opacity = String(1 - settings.route.transp / 100);   // ganze Ebene: Rand scheint nicht durch
     document.getElementById('routeTranspValue').textContent = settings.route.transp + ' %';
   }
-  function showRouteOpacity(on) { routeOpacityEl.classList.toggle('hidden', !on); }
+  function showRouteOpacity(on) {
+    routeOpacityEl.classList.toggle('hidden', !on);
+    if (routeFitEl) routeFitEl.classList.toggle('hidden', !on);   // Kartenknopf "Ganze Route zeigen" gleich mit
+  }
+  // Ganze Route ins Bild holen – rechts Platz lassen, wenn das Menü offen daneben liegt
+  function fitRoute(fromMenu) {
+    if (!lastRoute) return;
+    var narrow = window.innerWidth < 600 && !LANDSCAPE.matches;
+    if (fromMenu && narrow) setPanelOpen(false);          // am Handy hochkant verdeckt das Menü sonst die Karte
+    var right = 30;
+    if (!panel.classList.contains('collapsed') && !narrow) right = panel.offsetWidth + 30;
+    map.fitBounds(lastRoute.bounds, { paddingTopLeft: [70, 70], paddingBottomRight: [right, 90] });
+  }
   function applyRouteWidth() {
     var w = settings.route.width;
     routeLines.forEach(function (l) { l.setStyle({ weight: l._casing ? w + 4 : w }); });
@@ -3172,14 +3189,14 @@ assign initialcost
     showRouteResult(
       '<div class="routeStats"><b>' + kmText(r.dist) + '</b> · ≈ ' + timeText(r.hours) + (r.ascend ? ' · ↑ ' + Math.round(r.ascend) + ' m' : '') + '</div>' +
       (r.ferryForced ? '<div class="routeErr">⛴ Ohne Fähre wurde keine Route gefunden – diese Route enthält daher eine Fähre.</div>' : '') +
+      '<button type="button" id="routeFit" class="btn wide fitBtn">🔍 Ganze Route zeigen</button>' +
       '<div class="routeBar">' + parts.map(function (p) {
         return r.by[p.cls] ? '<span style="width:' + (r.by[p.cls] / r.total * 100) + '%;background:' + p.color + '"></span>' : '';
       }).join('') + '</div>' +
       '<div class="routeLegend">' + parts.map(function (p) { return '<i style="background:' + p.color + '"></i>' + p.name + ' ' + pct(p.cls) + ' %'; }).join(' ') + '</div>' +
-      '<div class="routeBtns"><button type="button" id="routeFit" class="btn light small">🔍 Ganze Route zeigen</button>' +
-      '<button type="button" id="routeGpx" class="btn small">⬇ GPX speichern</button></div>' +
+      '<div class="routeBtns"><button type="button" id="routeGpx" class="btn light small">⬇ GPX speichern</button></div>' +
       '<div class="hint">Fahrzeit grob geschätzt. GPX z. B. für Garmin, OsmAnd, Kurviger.</div>');
-    document.getElementById('routeFit').onclick = function () { map.fitBounds(r.bounds, { padding: [30, 30] }); };
+    document.getElementById('routeFit').onclick = function () { fitRoute(true); };
     document.getElementById('routeGpx').onclick = downloadGpx;
   }
 
@@ -3308,6 +3325,22 @@ assign initialcost
     }
   });
   new RouteToggle().addTo(map);
+  // Schnellknopf "Ganze Route zeigen" direkt unter 🧭 – nur sichtbar, solange eine Route angezeigt wird
+  var routeFitEl = null;
+  var RouteFit = L.Control.extend({
+    options: { position: 'topleft' },
+    onAdd: function () {
+      var el = L.DomUtil.create('div', 'leaflet-bar routeFitCtl' + (lastRoute ? '' : ' hidden'));
+      el.innerHTML = '<a href="#" role="button" title="Ganze Route zeigen" aria-label="Ganze Route zeigen">' +
+        '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/><path d="M8 15c2-1 2-5 4-6s3 1 4-1" stroke="#1565c0"/></svg></a>';
+      L.DomEvent.disableClickPropagation(el);
+      el.firstChild.addEventListener('click', function (e) { e.preventDefault(); fitRoute(false); });
+      routeFitEl = el;
+      return el;
+    }
+  });
+  new RouteFit().addTo(map);
   // Transparenz-Schieber der Route direkt darunter in die linke Knopfleiste hängen
   var RouteOpacityCtl = L.Control.extend({
     options: { position: 'topleft' },
