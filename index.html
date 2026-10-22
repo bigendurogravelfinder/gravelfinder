@@ -22,7 +22,7 @@
   /* ---------- Bedienfeld oben rechts ---------- */
   #panel {
     position: absolute; top: 10px; right: 10px; z-index: 1001; /* über "Mein Standort" und der Statuszeile */
-    width: 270px; max-width: calc(100vw - 80px);
+    width: 300px; max-width: calc(100vw - 76px);
     background: var(--bg); border-radius: 12px; box-shadow: var(--shadow);
     overflow: hidden;
   }
@@ -36,6 +36,23 @@
   #panel.collapsed #panelToggle .chev { transform: rotate(-90deg); }
   #panel.collapsed #panelBody { display: none; }
   #panelBody { border-top: 1px solid var(--border); }
+
+  /* ---------- Tab-Leiste (Hauptpunkte) ---------- */
+  .tabs { display: flex; background: #f5f6f7; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 2; }
+  .tab {
+    flex: 1; min-width: 0; border: 0; background: none; cursor: pointer; font-family: inherit; color: var(--muted);
+    min-height: 56px; padding: 6px 2px 4px; display: flex; flex-direction: column; align-items: center; gap: 1px;
+    border-bottom: 3px solid transparent;
+  }
+  .tab.active { color: var(--fg); background: var(--bg); border-bottom-color: var(--accent); }
+  .tabIcon { font-size: 19px; line-height: 1.1; }
+  .tabName { font-size: 11px; font-weight: 700; }
+  .tabSum { font-size: 10px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tabSum:empty { display: none; }
+  .tabPanel { display: none; }
+  .tabPanel.active { display: block; }
+  .tabPanel:not([data-tab="set"]) { padding: 0 14px 14px; }
+  .tabHead { font-weight: 700; font-size: 15px; padding: 12px 0 0; }
 
   /* ---------- Abschnitte im Bedienfeld (aufklappbar) ---------- */
   .section { border-bottom: 1px solid var(--border); }
@@ -91,6 +108,22 @@
   .btn.wide { width: 100%; }
   .btn:disabled { background: #cfd8dc; color: #546e7a; cursor: default; }
 
+  .stepper { display: inline-flex; align-items: center; gap: 0; border: 1px solid var(--border); border-radius: 22px; overflow: hidden; }
+  .stepper button { width: 48px; height: 42px; border: 0; background: #eceff1; font-size: 22px; font-weight: 700; cursor: pointer; color: var(--fg); }
+  .stepper button:disabled { color: #b0bec5; cursor: default; }
+  .stepper span { min-width: 54px; text-align: center; font-size: 18px; font-weight: 800; }
+
+  /* ---------- GPX-Tracks ---------- */
+  .fileBtn { display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+  .gpxItem { border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; }
+  .gpxHead { display: flex; align-items: center; gap: 8px; }
+  .gpxHead input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--accent); flex: none; }
+  .gpxHead input[type=color] { width: 40px; height: 32px; flex: none; }
+  .gpxName { font-weight: 700; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 4px; }
+  .gpxMeta { flex: 1; min-width: 0; font-size: 12px; color: var(--muted); }
+  .gpxHead button { border: 0; background: #eceff1; border-radius: 8px; min-width: 34px; min-height: 32px; font-size: 15px; cursor: pointer; flex: none; }
+  .gpxItem .title { margin: 4px 0 0; font-size: 13px; }
+
   /* ---------- Route ---------- */
   .btn.small { min-height: 36px; padding: 0 10px; font-size: 13px; width: auto; margin-top: 6px; }
   .btn.active { background: #1565c0; }
@@ -113,6 +146,23 @@
   .routeLegend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 3px 0 6px; vertical-align: -1px; }
   .routeBtns { display: flex; gap: 6px; flex-wrap: wrap; }
   .routeErr { color: var(--error); font-size: 14px; }
+  /* senkrechter Schieber "Transparenz für angezeigte Route" am rechten Kartenrand */
+  /* sitzt als Kartensteuerung in der linken Knopfleiste unter 🧭 – wird vom Menü nie verdeckt */
+  .sideSlider {
+    width: 44px; padding: 6px 0; box-sizing: border-box; background: var(--bg) !important;
+    display: flex; flex-direction: column; align-items: center; gap: 2px; user-select: none; cursor: default;
+  }
+  .sideSlider.hidden { display: none; }
+  .ssIcon { font-size: 16px; line-height: 1; }
+  .ssLabel { font-size: 9px; font-weight: 700; color: var(--muted); }
+  .ssValue { font-size: 11px; font-weight: 800; }
+  .ssTrack { position: relative; width: 44px; height: 120px; }
+  .ssTrack input {
+    position: absolute; left: 50%; top: 50%; width: 112px; height: 30px; margin: 0;
+    transform: translate(-50%, -50%) rotate(-90deg);   /* oben = durchsichtiger */
+    accent-color: #1565c0; touch-action: none;
+  }
+  .leaflet-pane path.routeHit { cursor: grab; touch-action: none; pointer-events: stroke; }
   #map.routeMode { cursor: crosshair; }
   #map.routeMode .leaflet-grab { cursor: crosshair; }
   .routeToggle a { font-size: 22px; text-decoration: none; }
@@ -124,14 +174,18 @@
 
   /* ---------- Ortsnamen über den Wegen (weißer Rand = lesbar auf jedem Hintergrund) ---------- */
   .placeLabel { background: none; border: 0; }
-  .placeLabel span {
-    position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); white-space: nowrap;
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 600; font-size: 12px; color: #1a1a1a;
-    text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff, 0 0 4px #fff, 0 0 5px #fff;
+  /* Farbe, Transparenz und Leuchtrand kommen als CSS-Variablen aus den Einstellungen (--lbl-color, --lbl-op, --lbl-halo) */
+  .placeLabel span, .placeSample {
+    white-space: nowrap;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 600; font-size: 12px;
+    color: var(--lbl-color, #1a1a1a); opacity: var(--lbl-op, 1);
+    text-shadow: 0 0 2px var(--lbl-halo, #fff), 0 0 2px var(--lbl-halo, #fff), 0 0 3px var(--lbl-halo, #fff),
+                 0 0 4px var(--lbl-halo, #fff), 0 0 5px var(--lbl-halo, #fff);
   }
+  .placeLabel span { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); }
   .placeLabel.r1 span { font-size: 15px; font-weight: 800; letter-spacing: .3px; }
   .placeLabel.r2 span { font-size: 13px; font-weight: 700; }
-  .placeLabel.r3 span { font-weight: 600; color: #2a2a2a; }
+  .placeSample { font-size: 15px; font-weight: 800; padding: 6px 12px; border-radius: 8px; background: #b9c4a8; }
 
   /* ---------- Orte (POI-Symbole) ---------- */
   .poi-icon { background: none; border: 0; }
@@ -240,13 +294,23 @@
 
 <div id="panel">
   <button id="panelToggle" type="button" aria-expanded="true">
-    <span>Einstellungen</span><span class="chev">▼</span>
+    <span>☰ Menü</span><span class="chev">▼</span>
   </button>
   <div id="panelBody">
+   <!-- Tab-Leiste: Hauptpunkte -->
+   <div class="tabs" role="tablist">
+     <button type="button" class="tab" role="tab" data-tab="set"><span class="tabIcon">⚙</span><span class="tabName">Einstellungen</span></button>
+     <button type="button" class="tab" role="tab" data-tab="route"><span class="tabIcon">🧭</span><span class="tabName">Route</span><span class="tabSum" id="sumRoute"></span></button>
+     <button type="button" class="tab" role="tab" data-tab="gpx"><span class="tabIcon">📂</span><span class="tabName">GPX</span><span class="tabSum" id="sumGpx"></span></button>
+     <button type="button" class="tab" role="tab" data-tab="off"><span class="tabIcon">💾</span><span class="tabName">Offline</span><span class="tabSum" id="sumOffline"></span></button>
+   </div>
+
+   <!-- ===================== Einstellungen ===================== -->
+   <div class="tabPanel" data-tab="set" role="tabpanel">
    <details class="section" id="secStyle">
     <summary>
       <span class="secIcon">〰️</span>
-      <span class="secTitle">Darstellung Schotterwege<span class="secSum" id="sumStyle"></span></span>
+      <span class="secTitle">Schotterwege<span class="secSum" id="sumStyle"></span></span>
       <span class="secChev">›</span>
     </summary>
     <div class="secBody">
@@ -265,20 +329,42 @@
       <input type="range" id="transpRange" min="0" max="100" step="5" value="0">
     </div>
     <div class="row">
+      <label class="check"><input type="checkbox" id="showRestricted"> Auch gesperrte Wege anzeigen</label>
+      <div class="legend">
+        <svg width="34" height="8"><line x1="0" y1="4" x2="34" y2="4" stroke="#777" stroke-width="3" stroke-dasharray="6 5"/></svg>
+        = gesperrt / nur Anrainer, Land- oder Forstwirtschaft
+      </div>
+    </div>
+    </div>
+   </details>
+
+   <details class="section" id="secMap">
+    <summary>
+      <span class="secIcon">🗺️</span>
+      <span class="secTitle">Karte &amp; Ortsnamen<span class="secSum" id="sumMap"></span></span>
+      <span class="secChev">›</span>
+    </summary>
+    <div class="secBody">
+    <div class="row">
       <label class="title" for="bgRange">Hintergrund abschwächen: <span id="bgValue">60</span> %</label>
       <input type="range" id="bgRange" min="0" max="100" step="10" value="60">
       <div class="hint">Nimmt der Hintergrundkarte Farbe, damit die Wege klar herausstechen.</div>
     </div>
     <div class="row">
       <label class="check"><input type="checkbox" id="showLabels"> Ortsnamen über den Wegen anzeigen</label>
+      <label class="check"><input type="checkbox" id="labelsOverPoi"> Ortsnamen über den POI-Symbolen</label>
       <div class="hint">Städte und Märkte ab Zoom 9, Dörfer ab Zoom 11 – gut lesbar auch zwischen vielen Linien.</div>
     </div>
-    <div class="row">
-      <label class="check"><input type="checkbox" id="showRestricted"> Auch gesperrte Wege anzeigen</label>
-      <div class="legend">
-        <svg width="34" height="8"><line x1="0" y1="4" x2="34" y2="4" stroke="#777" stroke-width="3" stroke-dasharray="6 5"/></svg>
-        = gesperrt / nur Anrainer, Land- oder Forstwirtschaft
+    <div class="row" id="labelStyleRow">
+      <label class="title">Ortsnamen: Farbe, Transparenz, Leuchtrand</label>
+      <div class="qRow">
+        <input type="color" id="labelColor" aria-label="Farbe der Ortsnamen">
+        <span class="placeSample" id="labelSample">Wels</span>
       </div>
+      <label class="title" for="labelTransp">Transparenz: <span id="labelTranspValue">0</span> %</label>
+      <input type="range" id="labelTransp" min="0" max="80" step="10" value="0">
+      <label class="title" for="labelHalo">Weißer Leuchtrand: <span id="labelHaloValue">100</span> %</label>
+      <input type="range" id="labelHalo" min="0" max="100" step="10" value="100">
     </div>
     </div>
    </details>
@@ -294,20 +380,28 @@
       <label class="title">Orte auf der Karte anzeigen</label>
       <div id="poiList"></div>
     </div>
+    <div class="row">
+      <label class="title">POIs ab Zoomstufe einblenden</label>
+      <div class="stepper">
+        <button type="button" id="poiZoomMinus" aria-label="früher einblenden">−</button>
+        <span id="poiZoomValue">11</span>
+        <button type="button" id="poiZoomPlus" aria-label="später einblenden">+</button>
+      </div>
+      <div class="hint">Kleinere Zahl = POIs schon weiter herausgezoomt sichtbar (ab 9, bei vielen POIs langsamer).
+        Unter Zoom 11 nur in Gebieten mit Schnell-Daten.</div>
+    </div>
     </div>
    </details>
+   </div>
 
-   <details class="section" id="secRoute">
-    <summary>
-      <span class="secIcon">🧭</span>
-      <span class="secTitle">Route<span class="secSum" id="sumRoute"></span></span>
-      <span class="secChev">›</span>
-    </summary>
-    <div class="secBody">
+   <!-- ===================== Route planen ===================== -->
+   <div class="tabPanel" data-tab="route" role="tabpanel">
+    <div class="tabHead">🧭 Route planen</div>
     <div class="row">
       <button type="button" id="routeModeBtn" class="btn wide">➕ Punkte auf der Karte setzen</button>
       <div class="hint">Tippe auf die Karte: der erste Punkt ist der Start, jeder weitere wird das neue Ziel
-        (das bisherige wird Zwischenziel). Punkte lassen sich mit dem Finger verschieben. Bei POIs: „Zur Route hinzufügen“.</div>
+        (das bisherige wird Zwischenziel). Punkte lassen sich mit dem Finger verschieben. Bei POIs: „Zur Route hinzufügen“.
+        <b>Route anfassen und ziehen</b> = neues Zwischenziel an der Stelle, wo du loslässt.</div>
     </div>
     <div class="row">
       <div id="routePoints" class="routePoints"></div>
@@ -322,17 +416,30 @@
       <input type="range" id="prefRange" min="1" max="5" step="0.5" value="3">
       <div class="hint">Wie viel Umweg du für Schotter in Kauf nimmst. Verbindungsstücke auf Straßen bleiben erlaubt.</div>
     </div>
-    <div class="row" id="routeResult"></div>
+    <div class="row">
+      <label class="title" for="routeWidth">Linienstärke der Route: <span id="routeWidthValue">4</span> px</label>
+      <input type="range" id="routeWidth" min="2" max="10" step="1" value="4">
+      <div class="hint">Die Transparenz der Route stellst du mit dem Schieber links unter dem 🧭-Knopf ein (erscheint, sobald eine Route angezeigt wird).</div>
     </div>
-   </details>
+    <div class="row" id="routeResult"></div>
+   </div>
 
-   <details class="section" id="secOffline">
-    <summary>
-      <span class="secIcon">💾</span>
-      <span class="secTitle">Offline Karten<span class="secSum" id="sumOffline"></span></span>
-      <span class="secChev">›</span>
-    </summary>
-    <div class="secBody">
+   <!-- ===================== GPX-Tracks ===================== -->
+   <div class="tabPanel" data-tab="gpx" role="tabpanel">
+    <div class="tabHead">📂 GPX-Tracks</div>
+    <div class="row">
+      <label class="btn wide fileBtn">📂 GPX-Datei laden …
+        <input type="file" id="gpxFile" accept=".gpx,application/gpx+xml,application/xml,text/xml" multiple hidden>
+      </label>
+      <div class="hint">Zeigt eigene Tracks auf der Karte (z. B. TET-Abschnitte). Mehrere Dateien und Abschnitte möglich;
+        die Tracks bleiben im Browser gespeichert.</div>
+    </div>
+    <div class="row" id="gpxList"></div>
+   </div>
+
+   <!-- ===================== Offline Karten ===================== -->
+   <div class="tabPanel" data-tab="off" role="tabpanel">
+    <div class="tabHead">💾 Offline Karten</div>
     <div class="row" id="countryBox" hidden>
       <label class="title">Länder offline speichern</label>
       <label class="check allEurope">
@@ -349,8 +456,7 @@
       <div class="hint" id="cacheInfo">…</div>
       <button type="button" id="clearCacheBtn" class="btn light">Alle gespeicherten Daten löschen</button>
     </div>
-    </div>
-   </details>
+   </div>
   </div>
 </div>
 
@@ -358,6 +464,15 @@
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
   Mein Standort
 </button>
+
+<!-- Transparenz für angezeigte Route: nur sichtbar, solange eine Route angezeigt wird -->
+<div id="routeOpacityCtl" class="sideSlider leaflet-bar hidden" title="Transparenz für angezeigte Route">
+  <span class="ssIcon">🧭</span>
+  <span class="ssLabel">Route</span>
+  <div class="ssTrack"><input type="range" id="routeTransp" min="0" max="90" step="10" value="0" aria-label="Transparenz für angezeigte Route"></div>
+  <span class="ssLabel">Transp.</span>
+  <span class="ssValue" id="routeTranspValue">0 %</span>
+</div>
 
 <div id="statusWrap">
   <div id="routeHint" class="pill hidden"></div>
@@ -534,7 +649,8 @@ assign initialcost
     { lvl: 3, name: 'niedrig', hint: 'Erde/Naturboden, bei Nässe rutschig', color: '#ff1a4b', old: '#e53935' }
   ];
 
-  var settings = { width: 2, transparency: 0, bgFade: 60, labels: true, route: { pts: [], pref: 3 }, showRestricted: false, poi: {}, q: {}, panelOpen: false, openSection: '', offline: [], noAsk: [] };
+  var settings = { width: 2, transparency: 0, bgFade: 60, labels: true, labelsOverPoi: true,
+    labelColor: '#1a1a1a', labelTransp: 0, labelHalo: 100, poiMinZoom: 11, route: { pts: [], pref: 3, width: 4, transp: 0 }, showRestricted: false, poi: {}, q: {}, panelOpen: false, openSection: '', tab: 'set', offline: [], noAsk: [] };
   POI_CATS.forEach(function (c) { settings.poi[c.id] = c.on; });
   QUALITY.forEach(function (q) { settings.q[q.lvl] = { color: q.color, show: true }; });
   try {
@@ -552,13 +668,21 @@ assign initialcost
       if (saved.transparency >= 0 && saved.transparency <= 100) settings.transparency = Number(saved.transparency);
       if (saved.bgFade >= 0 && saved.bgFade <= 100) settings.bgFade = Number(saved.bgFade);
       if (typeof saved.labels === 'boolean') settings.labels = saved.labels;
+      if (typeof saved.labelsOverPoi === 'boolean') settings.labelsOverPoi = saved.labelsOverPoi;
+      if (/^#[0-9a-f]{6}$/i.test(saved.labelColor)) settings.labelColor = saved.labelColor;
+      if (saved.labelTransp >= 0 && saved.labelTransp <= 80) settings.labelTransp = Number(saved.labelTransp);
+      if (saved.labelHalo >= 0 && saved.labelHalo <= 100) settings.labelHalo = Number(saved.labelHalo);
+      if (saved.poiMinZoom >= 9 && saved.poiMinZoom <= 18) settings.poiMinZoom = Number(saved.poiMinZoom);
       if (saved.route && Array.isArray(saved.route.pts)) {
         settings.route.pts = saved.route.pts.filter(function (p) { return p && isFinite(p.lat) && isFinite(p.lon); })
           .map(function (p) { return { lat: Number(p.lat), lon: Number(p.lon), name: typeof p.name === 'string' ? p.name : '' }; });
         if (saved.route.pref >= 1 && saved.route.pref <= 5) settings.route.pref = Number(saved.route.pref);
+        if (saved.route.width >= 2 && saved.route.width <= 10) settings.route.width = Number(saved.route.width);
+        if (saved.route.transp >= 0 && saved.route.transp <= 90) settings.route.transp = Number(saved.route.transp);
       }
       if (typeof saved.showRestricted === 'boolean') settings.showRestricted = saved.showRestricted;
       if (typeof saved.openSection === 'string') settings.openSection = saved.openSection;
+      if (/^(set|route|gpx|off)$/.test(saved.tab)) settings.tab = saved.tab;
       if (typeof saved.panelOpen === 'boolean') settings.panelOpen = saved.panelOpen;
       if (Array.isArray(saved.offline)) settings.offline = saved.offline.filter(function (x) { return typeof x === 'string'; });
       if (Array.isArray(saved.noAsk)) settings.noAsk = saved.noAsk.filter(function (x) { return typeof x === 'string'; });
@@ -582,10 +706,13 @@ assign initialcost
       }).join('') + ' ' +
       settings.width + ' px' + (settings.transparency ? ', ' + settings.transparency + ' % transparent' : '') +
       (settings.showRestricted ? ', mit gesperrten' : '');
+    var mp = document.getElementById('sumMap');
+    if (mp) mp.textContent = 'Hintergrund ' + settings.bgFade + ' % · Ortsnamen ' +
+      (settings.labels ? (settings.labelsOverPoi ? 'über allem' : 'an') : 'aus');
     var p = document.getElementById('sumPoi');
     if (p) {
       var on = POI_CATS.filter(function (c) { return settings.poi[c.id]; });
-      p.textContent = on.length ? on.map(function (c) { return c.emoji; }).join(' ') + '  (' + on.length + ' von ' + POI_CATS.length + ')' : 'keine eingeschaltet';
+      p.textContent = on.length ? on.map(function (c) { return c.emoji; }).join(' ') + '  (' + on.length + ' von ' + POI_CATS.length + ') · ab Zoom ' + settings.poiMinZoom : 'keine eingeschaltet';
     }
   }
 
@@ -912,9 +1039,11 @@ assign initialcost
   var dbPromise = new Promise(function (resolve) {
     try {
       // Version 2: zusätzlich "blocks" – Block-Dateien so komprimiert, wie sie vom Server kommen
-      var req = indexedDB.open('schotterkarte', 2);
+      // Version 3: zusätzlich "gpx" – selbst geladene GPX-Tracks
+      var req = indexedDB.open('schotterkarte', 3);
       req.onupgradeneeded = function () {
         var db = req.result;
+        if (!db.objectStoreNames.contains('gpx')) db.createObjectStore('gpx', { keyPath: 'id' });
         if (!db.objectStoreNames.contains('cells')) db.createObjectStore('cells', { keyPath: 'k' });
         if (!db.objectStoreNames.contains('idx')) db.createObjectStore('idx', { keyPath: 'k' });
         if (!db.objectStoreNames.contains('blocks')) db.createObjectStore('blocks', { keyPath: 'b' });
@@ -1226,8 +1355,10 @@ assign initialcost
       setStatus(SPINNER + '<span>' + (r ? 'Server ausgelastet – neuer Versuch in ' + r + ' s …' : 'Lade Schotterwege …' + part) + '</span>');
       return;
     }
-    var extra = '';
-    if (map.getZoom() < DETAIL_ZOOM) extra = overviewGap ? ' · für Gebiete außerhalb der Schnell-Daten weiter hineinzoomen' : ' · Orte und Details ab näherem Zoom';
+    var extra = '', z = map.getZoom();
+    if (z < DETAIL_ZOOM && overviewGap) extra = ' · für Gebiete außerhalb der Schnell-Daten weiter hineinzoomen';
+    else if (z < settings.poiMinZoom) extra = ' · POIs ab Zoom ' + settings.poiMinZoom;
+    else if (z < DETAIL_ZOOM) extra = ' · Details ab Zoom ' + DETAIL_ZOOM;
     setStatus('<span>' + lastCountText + extra + '</span>');
   }
 
@@ -1807,7 +1938,7 @@ assign initialcost
     if (!el) return;
     if (!dbOk) {
       el.textContent = 'Dauerhaftes Speichern ist in diesem Browser nicht möglich – Daten bleiben nur bis zum Schließen der Seite.';
-      sum.textContent = 'Speichern nicht möglich';
+      sum.textContent = 'nicht möglich';
       return;
     }
     var n = 0, bytes = 0;
@@ -1815,7 +1946,8 @@ assign initialcost
     var mb = (bytes / 1048576).toFixed(1).replace('.', ',') + ' MB';
     el.textContent = n ? 'Im Browser gespeichert: ' + n + ' Kacheln (je ca. 5 × 5 km), ca. ' + mb : 'Noch nichts gespeichert.';
     var nc = settings.offline.length;
-    sum.textContent = (nc ? (nc === 1 ? '1 Land' : nc + ' Länder') + ' · ' : '') + (n ? mb + ' gespeichert' : 'noch nichts gespeichert');
+    // kurz – steht klein unter dem Tab
+    sum.textContent = n ? mb : '';
     updateCountryList();
   }
 
@@ -1981,7 +2113,8 @@ assign initialcost
   function renderPois() {
     poiLayer.clearLayers();
     var counts = {};
-    if (map.getZoom() < DETAIL_ZOOM) { updatePoiCounts(counts); return; } // Orte erst ab Zoom 11
+    // POIs erst ab der eingestellten Zoomstufe (Standard 11, frühestens 9 – darunter gibt es keine Daten)
+    if (map.getZoom() < Math.max(MIN_ZOOM, settings.poiMinZoom)) { updatePoiCounts(counts); return; }
     var view = map.getBounds();
     var drawArea = view.pad(0.3);
     pois.forEach(function (p) {
@@ -2111,8 +2244,21 @@ assign initialcost
   // Beim ersten Start eingeklappt; danach wie zuletzt gewählt
   setCollapsed(!settings.panelOpen);
 
-  // Abschnitte: immer nur einer offen (spart Platz am Handy); der zuletzt geöffnete wird gemerkt
-  var sections = ['secStyle', 'secPoi', 'secRoute', 'secOffline'].map(function (id) { return document.getElementById(id); });
+  // Tab-Leiste: Einstellungen · Route · GPX · Offline (der zuletzt gewählte Tab wird gemerkt)
+  var tabButtons = Array.prototype.slice.call(document.querySelectorAll('.tab'));
+  var tabPanels = Array.prototype.slice.call(document.querySelectorAll('.tabPanel'));
+  function showTab(name) {
+    if (!tabPanels.some(function (p) { return p.dataset.tab === name; })) name = 'set';
+    tabButtons.forEach(function (b) { var on = b.dataset.tab === name; b.classList.toggle('active', on); b.setAttribute('aria-selected', String(on)); });
+    tabPanels.forEach(function (p) { p.classList.toggle('active', p.dataset.tab === name); });
+    document.getElementById('panelBody').scrollTop = 0;
+    if (settings.tab !== name) { settings.tab = name; saveSettings(); }
+  }
+  tabButtons.forEach(function (b) { b.addEventListener('click', function () { showTab(b.dataset.tab); }); });
+  showTab(settings.tab || 'set');
+
+  // Unterpunkte unter "Einstellungen": immer nur einer offen (spart Platz am Handy); der zuletzt geöffnete wird gemerkt
+  var sections = ['secStyle', 'secMap', 'secPoi'].map(function (id) { return document.getElementById(id); });
   sections.forEach(function (sec) {
     sec.open = sec.id === settings.openSection;
     sec.addEventListener('toggle', function () {
@@ -2190,6 +2336,41 @@ assign initialcost
   var labelsBox = document.getElementById('showLabels');
   labelsBox.checked = settings.labels;
   labelsBox.addEventListener('change', function () { settings.labels = labelsBox.checked; saveSettings(); renderLabels(); });
+
+  // POIs ab Zoomstufe (− / +)
+  function updatePoiZoomUi() {
+    document.getElementById('poiZoomValue').textContent = settings.poiMinZoom;
+    document.getElementById('poiZoomMinus').disabled = settings.poiMinZoom <= MIN_ZOOM;
+    document.getElementById('poiZoomPlus').disabled = settings.poiMinZoom >= 18;
+  }
+  [['poiZoomMinus', -1], ['poiZoomPlus', 1]].forEach(function (d) {
+    document.getElementById(d[0]).addEventListener('click', function () {
+      settings.poiMinZoom = Math.min(18, Math.max(MIN_ZOOM, settings.poiMinZoom + d[1]));
+      updatePoiZoomUi(); saveSettings(); renderPois(); updateViewStatus();
+    });
+  });
+  updatePoiZoomUi();
+
+  // Ortsnamen: über/unter den POI-Symbolen, Farbe, Transparenz, Leuchtrand
+  function applyLabelStyle() {
+    labelPane.style.zIndex = settings.labelsOverPoi ? 610 : 480;   // POI-Symbole liegen bei 600
+    var root = document.documentElement.style;
+    root.setProperty('--lbl-color', settings.labelColor);
+    root.setProperty('--lbl-op', String(1 - settings.labelTransp / 100));
+    root.setProperty('--lbl-halo', 'rgba(255,255,255,' + (settings.labelHalo / 100) + ')');
+  }
+  var overPoiBox = document.getElementById('labelsOverPoi');
+  overPoiBox.checked = settings.labelsOverPoi;
+  overPoiBox.addEventListener('change', function () { settings.labelsOverPoi = overPoiBox.checked; applyLabelStyle(); saveSettings(); });
+  var lblColor = document.getElementById('labelColor');
+  lblColor.value = settings.labelColor;
+  lblColor.addEventListener('input', function () { settings.labelColor = lblColor.value; applyLabelStyle(); saveSettings(); });
+  [['labelTransp', 'labelTranspValue', 'labelTransp'], ['labelHalo', 'labelHaloValue', 'labelHalo']].forEach(function (d) {
+    var r = document.getElementById(d[0]), v = document.getElementById(d[1]);
+    r.value = settings[d[2]]; v.textContent = settings[d[2]];
+    r.addEventListener('input', function () { settings[d[2]] = Number(r.value); v.textContent = r.value; applyLabelStyle(); saveSettings(); });
+  });
+  applyLabelStyle();
 
   restrictedBox.addEventListener('change', function () {
     settings.showRestricted = restrictedBox.checked; saveSettings(); render();
@@ -2309,6 +2490,155 @@ assign initialcost
     }
   } catch (e) {}
 
+  // ================= Eigene GPX-Tracks =================
+  // Jede Datei wird ein Track (mit beliebig vielen Abschnitten: trkseg/rte). Gespeichert in IndexedDB ("gpx").
+  var gpxPane = map.createPane('gpxPane');
+  gpxPane.style.zIndex = 470;                  // über den Schotterwegen, unter Ortsnamen und Route
+  gpxPane.style.pointerEvents = 'none';
+  var gpxTracks = [];
+  var GPX_COLORS = ['#c000ff', '#00b8d4', '#ff6d00', '#1565c0', '#d81b60', '#6d4c41'];
+
+  function parseGpx(text, fileName) {
+    var doc = new DOMParser().parseFromString(text, 'application/xml');
+    if (doc.getElementsByTagName('parsererror').length) throw new Error('keine gültige GPX-Datei');
+    var lines = [];
+    function collect(parentTag, ptTag) {
+      Array.prototype.forEach.call(doc.getElementsByTagName(parentTag), function (seg) {
+        var pts = [];
+        Array.prototype.forEach.call(seg.getElementsByTagName(ptTag), function (p) {
+          var lat = parseFloat(p.getAttribute('lat')), lon = parseFloat(p.getAttribute('lon'));
+          if (isFinite(lat) && isFinite(lon)) pts.push([Math.round(lat * 1e6) / 1e6, Math.round(lon * 1e6) / 1e6]);
+        });
+        if (pts.length > 1) lines.push(pts);
+      });
+    }
+    collect('trkseg', 'trkpt');
+    collect('rte', 'rtept');
+    if (!lines.length) throw new Error('keine Track- oder Routenpunkte gefunden');
+    var nameEl = doc.querySelector('metadata > name') || doc.querySelector('trk > name') || doc.querySelector('rte > name');
+    var meters = 0, n = 0;
+    lines.forEach(function (l) {
+      n += l.length;
+      for (var i = 1; i < l.length; i++) meters += L.latLng(l[i - 1]).distanceTo(l[i]);
+    });
+    return {
+      name: (nameEl && nameEl.textContent.trim()) || fileName.replace(/\.gpx$/i, ''),
+      file: fileName, lines: lines, km: meters / 1000, points: n,
+      tracks: doc.getElementsByTagName('trk').length, wpts: doc.getElementsByTagName('wpt').length
+    };
+  }
+
+  function gpxStyle(t) {
+    var op = 1 - t.transp / 100;
+    return [
+      { pane: 'gpxPane', color: '#ffffff', weight: t.width + 4, opacity: 0.85 * op, interactive: false, lineJoin: 'round', lineCap: 'round' },
+      { pane: 'gpxPane', color: t.color, weight: t.width, opacity: op, interactive: false, lineJoin: 'round', lineCap: 'round' }
+    ];
+  }
+  function drawGpx(t) {
+    if (t.layer) { map.removeLayer(t.layer); t.layer = null; }
+    if (!t.show) return;
+    var st = gpxStyle(t);
+    t.layer = L.featureGroup([L.polyline(t.lines, st[0]), L.polyline(t.lines, st[1])]).addTo(map);
+  }
+  function restyleGpx(t) {
+    if (!t.layer) return drawGpx(t);
+    var st = gpxStyle(t), i = 0;
+    t.layer.eachLayer(function (l) { l.setStyle(st[i++]); });
+  }
+  function gpxBounds(t) { var b = L.latLngBounds([]); t.lines.forEach(function (l) { b.extend(L.latLngBounds(l)); }); return b; }
+
+  function saveGpx(t) {
+    if (!dbOk) return;
+    var rec = {};
+    ['id', 'name', 'file', 'lines', 'km', 'points', 'tracks', 'wpts', 'color', 'width', 'transp', 'show', 'added'].forEach(function (k) { rec[k] = t[k]; });
+    dbTx(['gpx'], 'readwrite', function (tx) { tx.objectStore('gpx').put(rec); return true; });
+  }
+  function deleteGpx(t) {
+    if (t.layer) map.removeLayer(t.layer);
+    gpxTracks = gpxTracks.filter(function (x) { return x !== t; });
+    if (dbOk) dbTx(['gpx'], 'readwrite', function (tx) { tx.objectStore('gpx').delete(t.id); return true; });
+    renderGpxList();
+  }
+  function loadSavedGpx() {
+    return dbTx(['gpx'], 'readonly', function (tx) {
+      var box = { list: [] }, r = tx.objectStore('gpx').getAll();
+      r.onsuccess = function () { box.list = r.result || []; };
+      return box;
+    }).then(function (box) {
+      if (!box) return;
+      box.list.sort(function (a, b) { return (a.added || 0) - (b.added || 0); }).forEach(function (t) { gpxTracks.push(t); drawGpx(t); });
+      renderGpxList();
+    });
+  }
+
+  function addGpxFiles(files) {
+    Array.prototype.forEach.call(files, function (file) {
+      file.text().then(function (txt) {
+        var t = parseGpx(txt, file.name);
+        t.id = 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+        t.color = GPX_COLORS[gpxTracks.length % GPX_COLORS.length];
+        t.width = 4; t.transp = 0; t.show = true; t.added = Date.now();
+        gpxTracks.push(t);
+        drawGpx(t); saveGpx(t); renderGpxList();
+        map.fitBounds(gpxBounds(t), { padding: [30, 30] });
+      }).catch(function (err) { alert('„' + file.name + '“ konnte nicht gelesen werden: ' + (err.message || err)); });
+    });
+  }
+
+  function renderGpxList() {
+    var box = document.getElementById('gpxList');
+    if (!gpxTracks.length) { box.innerHTML = '<div class="hint">Noch keine Tracks geladen.</div>'; }
+    else box.innerHTML = gpxTracks.map(function (t, i) {
+      return '<div class="gpxItem" data-i="' + i + '">' +
+        '<div class="gpxName" title="' + esc(t.name) + '">' + esc(t.name) + '</div>' +
+        '<div class="gpxHead"><input type="checkbox" data-k="show"' + (t.show ? ' checked' : '') + ' title="anzeigen">' +
+        '<input type="color" data-k="color" value="' + t.color + '" title="Farbe">' +
+        '<span class="gpxMeta">' + Math.round(t.km).toLocaleString('de-AT') + ' km · ' + t.lines.length +
+          (t.lines.length === 1 ? ' Abschnitt' : ' Abschnitte') + '</span>' +
+        '<button type="button" data-a="zoom" title="Track ganz zeigen">🔍</button>' +
+        '<button type="button" data-a="del" title="entfernen">✕</button></div>' +
+        '<label class="title">Linienstärke: <span>' + t.width + '</span> px</label>' +
+        '<input type="range" data-k="width" min="1" max="10" step="1" value="' + t.width + '">' +
+        '<label class="title">Transparenz: <span>' + t.transp + '</span> %</label>' +
+        '<input type="range" data-k="transp" min="0" max="90" step="10" value="' + t.transp + '">' +
+        '</div>';
+    }).join('');
+    var sum = document.getElementById('sumGpx');
+    var shown = gpxTracks.filter(function (t) { return t.show; }).length;
+    sum.textContent = gpxTracks.length ? (shown < gpxTracks.length ? shown + '/' : '') + gpxTracks.length + (gpxTracks.length === 1 ? ' Track' : ' Tracks') : '';
+  }
+
+  document.getElementById('gpxFile').addEventListener('change', function (e) {
+    if (e.target.files && e.target.files.length) addGpxFiles(e.target.files);
+    e.target.value = '';
+  });
+  var gpxListEl = document.getElementById('gpxList');
+  // Schieber/Farbe: beim Ziehen sofort zeichnen, beim Loslassen speichern
+  gpxListEl.addEventListener('input', function (e) {
+    var item = e.target.closest('.gpxItem'), k = e.target.dataset.k;
+    if (!item || !k || k === 'show') return;
+    var t = gpxTracks[Number(item.dataset.i)];
+    t[k] = k === 'color' ? e.target.value : Number(e.target.value);
+    if (e.target.type === 'range') e.target.previousElementSibling.querySelector('span').textContent = e.target.value;
+    restyleGpx(t);
+  });
+  gpxListEl.addEventListener('change', function (e) {
+    var item = e.target.closest('.gpxItem'), k = e.target.dataset.k;
+    if (!item || !k) return;
+    var t = gpxTracks[Number(item.dataset.i)];
+    if (k === 'show') { t.show = e.target.checked; drawGpx(t); renderGpxList(); }
+    saveGpx(t);
+  });
+  gpxListEl.addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-a]');
+    if (!b) return;
+    var t = gpxTracks[Number(b.closest('.gpxItem').dataset.i)];
+    if (b.dataset.a === 'zoom') map.fitBounds(gpxBounds(t), { padding: [30, 30] });
+    if (b.dataset.a === 'del' && confirm('Track „' + t.name + '“ entfernen?')) deleteGpx(t);
+  });
+  renderGpxList();
+
   // ================= Routing (BRouter, brouter.de) =================
   // Das eigene Profil (oben im <script type="text/plain">) wird einmal je Sitzung hochgeladen; BRouter rechnet
   // die Route und liefert je Abschnitt die OSM-Angaben – damit färbt die App die Route nach Qualitätsstufe ein.
@@ -2317,8 +2647,16 @@ assign initialcost
   var routePane = map.createPane('routePane');
   routePane.style.zIndex = 490;                 // über Wegen und Ortsnamen, unter den POI-Symbolen
   routePane.style.pointerEvents = 'none';
-  map.createPane('routePinPane').style.zIndex = 640;
+  // Beide Ebenen klickdurchlässig – sonst fängt ihre (unsichtbare) Zeichenfläche alle Klicks auf der Karte ab.
+  // Routenpunkte und Greif-Linie bleiben trotzdem antippbar (Leaflet gibt ihnen eigene Klick-Freigabe).
+  var routePinPane = map.createPane('routePinPane');
+  routePinPane.style.zIndex = 640;
+  routePinPane.style.pointerEvents = 'none';
+  var routeHitPane = map.createPane('routeHitPane');
+  routeHitPane.style.zIndex = 495;                     // unsichtbare Greif-Linie über der Route (unter den POIs)
+  routeHitPane.style.pointerEvents = 'none';
   var routeLayer = L.layerGroup().addTo(map);
+  var routeLines = [];          // gezeichnete Routenlinien (Rand + farbige Abschnitte) – für Linienstärke
   var routePins = L.layerGroup().addTo(map);
   var routeMode = false, profileId = null, routeCtrl = null, routeTimer = null, lastRoute = null, pendingGpsStart = false;
   var routeHintEl = document.getElementById('routeHint');
@@ -2391,8 +2729,9 @@ assign initialcost
 
   function updateRouteSummary() {
     var s = document.getElementById('sumRoute'), n = routePts().length;
-    if (lastRoute && n >= 2) s.textContent = kmText(lastRoute.dist) + ' · ' + Math.round(lastRoute.gravelShare * 100) + ' % Schotter';
-    else s.textContent = n ? (n === 1 ? 'Start gesetzt – Ziel fehlt' : n + ' Punkte') : 'keine Route';
+    // kurz – steht klein unter dem Tab
+    if (lastRoute && n >= 2) s.textContent = kmText(lastRoute.dist);
+    else s.textContent = n ? (n === 1 ? '1 Punkt' : n + ' Punkte') : '';
   }
   function kmText(m) { return (m / 1000).toFixed(m < 10000 ? 1 : 0).replace('.', ',') + ' km'; }
   function timeText(h) { var mins = Math.round(h * 60); return mins < 60 ? mins + ' min' : Math.floor(mins / 60) + ' h ' + (mins % 60) + ' min'; }
@@ -2405,6 +2744,7 @@ assign initialcost
     btn.textContent = on ? '✔ Fertig mit Punkte setzen' : '➕ Punkte auf der Karte setzen';
     btn.classList.toggle('active', on);
     if (routeToggleEl) routeToggleEl.classList.toggle('on', on);
+    if (on) showTab('route');   // Menü zeigt gleich die Routenpunkte
     if (on) {
       routeHintEl.className = 'pill';
       routeHintEl.innerHTML = '<span>🧭 Tippe auf die Karte, um einen Routenpunkt zu setzen</span><button type="button" id="routeHintDone">Fertig</button>';
@@ -2418,7 +2758,7 @@ assign initialcost
   function scheduleRoute() {
     clearTimeout(routeTimer);
     if (routeCtrl) { routeCtrl.abort(); routeCtrl = null; }
-    if (routePts().length < 2) { routeLayer.clearLayers(); lastRoute = null; showRouteResult(''); updateRouteSummary(); return; }
+    if (routePts().length < 2) { routeLayer.clearLayers(); clearRouteHit(); lastRoute = null; showRouteResult(''); updateRouteSummary(); return; }
     showRouteResult('<div class="routeStats"><div class="spinner" style="display:inline-block;vertical-align:middle"></div> Route wird berechnet …</div>');
     routeTimer = setTimeout(computeRoute, 300);
   }
@@ -2456,7 +2796,7 @@ assign initialcost
     }).catch(function (err) {
       if (err.name === 'AbortError' || ctrl !== routeCtrl) return;
       routeCtrl = null;
-      routeLayer.clearLayers(); lastRoute = null;
+      routeLayer.clearLayers(); clearRouteHit(); lastRoute = null;
       var msg = String(err.message || err);
       if (/not found|no track|target island|position not mapped|from-position|to-position|via-position/i.test(msg)) {
         msg = 'Keine Route gefunden. Liegt jeder Punkt in der Nähe einer Straße oder eines Weges?';
@@ -2504,19 +2844,124 @@ assign initialcost
     // Zeichnen: weißer Rand, darüber farbige Abschnitte (Schotter in Stufenfarbe, Straße blau)
     routeLayer.clearLayers();
     var all = coords.map(function (c) { return [c[1], c[0]]; });
-    L.polyline(all, { pane: 'routePane', color: '#fff', weight: 11, opacity: 0.95, interactive: false, lineJoin: 'round', lineCap: 'round' }).addTo(routeLayer);
+    routeLines = [];
+    var casing = L.polyline(all, { pane: 'routePane', color: '#fff', weight: settings.route.width + 4, opacity: 0.95, interactive: false, lineJoin: 'round', lineCap: 'round' }).addTo(routeLayer);
+    casing._casing = true; routeLines.push(casing);
     var groups = {};
     segs.forEach(function (s) { (groups[s.cls] = groups[s.cls] || []).push(s.line); });
     ['road', 'q3', 'q2', 'q1'].forEach(function (cls) {
       if (!groups[cls]) return;
       var color = cls === 'road' ? ROUTE_ROAD_COLOR : settings.q[cls.charAt(1)].color;
-      L.polyline(groups[cls], { pane: 'routePane', color: color, weight: 6, opacity: 1, interactive: false, lineJoin: 'round', lineCap: 'round' }).addTo(routeLayer);
+      routeLines.push(L.polyline(groups[cls], { pane: 'routePane', color: color, weight: settings.route.width, opacity: 1, interactive: false, lineJoin: 'round', lineCap: 'round' }).addTo(routeLayer));
     });
 
     lastRoute = { coords: coords, dist: dist, by: by, total: total || 1, hours: hours, ascend: ascend, bounds: L.latLngBounds(all),
-      gravelShare: (by.q1 + by.q2 + by.q3) / (total || 1), pts: pts };
+      gravelShare: (by.q1 + by.q2 + by.q3) / (total || 1), pts: pts, all: all, wpIdx: matchWaypoints(all, pts) };
+    drawRouteHit(all);
+    showRouteOpacity(true);
     renderRouteResult();
     updateRouteSummary();
+  }
+
+  // ---- Route ziehen: neue Zwischenziele durch Anfassen und Ziehen der Linie ----
+  // Für jeden Wegpunkt die passende Stelle in der Routengeometrie finden (der Reihe nach, damit
+  // Schleifen und Hin-und-zurück-Strecken richtig zugeordnet werden).
+  function matchWaypoints(all, pts) {
+    var idx = [0], from = 0;
+    for (var k = 1; k < pts.length; k++) {
+      var wp = L.latLng(pts[k].lat, pts[k].lon), best = from, bestD = Infinity;
+      for (var i = from; i < all.length; i++) {
+        var d = wp.distanceTo(all[i]);
+        if (d < bestD) { bestD = d; best = i; }
+      }
+      idx.push(best);
+      from = best;
+    }
+    idx[idx.length - 1] = all.length - 1;
+    return idx;
+  }
+  // Zu welchem Abschnitt (zwischen Wegpunkt k und k+1) gehört die Geometrie-Stelle ci?
+  function legOf(ci) {
+    var w = lastRoute.wpIdx, leg = 0;
+    for (var k = 0; k < w.length - 1; k++) if (ci >= w[k]) leg = k;
+    return leg;
+  }
+
+  var hitRenderer = L.svg({ pane: 'routeHitPane', padding: 0.5 });
+  var routeHitLayer = null, routeDrag = null;
+
+  function drawRouteHit(all) {
+    if (routeHitLayer) map.removeLayer(routeHitLayer);
+    // unsichtbare, breite Greif-Linie über der Route (gut auch mit dem Finger zu treffen)
+    routeHitLayer = L.polyline(all, {
+      renderer: hitRenderer, weight: 24, opacity: 0, interactive: true, bubblingMouseEvents: false,
+      className: 'routeHit', lineJoin: 'round', lineCap: 'round'
+    }).addTo(map);
+    var el = routeHitLayer.getElement();
+    if (el) {
+      el.setAttribute('title', 'Ziehen = Zwischenziel einfügen');
+      el.addEventListener('pointerdown', startRouteDrag);
+    }
+  }
+  function clearRouteHit() {
+    if (routeHitLayer) { map.removeLayer(routeHitLayer); routeHitLayer = null; }
+    showRouteOpacity(false);   // keine Route mehr → Transparenz-Schieber ausblenden
+  }
+
+  // ---- Linienstärke und Transparenz der angezeigten Route ----
+  var routeOpacityEl = document.getElementById('routeOpacityCtl');
+  function applyRouteTransp() {
+    routePane.style.opacity = String(1 - settings.route.transp / 100);   // ganze Ebene: Rand scheint nicht durch
+    document.getElementById('routeTranspValue').textContent = settings.route.transp + ' %';
+  }
+  function showRouteOpacity(on) { routeOpacityEl.classList.toggle('hidden', !on); }
+  function applyRouteWidth() {
+    var w = settings.route.width;
+    routeLines.forEach(function (l) { l.setStyle({ weight: l._casing ? w + 4 : w }); });
+    document.getElementById('routeWidthValue').textContent = w;
+  }
+
+  function startRouteDrag(ev) {
+    if (!lastRoute || ev.button > 0 || routePts().length < 2) return;
+    ev.preventDefault(); ev.stopPropagation();
+    var ll = map.mouseEventToLatLng(ev);
+    // nächste Stelle auf der Route → Abschnitt bestimmen
+    var all = lastRoute.all, best = 0, bestD = Infinity;
+    for (var i = 0; i < all.length; i++) { var d = ll.distanceTo(all[i]); if (d < bestD) { bestD = d; best = i; } }
+    var leg = legOf(best), pts = routePts();
+    var a = L.latLng(pts[leg].lat, pts[leg].lon), b = L.latLng(pts[leg + 1].lat, pts[leg + 1].lon);
+    map.dragging.disable();
+    routeDrag = {
+      leg: leg, start: map.mouseEventToContainerPoint(ev), moved: false, ll: ll,
+      preview: L.polyline([a, ll, b], { pane: 'routePinPane', color: '#1565c0', weight: 4, opacity: 0.9, dashArray: '8 8', interactive: false }).addTo(map),
+      ghost: L.circleMarker(ll, { pane: 'routePinPane', radius: 9, color: '#fff', weight: 3, fillColor: '#1565c0', fillOpacity: 1, interactive: false }).addTo(map)
+    };
+    document.addEventListener('pointermove', moveRouteDrag);
+    document.addEventListener('pointerup', endRouteDrag);
+    document.addEventListener('pointercancel', endRouteDrag);
+  }
+  function moveRouteDrag(ev) {
+    if (!routeDrag) return;
+    ev.preventDefault();
+    var ll = map.mouseEventToLatLng(ev);
+    if (map.mouseEventToContainerPoint(ev).distanceTo(routeDrag.start) > 6) routeDrag.moved = true;
+    routeDrag.ll = ll;
+    var lls = routeDrag.preview.getLatLngs();
+    routeDrag.preview.setLatLngs([lls[0], ll, lls[2]]);
+    routeDrag.ghost.setLatLng(ll);
+  }
+  function endRouteDrag(ev) {
+    if (!routeDrag) return;
+    document.removeEventListener('pointermove', moveRouteDrag);
+    document.removeEventListener('pointerup', endRouteDrag);
+    document.removeEventListener('pointercancel', endRouteDrag);
+    map.dragging.enable();
+    map.removeLayer(routeDrag.preview); map.removeLayer(routeDrag.ghost);
+    var d = routeDrag; routeDrag = null;
+    if (!d.moved || ev.type === 'pointercancel') return;   // nur angetippt, nicht gezogen
+    // neues Zwischenziel zwischen den beiden Wegpunkten des Abschnitts einfügen
+    routePts().splice(d.leg + 1, 0, { lat: Math.round(d.ll.lat * 1e6) / 1e6, lon: Math.round(d.ll.lng * 1e6) / 1e6, name: '' });
+    saveRoute();
   }
 
   function renderRouteResult() {
@@ -2619,6 +3064,20 @@ assign initialcost
   prefRange.addEventListener('input', function () { prefValue.textContent = PREF_NAMES[prefRange.value] || prefRange.value; });
   prefRange.addEventListener('change', function () { settings.route.pref = Number(prefRange.value); saveSettings(); scheduleRoute(); });
 
+  var routeWidthEl = document.getElementById('routeWidth');
+  routeWidthEl.value = settings.route.width;
+  routeWidthEl.addEventListener('input', function () { settings.route.width = Number(routeWidthEl.value); applyRouteWidth(); });
+  routeWidthEl.addEventListener('change', saveSettings);
+  applyRouteWidth();
+
+  var routeTranspEl = document.getElementById('routeTransp');
+  routeTranspEl.value = settings.route.transp;
+  routeTranspEl.addEventListener('input', function () { settings.route.transp = Number(routeTranspEl.value); applyRouteTransp(); });
+  routeTranspEl.addEventListener('change', saveSettings);
+  applyRouteTransp();
+  L.DomEvent.disableClickPropagation(routeOpacityEl);
+  L.DomEvent.disableScrollPropagation(routeOpacityEl);
+
   // Schnellknopf 🧭 links unter der Kartenauswahl: Punkte setzen ein/aus
   var routeToggleEl = null;
   var RouteToggle = L.Control.extend({
@@ -2633,6 +3092,12 @@ assign initialcost
     }
   });
   new RouteToggle().addTo(map);
+  // Transparenz-Schieber der Route direkt darunter in die linke Knopfleiste hängen
+  var RouteOpacityCtl = L.Control.extend({
+    options: { position: 'topleft' },
+    onAdd: function () { return document.getElementById('routeOpacityCtl'); }
+  });
+  new RouteOpacityCtl().addTo(map);
   L.DomEvent.disableClickPropagation(routeHintEl);
 
   renderRoutePoints();
@@ -2675,6 +3140,7 @@ assign initialcost
 
   // Zuerst Browser-Speicher und Verzeichnis der fertigen Daten lesen, dann den Ausschnitt laden
   Promise.all([dbLoadIndex(), loadStaticIndex()]).then(function () { updateCacheInfo(); loadNow(); checkForUpdates(); });
+  loadSavedGpx();
 })();
 </script>
 </body>
