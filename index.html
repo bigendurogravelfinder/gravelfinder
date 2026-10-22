@@ -93,6 +93,7 @@
   .qRow input[type=color] { width: 44px; height: 36px; flex: none; }
   .qRow .check { flex: 1; min-height: 40px; }
   .qName { font-weight: 600; }
+  .qSep { margin: 8px 0 2px; padding-top: 6px; border-top: 1px dashed var(--border); font-size: 12px; color: var(--muted); }
   .qHint { display: block; font-size: 12px; color: var(--muted); font-weight: 400; line-height: 1.25; }
   .qDot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: -1px; margin-right: 4px; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
   /* kompakte Schieber-Zeile: Symbol + Kurzwort | Schieber | Wert */
@@ -529,9 +530,15 @@ assign avoid_trunk    = 0  # %avoid_trunk% | Schnellstraßen/Kraftfahrstraßen v
 assign avoid_toll     = 0  # %avoid_toll% | Mautstraßen vermeiden | number
 assign avoid_ferry    = 0  # %avoid_ferry% | Fähren vermeiden | number
 assign avoid_ford     = 1  # %avoid_ford% | Furten vermeiden | number
-assign avoid_hard     = 0  # %avoid_hard% | Schwierige Wege meiden | number
 assign avoid_town     = 0  # %avoid_town% | Ortsgebiet meiden | number
 assign avoid_steep    = 0  # %avoid_steep% | Starke Steigungen meiden | number
+
+# Welche Qualitätsstufen in der App eingeblendet sind (1 = ja) – nur diese werden bevorzugt
+assign show_q1 = 1  # %show_q1% | Stufe 1 sehr gut | number
+assign show_q2 = 1  # %show_q2% | Stufe 2 gut | number
+assign show_q3 = 1  # %show_q3% | Stufe 3 mittel | number
+assign show_q4 = 0  # %show_q4% | Stufe 4 schwer | number
+assign show_q5 = 0  # %show_q5% | Stufe 5 extrem | number
 
 # Steigungen nur berücksichtigen, wenn gewünscht (Kosten je Höhenmeter über der Schwelle in %)
 assign uphillcost     = if equal avoid_steep 1 then 60 else 0
@@ -552,30 +559,37 @@ assign blocked
   else motorcycle=no|private
 
 # ---------- Schotterweg? (gleicher Filter wie die Karte) ----------
-assign isgravelsurface surface=gravel|fine_gravel|compacted|unpaved|dirt|ground
+assign isgravelsurface surface=gravel|fine_gravel|compacted|unpaved|dirt|ground|earth|pebblestone|grass|rock|sand|mud
 assign isgravel
   if highway=track then
-    ( if tracktype= then isgravelsurface else tracktype=grade1|grade2|grade3 )
+    ( if tracktype= then isgravelsurface else tracktype=grade1|grade2|grade3|grade4|grade5 )
   else if highway=unclassified|tertiary|residential|service then isgravelsurface
   else false
 
-# ---------- Qualitätsstufe 1 = hoch, 2 = mittel, 3 = niedrig (wie die Karte) ----------
+# ---------- Qualitätsstufe 1 sehr gut … 5 extrem (wie die Karte) ----------
 assign q_smooth
   if smoothness=excellent|good|intermediate then 1
   else if smoothness=bad then 2
-  else if smoothness=very_bad|horrible|very_horrible|impassable then 3
+  else if smoothness=very_bad then 3
+  else if smoothness=horrible then 4
+  else if smoothness=very_horrible|impassable then 5
   else 0
 assign q_track
-  if tracktype=grade1 then 1 else if tracktype=grade2 then 2 else if tracktype=grade3|grade4|grade5 then 3 else 0
+  if tracktype=grade1 then 1 else if tracktype=grade2 then 2 else if tracktype=grade3 then 3
+  else if tracktype=grade4 then 4 else if tracktype=grade5 then 5 else 0
 assign q_surf
   if surface=asphalt|concrete|paved|compacted|fine_gravel then 1
   else if surface=gravel|unpaved then 2
-  else if surface=dirt|ground then 3
+  else if surface=dirt|ground|earth|pebblestone then 3
+  else if surface=grass|rock then 4
+  else if surface=sand|mud then 5
   else 0
-assign quality
+assign q_base
   if greater q_smooth 0 then q_smooth
   else if greater ( max q_track q_surf ) 0 then max q_track q_surf
   else 2
+# "nur für Geländewagen" ist mindestens schwer
+assign quality if 4wd_only=yes|recommended then max q_base 4 else q_base
 
 # ---------- Kosten je Meter (1 = am liebsten) ----------
 # Straßen (Verbindungsstücke): Grundkosten × Schotter-Vorliebe
@@ -595,21 +609,20 @@ assign roadcost
   if equal roadbase 0 then 10000
   else max 1.0 ( multiply roadbase gravel_pref )
 
-# Schwierige Wege: Stufe "niedrig", grade4/5, sehr schlechte Oberfläche, nur für Geländewagen, inoffizielle Pfade
-assign ishard
-  or ( equal quality 3 )
-  or tracktype=grade4|grade5
-  or smoothness=very_bad|horrible|very_horrible|impassable
-  or 4wd_only=yes|recommended
-  or informal=yes
-     trail_visibility=bad|horrible|no
-
-# Schotterwege nach Qualität
-assign gravelcost
+# Schotterwege nach Qualität; in der App ausgeblendete Stufen (show_qN = 0) nur, wenn es nicht anders geht
+assign qbase
   if equal quality 1 then 1.0
   else if equal quality 2 then 1.15
-  else if equal avoid_hard 1 then 6.0
-  else 1.7
+  else if equal quality 3 then 1.7
+  else if equal quality 4 then 3.0
+  else 6.0
+assign qshown
+  if equal quality 1 then show_q1
+  else if equal quality 2 then show_q2
+  else if equal quality 3 then show_q3
+  else if equal quality 4 then show_q4
+  else show_q5
+assign gravelcost if equal qshown 1 then qbase else multiply qbase 30
 
 # Gewählte Optionen: "vermeiden" = sehr teuer (nur wenn es gar nicht anders geht)
 assign optcost
@@ -618,7 +631,6 @@ assign optcost
   else if and ( equal avoid_trunk 1 ) ( or highway=trunk|trunk_link motorroad=yes ) then 50
   else if and ( equal avoid_toll 1 ) toll=yes then 50
   else if and ( equal avoid_ford 1 ) ford=yes|stepping_stones then 10000
-  else if and ( equal avoid_hard 1 ) ( and ishard ( not isgravel ) ) then 20
   else if and ( equal avoid_town 1 ) highway=residential|living_street then 4
   else 1
 
@@ -671,7 +683,8 @@ assign initialcost
   var MIN_ZOOM = 9;             // ab hier Schotterwege (aus Schnell-Daten bzw. Browser-Speicher)
   var DETAIL_ZOOM = 11;         // ab hier auch Orte (POI) und Overpass-Abfragen (zu viel Last bei größerem Ausschnitt)
   var DEBOUNCE_MS = 800;        // Wartezeit nach dem Verschieben
-  var SURFACES = 'gravel|fine_gravel|compacted|unpaved|dirt|ground';
+  // unbefestigte Oberflächen bis hin zu Hard Enduro (Wiese, Sand, Schlamm, Fels)
+  var SURFACES = 'gravel|fine_gravel|compacted|unpaved|dirt|ground|earth|pebblestone|grass|rock|sand|mud';
   var STORAGE_KEY = 'schotterkarte.settings';
   var CASING_COLOR = '#000000';
   var RESTRICTED_COLOR = '#7a7a7a';
@@ -705,10 +718,15 @@ assign initialcost
 
   // Qualitätsstufen der Schotterwege mit Standardfarben (Regel siehe wayQuality)
   // Leuchtende Farben, die es auf der Hintergrundkarte (Pastelltöne) nicht gibt
+  // 5 Stufen nach der OSM-Skala (smoothness beschreibt, welches Fahrzeug durchkommt; tracktype grade1–5).
+  // 1–3 = Big Enduro (Standard sichtbar), 4–5 = geübte Fahrer / Hard Enduro (Standard ausgeblendet).
+  // old: frühere Standardfarben – gespeichert → automatisch durch die neue ersetzen
   var QUALITY = [
-    { lvl: 1, name: 'hoch',    hint: 'fest und gleichmäßig',                color: '#00e04b', old: '#1fa83c' },
-    { lvl: 2, name: 'mittel',  hint: 'typischer Schotter, lose Stellen',    color: '#ffe600', old: '#ffc107' },
-    { lvl: 3, name: 'niedrig', hint: 'Erde/Naturboden, bei Nässe rutschig', color: '#ff1a4b', old: '#e53935' }
+    { lvl: 1, name: 'sehr gut', hint: 'fest und glatt – grade1, smoothness gut', color: '#00e04b', show: true, old: ['#1fa83c'] },
+    { lvl: 2, name: 'gut',      hint: 'typischer Schotter, lose Stellen – grade2', color: '#ffe600', show: true, old: ['#ffc107'] },
+    { lvl: 3, name: 'mittel',   hint: 'Erde/Naturboden, holprig, bei Nässe rutschig – grade3, very_bad', color: '#ff8c00', show: true, old: ['#e53935', '#ff1a4b'] },
+    { lvl: 4, name: 'schwer',   hint: 'grob, ausgefahren, Wiese/Fels – grade4, horrible (Geländewagen): nur für Geübte', color: '#ff1a4b', show: false, old: [] },
+    { lvl: 5, name: 'extrem',   hint: 'Hard Enduro: Schlamm, Sand, kaum erkennbar – grade5, very_horrible/impassable', color: '#b026ff', show: false, old: [] }
   ];
 
   // Routing-Optionen: id = Parameter im BRouter-Profil (avoid_<id>), on = Standard
@@ -718,7 +736,6 @@ assign initialcost
     { id: 'toll',     on: false, icon: '💶', label: 'Maut', hint: 'Mautstraßen und Mautstellen vermeiden (soweit eingetragen)' },
     { id: 'ferry',    on: false, icon: '⛴️', label: 'Fähre', hint: 'Fähren vermeiden' },
     { id: 'ford',     on: true,  icon: '🌊', label: 'Furt', hint: 'Bachdurchfahrten vermeiden' },
-    { id: 'hard',     on: false, icon: '🪨', label: 'Grobes', hint: 'rote Stufe, grade4/5, nur für Geländewagen – gut bei Nässe, Gepäck oder Sozius' },
     { id: 'town',     on: false, icon: '🏘️', label: 'Ortsgebiet', hint: 'Wohngebiete möglichst umfahren' },
     { id: 'steep',    on: false, icon: '⛰️', label: 'Steilstücke', hint: 'starke Steigungen bergauf/bergab vermeiden' }
   ];
@@ -726,7 +743,7 @@ assign initialcost
   var settings = { width: 2, transparency: 0, bgFade: 60, poiMinZoom: 11, route: { pts: [], pref: 3, width: 4, transp: 0, opt: {} }, showRestricted: false, poi: {}, q: {}, panelOpen: false, tab: 'way', offline: [], noAsk: [], wakeLock: false };
   POI_CATS.forEach(function (c) { settings.poi[c.id] = c.on; });
   ROUTE_OPTS.forEach(function (o) { settings.route.opt[o.id] = o.on; });
-  QUALITY.forEach(function (q) { settings.q[q.lvl] = { color: q.color, show: true }; });
+  QUALITY.forEach(function (q) { settings.q[q.lvl] = { color: q.color, show: q.show }; });
   try {
     var saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
     if (saved) {
@@ -734,7 +751,7 @@ assign initialcost
         var s = saved.q[q.lvl];
         if (!s) return;
         // alte Standardfarbe gespeichert? → durch die neue, kräftigere ersetzen; eigene Farben bleiben
-        if (/^#[0-9a-f]{6}$/i.test(s.color) && s.color.toLowerCase() !== q.old) settings.q[q.lvl].color = s.color;
+        if (/^#[0-9a-f]{6}$/i.test(s.color) && q.old.indexOf(s.color.toLowerCase()) < 0) settings.q[q.lvl].color = s.color;
         if (typeof s.show === 'boolean') settings.q[q.lvl].show = s.show;
       });
       // früher gespeicherte Werte (bis 8 px) auf den neuen Bereich 1–5 px begrenzen
@@ -1195,7 +1212,7 @@ assign initialcost
     var bbox = [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].map(function (n) { return n.toFixed(5); }).join(',');
     return '[out:json][timeout:90][bbox:' + bbox + '];\n' +
       '(\n' +
-      '  way["highway"="track"]["tracktype"~"^grade[123]$"];\n' +
+      '  way["highway"="track"]["tracktype"~"^grade[1-5]$"];\n' +
       '  way["highway"="track"][!"tracktype"]["surface"~"^(' + SURFACES + ')$"];\n' +
       '  way["highway"~"^(unclassified|tertiary|residential|service)$"]["surface"~"^(' + SURFACES + ')$"];\n' +
       ')->.wege;\n' +
@@ -1221,15 +1238,22 @@ assign initialcost
   // 1. Ist "smoothness" eingetragen, entscheidet nur diese Angabe (beschreibt die Befahrbarkeit direkt).
   // 2. Sonst zählt die SCHLECHTERE von "tracktype" und "surface" (bewusst vorsichtig).
   // (Namen und Standardfarben der Stufen: QUALITY, weiter oben bei den Einstellungen)
-  var Q_SMOOTH = { excellent: 1, good: 1, intermediate: 1, bad: 2, very_bad: 3, horrible: 3, very_horrible: 3, impassable: 3 };
-  var Q_TRACK = { grade1: 1, grade2: 2, grade3: 3, grade4: 3, grade5: 3 };
-  var Q_SURF = { asphalt: 1, concrete: 1, paved: 1, compacted: 1, fine_gravel: 1, gravel: 2, unpaved: 2, dirt: 3, ground: 3 };
+  // smoothness (OSM: welches Fahrzeug kommt durch): gut/intermediate = jedes Auto · bad = normales Auto ·
+  // very_bad = hoher Radstand · horrible = Geländewagen · very_horrible = Traktor/ATV · impassable = nichts Bereiftes
+  var Q_SMOOTH = { excellent: 1, good: 1, intermediate: 1, bad: 2, very_bad: 3, horrible: 4, very_horrible: 5, impassable: 5 };
+  var Q_TRACK = { grade1: 1, grade2: 2, grade3: 3, grade4: 4, grade5: 5 };
+  var Q_SURF = { asphalt: 1, concrete: 1, paved: 1, compacted: 1, fine_gravel: 1, gravel: 2, unpaved: 2,
+    dirt: 3, ground: 3, earth: 3, pebblestone: 3, grass: 4, rock: 4, sand: 5, mud: 5 };
 
   function wayQuality(t) {
-    if (Q_SMOOTH[t.smoothness]) return { lvl: Q_SMOOTH[t.smoothness], why: 'smoothness ' + t.smoothness };
     var lvl = 0, why = [];
-    if (Q_TRACK[t.tracktype]) { lvl = Q_TRACK[t.tracktype]; why.push('tracktype ' + t.tracktype); }
-    if (Q_SURF[t.surface]) { lvl = Math.max(lvl, Q_SURF[t.surface]); why.push('surface ' + t.surface); }
+    if (Q_SMOOTH[t.smoothness]) { lvl = Q_SMOOTH[t.smoothness]; why.push('smoothness ' + t.smoothness); }
+    else {
+      if (Q_TRACK[t.tracktype]) { lvl = Q_TRACK[t.tracktype]; why.push('tracktype ' + t.tracktype); }
+      if (Q_SURF[t.surface]) { lvl = Math.max(lvl, Q_SURF[t.surface]); why.push('surface ' + t.surface); }
+    }
+    // "nur für Geländewagen" ist mindestens schwer
+    if (/^(yes|recommended)$/i.test(t['4wd_only'] || '')) { lvl = Math.max(lvl, 4); why.push('4wd_only ' + t['4wd_only']); }
     if (!lvl) return { lvl: 2, why: 'keine Angabe zur Beschaffenheit' };
     return { lvl: lvl, why: why.join(', ') };
   }
@@ -1492,7 +1516,7 @@ assign initialcost
   }
 
   // Nur die Angaben speichern, die die App wirklich anzeigt – spart viel Speicherplatz
-  var WAY_KEYS = ['name', 'ref', 'highway', 'surface', 'tracktype', 'smoothness', 'access', 'vehicle', 'motor_vehicle', 'motorcycle'];
+  var WAY_KEYS = ['name', 'ref', 'highway', 'surface', 'tracktype', 'smoothness', '4wd_only', 'access', 'vehicle', 'motor_vehicle', 'motorcycle'];
   var POI_KEYS = ['name', 'brand', 'operator', 'amenity', 'shop', 'tourism', 'opening_hours', 'addr:street', 'addr:housenumber',
     'addr:postcode', 'addr:city', 'phone', 'contact:phone', 'website', 'contact:website', 'automated', 'self_service'];
   function pick(tags, keys) {
@@ -2061,7 +2085,7 @@ assign initialcost
     // herausgezoomt kleinerer Rand – der Ausschnitt ist ohnehin groß
     var drawArea = view.pad(map.getZoom() < DETAIL_ZOOM ? 0.1 : 0.3);
     var visibleOk = [], visibleRestricted = [];
-    var countOk = 0, countRestricted = 0, qCount = { 1: 0, 2: 0, 3: 0 };
+    var countOk = 0, countRestricted = 0, qCount = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
 
     ways.forEach(function (w) {
       if (!drawArea.intersects(w.bounds)) return;
@@ -2228,7 +2252,6 @@ assign initialcost
     dirt: 'Erde (dirt)',
     ground: 'Naturboden (ground)',
     asphalt: 'Asphalt (asphalt)',
-    grass: 'Gras (grass)',
     grade1: 'grade1 – befestigt, sehr fest',
     grade2: 'grade2 – Schotter, meist fest',
     grade3: 'grade3 – gemischt, mal fest, mal weich',
@@ -2240,7 +2263,9 @@ assign initialcost
     bad: 'schlecht – robustes Fahrzeug (bad)',
     very_bad: 'sehr schlecht – hohe Bodenfreiheit (very_bad)',
     horrible: 'furchtbar – Geländefahrzeug (horrible)',
-    very_horrible: 'extrem (very_horrible)',
+    very_horrible: 'extrem – Traktor/ATV (very_horrible)',
+    earth: 'Erde (earth)', pebblestone: 'Kiesel (pebblestone)', grass: 'Wiese (grass)', rock: 'Fels (rock)',
+    sand: 'Sand (sand)', mud: 'Schlamm (mud)',
     impassable: 'unpassierbar (impassable)',
     no: 'nein', yes: 'ja', private: 'privat', destination: 'nur Anrainer/Zufahrt',
     agricultural: 'nur Landwirtschaft', forestry: 'nur Forstwirtschaft', permissive: 'geduldet', designated: 'ausgewiesen'
@@ -2409,6 +2434,12 @@ assign initialcost
   var qList = document.getElementById('qList');
   var qInputs = {};
   QUALITY.forEach(function (q) {
+    if (q.lvl === 4) {   // Trennung: 1–3 = Big Enduro, 4–5 = für Geübte
+      var sep = document.createElement('div');
+      sep.className = 'qSep';
+      sep.textContent = 'für Geübte / Hard Enduro';
+      qList.appendChild(sep);
+    }
     var row = document.createElement('div');
     row.className = 'qRow';
     row.title = q.hint;
@@ -2419,7 +2450,8 @@ assign initialcost
     color.value = settings.q[q.lvl].color;
     box.checked = settings.q[q.lvl].show;
     color.addEventListener('input', function () { settings.q[q.lvl].color = color.value; applyStyle(); saveSettings(); });
-    box.addEventListener('change', function () { settings.q[q.lvl].show = box.checked; saveSettings(); render(); });
+    // Stufe ein/aus wirkt auch aufs Routing (nur eingeblendete Stufen werden bevorzugt) → Route neu rechnen
+    box.addEventListener('change', function () { settings.q[q.lvl].show = box.checked; saveSettings(); render(); scheduleRoute(); });
     qInputs[q.lvl] = color;
     qList.appendChild(row);
   });
@@ -2755,13 +2787,13 @@ assign initialcost
   var routeHintEl = document.getElementById('routeHint');
 
   // Fahrzeit-Schätzung (km/h): Schotter je Stufe, Straßen je Typ
-  var Q_SPEED = { 1: 35, 2: 28, 3: 18 };
+  var Q_SPEED = { 1: 35, 2: 28, 3: 18, 4: 12, 5: 7 };
   var ROAD_SPEED = { motorway: 110, motorway_link: 60, trunk: 80, trunk_link: 60, primary: 75, primary_link: 50, secondary: 65, secondary_link: 50,
     tertiary: 55, tertiary_link: 45, unclassified: 45, residential: 30, living_street: 15, service: 20, track: 20 };
-  var GRAVEL_SURF = /^(gravel|fine_gravel|compacted|unpaved|dirt|ground)$/;
+  var GRAVEL_SURF = new RegExp('^(' + SURFACES + ')$');
 
   function isGravelWay(t) {   // gleicher Filter wie die Karte
-    if (t.highway === 'track') return t.tracktype ? /^grade[123]$/.test(t.tracktype) : GRAVEL_SURF.test(t.surface || '');
+    if (t.highway === 'track') return t.tracktype ? /^grade[1-5]$/.test(t.tracktype) : GRAVEL_SURF.test(t.surface || '');
     if (/^(unclassified|tertiary|residential|service)$/.test(t.highway || '')) return GRAVEL_SURF.test(t.surface || '');
     return false;
   }
@@ -2881,7 +2913,9 @@ assign initialcost
         ROUTE_OPTS.map(function (o) {
           var on = settings.route.opt[o.id] && !(o.id === 'ferry' && allowFerry);
           return '&profile:avoid_' + o.id + '=' + (on ? 1 : 0);
-        }).join('');
+        }).join('') +
+        // Route nutzt die eingeblendeten Stufen; ausgeblendete nur, wenn es nicht anders geht
+        QUALITY.map(function (q) { return '&profile:show_q' + q.lvl + '=' + (settings.q[q.lvl].show ? 1 : 0); }).join('');
       // Mit "Fähren vermeiden" höchstens 12 s auf einen Landweg warten, danach mit Fähre rechnen
       if (settings.route.opt.ferry && !allowFerry) {
         setTimeout(function () { if (routeCtrl === ctrl) { ferryTimedOut = true; ctrl.abort(); } }, 12000);
@@ -2942,7 +2976,7 @@ assign initialcost
     while (ci < coords.length && segs.length) { var cc = coords[ci++]; segs[segs.length - 1].line.push([cc[1], cc[0]]); }
 
     // Auswertung: Anteile, Fahrzeit
-    var total = 0, by = { q1: 0, q2: 0, q3: 0, road: 0 }, hours = 0;
+    var total = 0, by = { q1: 0, q2: 0, q3: 0, q4: 0, q5: 0, road: 0 }, hours = 0;
     segs.forEach(function (s) {
       total += s.dist; by[s.cls] += s.dist;
       var v = s.cls === 'road' ? (ROAD_SPEED[s.hw] || 40) : Q_SPEED[s.cls.charAt(1)];
@@ -2960,14 +2994,14 @@ assign initialcost
     casing._casing = true; routeLines.push(casing);
     var groups = {};
     segs.forEach(function (s) { (groups[s.cls] = groups[s.cls] || []).push(s.line); });
-    ['road', 'q3', 'q2', 'q1'].forEach(function (cls) {
+    ['road', 'q5', 'q4', 'q3', 'q2', 'q1'].forEach(function (cls) {
       if (!groups[cls]) return;
       var color = cls === 'road' ? ROUTE_ROAD_COLOR : settings.q[cls.charAt(1)].color;
       routeLines.push(L.polyline(groups[cls], { pane: 'routePane', color: color, weight: settings.route.width, opacity: 1, interactive: false, lineJoin: 'round', lineCap: 'round' }).addTo(routeLayer));
     });
 
     lastRoute = { coords: coords, dist: dist, by: by, total: total || 1, hours: hours, ascend: ascend, bounds: L.latLngBounds(all),
-      gravelShare: (by.q1 + by.q2 + by.q3) / (total || 1), pts: pts, all: all, wpIdx: matchWaypoints(all, pts) };
+      gravelShare: (total - by.road) / (total || 1), pts: pts, all: all, wpIdx: matchWaypoints(all, pts) };
     drawRouteHit(all);
     showRouteOpacity(true);
     renderRouteResult();
@@ -3090,10 +3124,8 @@ assign initialcost
   function renderRouteResult() {
     var r = lastRoute;
     if (!r) return;
-    var parts = [
-      { cls: 'q1', name: 'hoch', color: settings.q[1].color }, { cls: 'q2', name: 'mittel', color: settings.q[2].color },
-      { cls: 'q3', name: 'niedrig', color: settings.q[3].color }, { cls: 'road', name: 'Straße', color: ROUTE_ROAD_COLOR }
-    ];
+    var parts = QUALITY.map(function (q) { return { cls: 'q' + q.lvl, name: q.name, color: settings.q[q.lvl].color }; })
+      .concat([{ cls: 'road', name: 'Straße', color: ROUTE_ROAD_COLOR }]);
     var pct = function (c) { return Math.round(r.by[c] / r.total * 100); };
     showRouteResult(
       '<div class="routeStats"><b>' + kmText(r.dist) + '</b> · ≈ ' + timeText(r.hours) + (r.ascend ? ' · ↑ ' + Math.round(r.ascend) + ' m' : '') + '</div>' +
@@ -3102,7 +3134,9 @@ assign initialcost
       '<div class="routeBar">' + parts.map(function (p) {
         return r.by[p.cls] ? '<span style="width:' + (r.by[p.cls] / r.total * 100) + '%;background:' + p.color + '"></span>' : '';
       }).join('') + '</div>' +
-      '<div class="routeLegend">' + parts.map(function (p) { return '<i style="background:' + p.color + '"></i>' + p.name + ' ' + pct(p.cls) + ' %'; }).join(' ') + '</div>' +
+      // Legende nur mit den vorkommenden Anteilen (spart Platz)
+      '<div class="routeLegend">' + parts.filter(function (p) { return r.by[p.cls] > 0; })
+        .map(function (p) { return '<i style="background:' + p.color + '"></i>' + p.name + ' ' + pct(p.cls) + ' %'; }).join(' ') + '</div>' +
       '<div class="routeBtns"><button type="button" id="routeGpx" class="btn light small" title="z. B. für Garmin, OsmAnd, Kurviger">⬇ GPX speichern</button></div>');
     document.getElementById('routeFit').onclick = function () { fitRoute(true); };
     document.getElementById('routeGpx').onclick = downloadGpx;

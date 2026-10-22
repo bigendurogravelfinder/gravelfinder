@@ -64,10 +64,11 @@ data/v2/blocks/<bi>/<bj>.json.gz   Daten je Block
 
 ## 4. Schotterwege – Regeln
 
-Als Schotterstraße gelten:
-- `highway=track` mit `tracktype=grade1|grade2|grade3`
-- `highway=track` **ohne** `tracktype`, aber mit `surface=gravel|fine_gravel|compacted|unpaved|dirt|ground`
+Als Schotterstraße gelten (bis hinunter zu Hard Enduro):
+- `highway=track` mit `tracktype=grade1|grade2|grade3|grade4|grade5`
+- `highway=track` **ohne** `tracktype`, aber mit `surface=gravel|fine_gravel|compacted|unpaved|dirt|ground|earth|pebblestone|grass|rock|sand|mud`
 - `highway=unclassified|tertiary|residential|service` mit einer dieser Oberflächen
+- Gespeichert/abgefragt werden zusätzlich `4wd_only` (für die Stufe).
 
 **Gesperrt** (ausgeblendet, optional gestrichelt grau anzeigbar): Der genaueste vorhandene Schlüssel entscheidet,
 in der Reihenfolge `motorcycle` → `motor_vehicle` → `vehicle` → `access`. Gesperrt, wenn alle Werte
@@ -80,23 +81,30 @@ in der Reihenfolge `motorcycle` → `motor_vehicle` → `vehicle` → `access`. 
 (Damit gilt z. B. `motor_vehicle=no` + `motorcycle=yes` als fahrbar.)
 
 ### Qualitätsstufen (Einfärbung)
-Der Filter oben bleibt unverändert. Jeder Weg wird zusätzlich in eine von drei Stufen eingeteilt:
+Jeder Weg wird in eine von **fünf Stufen** eingeteilt – nach der OSM-Skala (`smoothness` beschreibt, welches
+Fahrzeug durchkommt; `tracktype` grade1–5):
 
-| Stufe | Bedeutung | smoothness | tracktype | surface | Standardfarbe |
-|---|---|---|---|---|---|
-| hoch | fest und gleichmäßig | excellent, good, intermediate | grade1 | asphalt, concrete, paved, compacted, fine_gravel | Grün #00e04b |
-| mittel | typischer Schotter, lose Stellen | bad | grade2 | gravel, unpaved | Gelb #ffe600 |
-| niedrig | Erde/Naturboden, bei Nässe rutschig | very_bad, horrible, very_horrible, impassable | grade3 (grade4/5) | dirt, ground | Rot #ff1a4b |
+| Stufe | Bedeutung | smoothness | tracktype | surface | Standardfarbe | Standard |
+|---|---|---|---|---|---|---|
+| 1 sehr gut | fest und glatt | excellent, good, intermediate (jedes Auto) | grade1 | asphalt, concrete, paved, compacted, fine_gravel | Grün #00e04b | an |
+| 2 gut | typischer Schotter, lose Stellen | bad (normales Auto) | grade2 | gravel, unpaved | Gelb #ffe600 | an |
+| 3 mittel | Erde/Naturboden, holprig, bei Nässe rutschig | very_bad (hohe Bodenfreiheit) | grade3 | dirt, ground, earth, pebblestone | Orange #ff8c00 | an |
+| 4 schwer | grob, ausgefahren, Wiese/Fels – nur für Geübte | horrible (Geländewagen) | grade4 | grass, rock | Rot #ff1a4b | **aus** |
+| 5 extrem | Hard Enduro: Schlamm, Sand, kaum erkennbar | very_horrible (Traktor/ATV), impassable | grade5 | sand, mud | Violett #b026ff | **aus** |
 
+- Stufen 1–3 = Big Enduro (Standard eingeblendet), 4–5 = für Geübte / Hard Enduro (Standard ausgeblendet). Im Tab
+  „Wege“ trennt eine gestrichelte Linie mit „für Geübte / Hard Enduro“ die beiden Gruppen.
 - Farben bewusst **leuchtend** – die Hintergrundkarte hat selbst Grün (Wald), Gelb und Rot (Straßen), aber nur in
-  Pastelltönen. Früher gespeicherte alte Standardfarben (#1fa83c, #ffc107, #e53935) werden automatisch ersetzt,
-  selbst gewählte Farben bleiben.
-
+  Pastelltönen. Früher gespeicherte alte Standardfarben werden automatisch ersetzt (Stufe 1 #1fa83c, Stufe 2 #ffc107,
+  Stufe 3 #e53935 und #ff1a4b – Rot war früher die schlechteste Stufe), selbst gewählte Farben bleiben.
 - Ist `smoothness` eingetragen, entscheidet nur diese Angabe. Sonst zählt die **schlechtere** von `tracktype`
-  und `surface` (bewusst vorsichtig). Ohne jede Angabe: mittel.
-- Verteilung (Test Slowenien/Kroatien): 12 % hoch, 54 % mittel, 34 % niedrig; Raum Wels: 73 / 247 / 288 Wege.
-- Je Stufe im Menü: Farbfeld (Farbe ändern, sofort wirksam), Häkchen (Stufe ein-/ausblenden), Name, kurze
-  Beschreibung und Anzahl im Ausschnitt; Link „Standardfarben wiederherstellen“.
+  und `surface` (bewusst vorsichtig). `4wd_only=yes|recommended` → mindestens Stufe 4. Ohne jede Angabe: Stufe 2.
+- **Routing nutzt die eingeblendeten Stufen:** je Stufe Profil-Parameter `show_q1…show_q5` (1/0); ausgeblendete
+  Stufen kosten ×30 (nur wenn es nicht anders geht). Kosten je Meter: 1,0 · 1,15 · 1,7 · 3,0 · 6,0.
+  Stufe ein-/ausblenden rechnet die Route neu. (Die frühere Vermeiden-Kachel „🪨 Grobes“ entfällt dadurch.)
+- Fahrzeit je Stufe: 35 · 28 · 18 · 12 · 7 km/h.
+- Je Stufe im Menü: Farbfeld (Farbe ändern, sofort wirksam), Häkchen (Stufe ein-/ausblenden), Name und Anzahl im
+  Ausschnitt (Beschreibung als Tooltip); Link „↺ Standardfarben“.
 - Gezeichnet wird die schlechteste Stufe zuerst, damit gute Wege obenauf liegen. Der Zähler unten zählt nur
   eingeblendete Stufen.
 - Gesperrte Wege bleiben grau gestrichelt (unabhängig von der Stufe).
@@ -360,7 +368,6 @@ plus je Routing-Option `&profile:avoid_<id>=1|0` (BRouter akzeptiert nur Zahlen,
   | Mautstraßen vermeiden (`toll`) | aus | `toll=yes` ×50, Knoten `barrier=toll_booth` +100000 |
   | Fähren vermeiden (`ferry`) | aus | `route=ferry` ×1000 je Meter (Einstieg immer +10000). Kein Landweg (Insel) → Server bricht ab bzw. App bricht nach **12 s** ab → App rechnet automatisch mit `avoid_ferry=0` neu und zeigt „⛴ Ohne Fähre wurde keine Route gefunden …“ (nur wenn die Ersatz-Route wirklich `route=ferry` enthält) |
   | Furten vermeiden (`ford`) | **an** | Weg `ford=yes|stepping_stones` ×10000, Knoten +1000000 |
-  | Schwierige Wege meiden (`hard`) | aus | Schotter Stufe niedrig 6,0 statt 1,7; sonstige schwierige Wege (grade4/5, smoothness very_bad+, `4wd_only`, `informal=yes`, schlechte `trail_visibility`) ×20 |
   | Ortsgebiet meiden (`town`) | aus | residential/living_street ×4 |
   | Starke Steigungen meiden (`steep`) | aus | uphillcost 60 ab 8 %, downhillcost 40 ab 10 % (sonst Höhe ignoriert) |
   **Stolperstein:** Im Weg-Kontext wirkt `initialcost` nicht, wenn er von einem Parameter abhängt (auch nicht über eine
@@ -394,7 +401,7 @@ plus je Routing-Option `&profile:avoid_<id>=1|0` (BRouter akzeptiert nur Zahlen,
 - Reihenfolge im Tab: Punkte setzen · Punktliste · Ergebnis · „🪨 Schotter“ · „▬ Linie“ · Vermeiden.
 - Aufklappbarer Kasten **„🚫 Vermeiden“** (Zusammenfassung = Symbole der aktiven Optionen, z. B. „🛣️ 🌊“, sonst „nichts“)
   mit acht **Symbol-Kacheln** in 2 Spalten (an = orange hinterlegt mit ✕): 🛣️ Autobahn · 🚗 Schnellstraße · 💶 Maut ·
-  ⛴️ Fähre · 🌊 Furt · 🪨 Grobes · 🏘️ Ortsgebiet · ⛰️ Steilstücke (Erklärung als Tooltip); jede Änderung rechnet sofort
+  ⛴️ Fähre · 🌊 Furt · 🏘️ Ortsgebiet · ⛰️ Steilstücke (Erklärung als Tooltip); jede Änderung rechnet sofort
   neu. Darunter klein „nur wenn es gar nicht anders geht“.
   Danach (Trennlinie) fest „⛔ Gesperrte Wege: nie in der Route“ und eingerückt das Häkchen
   „- - - auf der Karte zeigen“ (= frühere Einstellung „Auch gesperrte Wege anzeigen“, `settings.showRestricted`,
