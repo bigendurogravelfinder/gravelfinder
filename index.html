@@ -2493,7 +2493,12 @@ assign initialcost
   });
   document.getElementById('panelClose').addEventListener('click', function () { setPanelOpen(false); });
   // kurz in die Karte tippen/klicken (nicht verschieben) → offenes Menü klappt von selbst ein
-  map.on('click', function () { if (!panel.classList.contains('collapsed')) setPanelOpen(false); });
+  // (markiert das Ereignis, damit dieser Tipp im Routen-Modus keinen Punkt setzt – nur das Menü schließt)
+  map.on('click', function (e) {
+    if (panel.classList.contains('collapsed')) return;
+    setPanelOpen(false);
+    e.menuClosed = true;
+  });
   showTab(settings.tab || 'way');
 
   // ---------- App: installieren und Bildschirm wach halten ----------
@@ -3300,7 +3305,8 @@ assign initialcost
   }
 
   // ---- Bedienung ----
-  map.on('click', function (e) { if (routeMode) addRoutePoint(e.latlng); });
+  // Tipp, der nur das offene Menü geschlossen hat (siehe Bedienfeld), setzt keinen Punkt
+  map.on('click', function (e) { if (routeMode && !e.menuClosed) addRoutePoint(e.latlng); });
 
   document.getElementById('routeModeBtn').addEventListener('click', function () { setRouteMode(!routeMode); });
   document.getElementById('routeReverse').addEventListener('click', function () { settings.route.pts.reverse(); saveRoute(); });

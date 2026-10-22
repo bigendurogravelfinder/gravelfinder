@@ -281,7 +281,8 @@ Sieben Kategorien, einzeln ein-/ausschaltbar, mit Anzahl im Ausschnitt:
   Liegt über „Mein Standort“ und der Statusleiste (z-index höher).
 - Tab antippen → Menü klappt auf und zeigt diesen Teil; den bereits offenen Tab nochmals antippen → einklappen.
   **Kurz in die Karte tippen/klicken** (Leaflet-`click`, also nicht beim Verschieben) → offenes Menü klappt von selbst
-  ein (auch im Routen-Modus; der Punkt wird trotzdem gesetzt).
+  ein. Im Routen-Modus setzt **dieser** Tipp keinen Punkt (er schließt nur das Menü; Ereignis wird markiert
+  `e.menuClosed`), erst der nächste Tipp bei geschlossenem Menü setzt einen Routenpunkt.
 - **Farbe und Symbole (überall gleicher Stil, keine Emojis mehr):**
   - Akzentfarbe **Petrol** `--accent #0e7490` (dunkel `#0b4f6c`, hell `#e2f3f5`) mit **Verlauf** Petrol → Blau
     `linear-gradient(135deg, #0d9488, #0e7490, #1d4ed8)` für Knöpfe, Einklapp-Knopf, aktiven 🧭-Kartenknopf und Hinweis-Knöpfe.
