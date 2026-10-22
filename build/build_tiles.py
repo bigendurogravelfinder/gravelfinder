@@ -51,7 +51,10 @@ GEOFABRIK = 'https://download.geofabrik.de/europe/'
 UA = {'User-Agent': 'Gravelfinder-BigEnduro/1.0 (GitHub Actions)'}
 
 # ---- Filterregeln (gleich wie die Overpass-Abfrage in index.html) ----
-SURFACES = {'gravel', 'fine_gravel', 'compacted', 'unpaved', 'dirt', 'ground'}
+# unbefestigt bis Hard Enduro (5 Qualitätsstufen in der App: grade1–5, Wiese/Fels/Sand/Schlamm)
+SURFACES = {'gravel', 'fine_gravel', 'compacted', 'unpaved', 'dirt', 'ground', 'earth', 'pebblestone',
+            'grass', 'rock', 'sand', 'mud'}
+GRADES = {'grade1', 'grade2', 'grade3', 'grade4', 'grade5'}
 ROAD_HW = {'unclassified', 'tertiary', 'residential', 'service'}
 POI_AMENITY = {'fuel', 'restaurant', 'cafe', 'fast_food', 'biergarten', 'pub', 'drinking_water'}
 POI_SHOP = {'supermarket', 'convenience', 'bakery', 'butcher', 'greengrocer', 'farm', 'motorcycle', 'motorcycle_repair'}
@@ -60,7 +63,7 @@ POI_TOURISM = {'camp_site', 'viewpoint'}
 PLACE_RANK = {'city': 1, 'town': 2, 'village': 3}
 
 # nur diese Angaben werden gespeichert (wie WAY_KEYS / POI_KEYS in index.html)
-WAY_KEYS = ['name', 'ref', 'highway', 'surface', 'tracktype', 'smoothness', 'access', 'vehicle', 'motor_vehicle', 'motorcycle']
+WAY_KEYS = ['name', 'ref', 'highway', 'surface', 'tracktype', 'smoothness', '4wd_only', 'access', 'vehicle', 'motor_vehicle', 'motorcycle']
 POI_KEYS = ['name', 'brand', 'operator', 'amenity', 'shop', 'tourism', 'opening_hours', 'addr:street', 'addr:housenumber',
             'addr:postcode', 'addr:city', 'phone', 'contact:phone', 'website', 'contact:website', 'automated', 'self_service']
 
@@ -85,7 +88,7 @@ def is_road(t):
     if hw == 'track':
         tt = t.get('tracktype')
         if tt is not None:
-            return tt in ('grade1', 'grade2', 'grade3')
+            return tt in GRADES
         return t.get('surface') in SURFACES
     if hw in ROAD_HW:
         return t.get('surface') in SURFACES
