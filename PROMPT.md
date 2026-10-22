@@ -498,7 +498,8 @@ Anstieg (`filtered ascend`), Farbbalken und Anteile hoch/mittel/niedrig/Straße,
 - `viewport` ohne Zoomen der Seite, große Buttons (Zoom-Buttons 44 px), Statusleiste und Hinweise unten mittig
   als runde „Pillen“, max. Bildschirmbreite − 32 px.
 - Menü einklappbar, Akkordeon-Abschnitte. Alle Bedienelemente leiten Klicks nicht an die Karte weiter.
-- **Installierbar (PWA):** `manifest.webmanifest` (`display: standalone`, `orientation: any`, `start_url`/`scope` `./`,
+- **Installierbar (PWA):** `manifest.webmanifest` (`name` und `short_name` **„endurowandern.com“** = Beschriftung
+  unter dem App-Symbol, ebenso `apple-mobile-web-app-title`; `display: standalone`, `orientation: any`, `start_url`/`scope` `./`,
   Farbe #0e7490, Symbole 192/512 + maskierbar 512), `<link rel="manifest">`, `theme-color` #0e7490, `apple-touch-icon`.
   **App-Symbol:** Hintergrund Verlauf Petrol → Blau (#0d9488 → #0e7490 → #1d4ed8, diagonal), darauf weiß: Enduro
   von der Seite (Stollenreifen, lange Gabel, hoher Kotflügel vorne, hohes Heck, hochgezogener Auspuff) und darüber eine
