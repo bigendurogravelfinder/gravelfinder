@@ -1,0 +1,17 @@
+{
+  "name": "Gravelfinder Big Enduro",
+  "short_name": "Gravelfinder",
+  "description": "Schotterwege-Karte für Big-Enduro-Fahrer – mit Routing, GPX-Tracks und Offline-Daten.",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#22313a",
+  "theme_color": "#22313a",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

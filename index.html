@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Schotterkarte</title>
+<!-- als App installierbar (Android: "Zum Startbildschirm hinzufügen" / "App installieren") -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#22313a">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Gravelfinder">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
@@ -287,6 +295,31 @@
     .pill { font-size: 14px; }
     #locateBtn { bottom: 150px; }
   }
+
+  /* ---------- Querformat am Handy (wenig Höhe) ---------- */
+  @media (orientation: landscape) and (max-height: 520px) {
+    /* Menü = Spalte am rechten Rand über die volle Höhe */
+    #panel { top: 6px; right: 6px; width: 330px; max-width: 45vw; }
+    #panel:not(.collapsed) { bottom: 6px; display: flex; flex-direction: column; }
+    #panel:not(.collapsed) #panelBody { flex: 1; min-height: 0; max-height: none; }
+    #panelToggle { min-height: 42px; flex: none; }
+    .tab { min-height: 46px; }
+    /* "Mein Standort" unten rechts (über Maßstab und Quellenangabe), nur Symbol */
+    #locateBtn { left: auto; right: 10px; bottom: 48px; width: 52px; padding: 0; justify-content: center; font-size: 0; gap: 0; }
+    #locateBtn svg { width: 26px; height: 26px; }
+    /* Hinweise unten in der Mitte: Platz für Knöpfe links und rechts lassen */
+    #statusWrap { bottom: 12px; max-width: calc(100vw - 180px); }
+    /* Menü offen: Hinweise in die freie linke Kartenhälfte rücken */
+    #panel:not(.collapsed) ~ #statusWrap { left: calc((100vw - 340px) / 2 + 30px); max-width: calc(100vw - 420px); }
+    /* Routen-Schieber waagrecht neben der linken Knopfleiste statt darunter */
+    .leaflet-top.leaflet-left .sideSlider {
+      position: absolute; left: 54px; top: 0; width: auto; height: 44px; padding: 0 10px;
+      flex-direction: row; gap: 6px;
+    }
+    .sideSlider .ssTrack { width: 130px; height: 44px; }
+    .sideSlider .ssTrack input { width: 130px; transform: translate(-50%, -50%); }
+    .sideSlider .ssValue { min-width: 32px; text-align: right; }
+  }
 </style>
 </head>
 <body>
@@ -389,6 +422,24 @@
       </div>
       <div class="hint">Kleinere Zahl = POIs schon weiter herausgezoomt sichtbar (ab 9, bei vielen POIs langsamer).
         Unter Zoom 11 nur in Gebieten mit Schnell-Daten.</div>
+    </div>
+    </div>
+   </details>
+
+   <details class="section" id="secApp">
+    <summary>
+      <span class="secIcon">📱</span>
+      <span class="secTitle">App<span class="secSum" id="sumApp"></span></span>
+      <span class="secChev">›</span>
+    </summary>
+    <div class="secBody">
+    <div class="row">
+      <button type="button" id="installBtn" class="btn wide" hidden>📲 Als App installieren</button>
+      <div class="hint" id="installHint"></div>
+    </div>
+    <div class="row">
+      <label class="check"><input type="checkbox" id="wakeLock"> Bildschirm wach halten</label>
+      <div class="hint" id="wakeHint">Das Display geht nicht aus, solange die Karte offen ist (braucht mehr Akku – am Motorrad mit Ladekabel ideal).</div>
     </div>
     </div>
    </details>
@@ -650,7 +701,7 @@ assign initialcost
   ];
 
   var settings = { width: 2, transparency: 0, bgFade: 60, labels: true, labelsOverPoi: true,
-    labelColor: '#1a1a1a', labelTransp: 0, labelHalo: 100, poiMinZoom: 11, route: { pts: [], pref: 3, width: 4, transp: 0 }, showRestricted: false, poi: {}, q: {}, panelOpen: false, openSection: '', tab: 'set', offline: [], noAsk: [] };
+    labelColor: '#1a1a1a', labelTransp: 0, labelHalo: 100, poiMinZoom: 11, route: { pts: [], pref: 3, width: 4, transp: 0 }, showRestricted: false, poi: {}, q: {}, panelOpen: false, openSection: '', tab: 'set', offline: [], noAsk: [], wakeLock: false };
   POI_CATS.forEach(function (c) { settings.poi[c.id] = c.on; });
   QUALITY.forEach(function (q) { settings.q[q.lvl] = { color: q.color, show: true }; });
   try {
@@ -684,6 +735,7 @@ assign initialcost
       if (typeof saved.openSection === 'string') settings.openSection = saved.openSection;
       if (/^(set|route|gpx|off)$/.test(saved.tab)) settings.tab = saved.tab;
       if (typeof saved.panelOpen === 'boolean') settings.panelOpen = saved.panelOpen;
+      if (typeof saved.wakeLock === 'boolean') settings.wakeLock = saved.wakeLock;
       if (Array.isArray(saved.offline)) settings.offline = saved.offline.filter(function (x) { return typeof x === 'string'; });
       if (Array.isArray(saved.noAsk)) settings.noAsk = saved.noAsk.filter(function (x) { return typeof x === 'string'; });
       if (saved.poi) POI_CATS.forEach(function (c) {
@@ -714,6 +766,9 @@ assign initialcost
       var on = POI_CATS.filter(function (c) { return settings.poi[c.id]; });
       p.textContent = on.length ? on.map(function (c) { return c.emoji; }).join(' ') + '  (' + on.length + ' von ' + POI_CATS.length + ') · ab Zoom ' + settings.poiMinZoom : 'keine eingeschaltet';
     }
+    var ap = document.getElementById('sumApp');
+    if (ap) ap.textContent = (typeof isStandalone !== 'undefined' && isStandalone ? 'installiert' : 'im Browser') +
+      ' · Bildschirm ' + (settings.wakeLock ? 'bleibt wach' : 'normal');
   }
 
   // ================= Karte =================
@@ -2258,7 +2313,7 @@ assign initialcost
   showTab(settings.tab || 'set');
 
   // Unterpunkte unter "Einstellungen": immer nur einer offen (spart Platz am Handy); der zuletzt geöffnete wird gemerkt
-  var sections = ['secStyle', 'secMap', 'secPoi'].map(function (id) { return document.getElementById(id); });
+  var sections = ['secStyle', 'secMap', 'secPoi', 'secApp'].map(function (id) { return document.getElementById(id); });
   sections.forEach(function (sec) {
     sec.open = sec.id === settings.openSection;
     sec.addEventListener('toggle', function () {
@@ -2271,6 +2326,56 @@ assign initialcost
       saveSettings();
     });
   });
+
+  // ---------- App: installieren und Bildschirm wach halten ----------
+  var isStandalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  var installBtn = document.getElementById('installBtn'), installHint = document.getElementById('installHint');
+  var installPrompt = null;
+  function showInstallState() {
+    installBtn.hidden = !installPrompt;
+    if (isStandalone) installHint.textContent = '✔ Läuft als installierte App – Vollbild, dreht mit dem Handy mit (Hoch- und Querformat).';
+    else if (installPrompt) installHint.textContent = 'Legt ein Symbol auf den Startbildschirm. Die App startet dann im Vollbild ohne Adressleiste und dreht sich mit dem Handy mit.';
+    else if (location.protocol === 'file:') installHint.textContent = 'Installieren geht nur, wenn die Seite aus dem Internet geöffnet wird (GitHub-Adresse), nicht als lokale Datei.';
+    else installHint.textContent = 'Installieren: im Chrome-Menü ⋮ „App installieren“ bzw. „Zum Startbildschirm hinzufügen“ antippen. (Auf dem iPhone in Safari: Teilen → „Zum Home-Bildschirm“.)';
+    updateSummaries();
+  }
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); installPrompt = e; showInstallState(); });
+  window.addEventListener('appinstalled', function () { installPrompt = null; installHint.textContent = '✔ Installiert – du findest die App jetzt am Startbildschirm.'; installBtn.hidden = true; });
+  installBtn.addEventListener('click', function () {
+    if (!installPrompt) return;
+    var p = installPrompt; installPrompt = null;
+    p.prompt();
+    p.userChoice.then(showInstallState, showInstallState);
+  });
+  showInstallState();
+  // Service Worker: damit die App installierbar ist und auch ohne Netz startet (nur über http/https möglich)
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    navigator.serviceWorker.register('sw.js').catch(function (e) { console.warn('Service Worker nicht registriert', e); });
+  }
+
+  var wakeEl = document.getElementById('wakeLock'), wakeHint = document.getElementById('wakeHint');
+  var wakeSentinel = null;
+  function requestWake() {
+    if (!settings.wakeLock || !('wakeLock' in navigator) || document.visibilityState !== 'visible' || wakeSentinel) return;
+    navigator.wakeLock.request('screen').then(function (s) {
+      wakeSentinel = s;
+      s.addEventListener('release', function () { wakeSentinel = null; });
+    }).catch(function (e) { console.warn('Bildschirm wach halten nicht möglich', e); });
+  }
+  function releaseWake() { if (wakeSentinel) { wakeSentinel.release(); wakeSentinel = null; } }
+  if ('wakeLock' in navigator) {
+    wakeEl.checked = settings.wakeLock;
+    wakeEl.addEventListener('change', function () {
+      settings.wakeLock = wakeEl.checked; saveSettings();
+      if (settings.wakeLock) requestWake(); else releaseWake();
+    });
+    // Android gibt die Sperre frei, sobald die App in den Hintergrund geht → beim Zurückkommen neu anfordern
+    document.addEventListener('visibilitychange', requestWake);
+    requestWake();
+  } else {
+    wakeEl.disabled = true;
+    wakeHint.textContent = 'Wird von diesem Browser nicht unterstützt (geht mit Chrome ab Android, über die GitHub-Adresse).';
+  }
   updateSummaries();
   toggle.addEventListener('click', function () {
     var open = panel.classList.contains('collapsed');
@@ -3130,8 +3235,11 @@ assign initialcost
 
   // "Mein Standort" immer oberhalb der Hinweise unten halten (deren Höhe ändert sich laufend)
   var statusWrapEl = document.getElementById('statusWrap');
+  var LANDSCAPE = matchMedia('(orientation: landscape) and (max-height: 520px)');
+  if (LANDSCAPE.addEventListener) LANDSCAPE.addEventListener('change', function () { placeLocateBtn(); map.invalidateSize(); });
   function placeLocateBtn() {
     if (!statusWrapEl || !locateBtn) return; // beim Start noch nicht bereit
+    if (LANDSCAPE.matches) { locateBtn.style.bottom = ''; return; } // Querformat: fester Platz unten rechts (CSS)
     var bottom = parseFloat(getComputedStyle(statusWrapEl).bottom) || 28;
     locateBtn.style.bottom = Math.max(140, bottom + statusWrapEl.offsetHeight + 14) + 'px';
   }
