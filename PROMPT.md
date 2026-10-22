@@ -27,6 +27,8 @@ index.html                    die App
 manifest.webmanifest          macht die App installierbar (Name, Symbole, Vollbild, freie Drehung)
 sw.js                         Service Worker (App startet auch ohne Netz)
 icon-192.png, icon-512.png, icon-maskable-512.png, apple-touch-icon.png   App-Symbole
+tools/make_icons.py           zeichnet die App-Symbole (Pillow): python tools/make_icons.py <Zielordner>
+                              (bewusst nicht unter build/ – Änderungen dort lösen auf GitHub eine Neuaufbereitung aus)
 regions.json                  Länderliste für die Aufbereitung
 build/build_tiles.py          Aufbereitungs-Skript (Python)
 build/requirements.txt        osmium>=3.7, shapely>=2.0
@@ -60,7 +62,8 @@ data/v2/blocks/<bi>/<bj>.json.gz   Daten je Block
 - Quellenangabe „© OpenStreetMap-Mitwirkende“ (Link auf openstreetmap.org/copyright), Leaflet-Präfix ausblenden.
 - Maßstab unten rechts (metrisch).
 - **Zoomstufe immer sichtbar:** kleines Feld direkt unter den Knöpfen + / − (oben links, 44 px breit wie die Knöpfe),
-  kleine Überschrift „ZOOM“ und darunter die Zahl fett; aktualisiert sich bei jedem Zoomen (eigenes `L.Control`).
+  weißer Kasten im Knopf-Stil: oben kleines Lupen-Symbol (`search`, Verlauf), darunter die Zahl 17 px extra fett mit
+  Petrol-Blau-Verlauf als Schriftfarbe (`background-clip: text`); aktualisiert sich bei jedem Zoomen (eigenes `L.Control`).
 
 ## 4. Schotterwege – Regeln
 
@@ -93,7 +96,8 @@ Fahrzeug durchkommt; `tracktype` grade1–5):
 | 5 extrem | Hard Enduro: Schlamm, Sand, kaum erkennbar | very_horrible (Traktor/ATV), impassable | grade5 | sand, mud | Violett #b026ff | **aus** |
 
 - Stufen 1–3 = Big Enduro (Standard eingeblendet), 4–5 = für Geübte / Hard Enduro (Standard ausgeblendet). Im Tab
-  „Wege“ trennt eine gestrichelte Linie mit „für Geübte / Hard Enduro“ die beiden Gruppen.
+  „Wege“ stehen Überschriften (klein, fett, Großbuchstaben): „BIGENDURO“ über Stufe 1–3 und – nach gestrichelter
+  Linie – „FÜR GEÜBTE / HARD ENDURO“ über Stufe 4–5.
 - Farben bewusst **leuchtend** – die Hintergrundkarte hat selbst Grün (Wald), Gelb und Rot (Straßen), aber nur in
   Pastelltönen. Früher gespeicherte alte Standardfarben werden automatisch ersetzt (Stufe 1 #1fa83c, Stufe 2 #ffc107,
   Stufe 3 #e53935 und #ff1a4b – Rot war früher die schlechteste Stufe), selbst gewählte Farben bleiben.
@@ -276,6 +280,29 @@ Sieben Kategorien, einzeln ein-/ausschaltbar, mit Anzahl im Ausschnitt:
   Tab-Leiste ist die Kopfzeile und auch im eingeklappten Zustand sichtbar (dann ohne hervorgehobenen Tab).
   Liegt über „Mein Standort“ und der Statusleiste (z-index höher).
 - Tab antippen → Menü klappt auf und zeigt diesen Teil; den bereits offenen Tab nochmals antippen → einklappen.
+  **Kurz in die Karte tippen/klicken** (Leaflet-`click`, also nicht beim Verschieben) → offenes Menü klappt von selbst
+  ein (auch im Routen-Modus; der Punkt wird trotzdem gesetzt).
+- **Farbe und Symbole (überall gleicher Stil, keine Emojis mehr):**
+  - Akzentfarbe **Petrol** `--accent #0e7490` (dunkel `#0b4f6c`, hell `#e2f3f5`) mit **Verlauf** Petrol → Blau
+    `linear-gradient(135deg, #0d9488, #0e7490, #1d4ed8)` für Knöpfe, Einklapp-Knopf, aktiven 🧭-Kartenknopf und Hinweis-Knöpfe.
+  - **Symbol-Sammlung** als SVG-`<symbol>` direkt nach `<body>` (`#i-name`, 24er Raster, Strich 2 px, runde Enden);
+    Strichfarbe = SVG-Verlauf `#icg` (gradientUnits userSpaceOnUse, sonst verschwinden waagrechte Linien); auf
+    farbigem Grund (Knöpfe, POI-Kreise, Leisten-Knöpfe) weiß. Im Skript `ic(name, 'lg')`; `pointer-events: none`.
+  - Tabs: Wege = Straße mit Mittelstrich · POI = Nadel · Route = zwei Punkte mit S-Linie · GPX = Datei mit Track ·
+    Offline = Download-Pfeil · App = Handy (nicht gewählt 60 % Deckkraft, gewählt 100 % und leicht größer).
+  - Kartenknopf „Routenpunkte setzen“ = eigenes Symbol `route-add`: Routensymbol verkleinert (75 %) plus markantes,
+    gefülltes Plus-Abzeichen unten rechts (Kreis im Verlauf, weißes Plus; eingeschaltet: Knopf im Verlauf, Abzeichen
+    weiß mit Petrol-Plus – über CSS-Variablen `--badge` / `--badge-plus`). Der Tab „Route“ behält das einfache Routensymbol.
+  - Weitere: plus, check, x, info, locate (Mein Standort, Start hier), swap (Umkehren), trash, fit (Ganze Route zeigen –
+    Menü, Kartenknopf und GPX „Track ganz zeigen“: Routensymbol 78 % mit darübergelegter Lupe unten rechts; die Linse
+    ist mit der Untergrundfarbe gefüllt (`--lens-bg`: weiß, auf Verlaufs-Knöpfen #0e7490, auf hellen Knöpfen #eceff1)), width (Breite/Linie), opacity (halb gefüllter Kreis), map (Karte blasser), sun (Bildschirm
+    wach), install, reset (Standardfarben), gravel (Schotter-Vorliebe), ban (Vermeiden), noentry (gesperrt), globe
+    (Ganz Europa), calendar, disk, warn, refresh (Update), search, download/upload (Laden, GPX laden/speichern),
+    chev-up/down (Punkte verschieben), layers (Kartenauswahl, als Daten-URI-Hintergrund), Kacheln: motorway, car,
+    toll, ship, waves, town, mountain.
+  - **POI-Symbole** (Karte, Liste, Popup): weißes Linien-Icon im farbigen Kreis – fuel, cart, food, wrench, drop,
+    tent, view (Fernglas). Kurzstand unter dem POI-Tab = farbige Punkte der aktiven Kategorien (bis 2), sonst „3 an“.
+  - + / − der Leaflet-Zoomknöpfe in Petrol. Einklapp-Knopf = runder Verlaufs-Knopf mit weißem Chevron nach oben.
   Rechts in der Tab-Leiste ein eigener **Einklapp-Knopf ▲** (dunkler runder Knopf, 42 px breit, „Menü einklappen“),
   nur bei offenem Menü sichtbar.
 - **Beim ersten Start ist alles eingeklappt**; danach werden Menü-Zustand und aktiver Tab gemerkt.
@@ -471,7 +498,11 @@ Anstieg (`filtered ascend`), Farbbalken und Anteile hoch/mittel/niedrig/Straße,
   als runde „Pillen“, max. Bildschirmbreite − 32 px.
 - Menü einklappbar, Akkordeon-Abschnitte. Alle Bedienelemente leiten Klicks nicht an die Karte weiter.
 - **Installierbar (PWA):** `manifest.webmanifest` (`display: standalone`, `orientation: any`, `start_url`/`scope` `./`,
-  Farbe #22313a, Symbole 192/512 + maskierbar 512), `<link rel="manifest">`, `theme-color`, `apple-touch-icon`.
+  Farbe #0e7490, Symbole 192/512 + maskierbar 512), `<link rel="manifest">`, `theme-color` #0e7490, `apple-touch-icon`.
+  **App-Symbol:** Hintergrund Verlauf Petrol → Blau (#0d9488 → #0e7490 → #1d4ed8, diagonal), darauf weiß: Enduro
+  von der Seite (Stollenreifen, lange Gabel, hoher Kotflügel vorne, hohes Heck, hochgezogener Auspuff) und darüber eine
+  gepunktete geplante Route vom Start-Ring zur Zielnadel. Normal: abgerundetes Quadrat (Radius 22 %), Inhalt 84 %;
+  maskierbar: randlos, Inhalt 66 % (sichere Zone). Bei Änderungen `CACHE` in sw.js erhöhen.
   `sw.js` nur über http(s) registrieren: App-Dateien „zuerst Netz, sonst Speicher“, Leaflet von unpkg „zuerst Speicher“;
   Kacheln, `data/…`, Overpass und BRouter **nicht** abfangen.
 - **Querformat** (`orientation: landscape` und Höhe ≤ 520 px):

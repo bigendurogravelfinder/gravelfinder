@@ -6,7 +6,7 @@
 <title>Schotterkarte</title>
 <!-- als App installierbar (Android: "Zum Startbildschirm hinzufügen" / "App installieren") -->
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#22313a">
+<meta name="theme-color" content="#0e7490">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="mobile-web-app-capable" content="yes">
@@ -19,7 +19,10 @@
     --bg: #ffffff;
     --fg: #1d232a;
     --muted: #5b6672;
-    --accent: #c0561b;
+    --accent: #0e7490;                 /* Petrol – Hauptfarbe der Bedienung */
+    --accent-dark: #0b4f6c;
+    --accent-grad: linear-gradient(135deg, #0d9488 0%, #0e7490 50%, #1d4ed8 100%);   /* Schattierung Petrol → Blau */
+    --accent-soft: #e2f3f5;
     --border: rgba(0,0,0,.15);
     --shadow: 0 2px 10px rgba(0,0,0,.25);
     --error: #b3261e;
@@ -46,10 +49,10 @@
     display: flex; align-items: center; justify-content: center; padding: 0;
   }
   .tabClose span {
-    width: 30px; height: 30px; border-radius: 50%; background: var(--fg); color: #fff;
+    width: 30px; height: 30px; border-radius: 50%; background: var(--accent-grad); color: #fff; box-shadow: 0 1px 4px rgba(14,116,144,.45);
     display: flex; align-items: center; justify-content: center; font-size: 13px; line-height: 1;
   }
-  .tabClose:hover span { background: var(--accent); }
+  .tabClose:hover span { background: var(--accent-dark); }
   #panel.collapsed .tabClose { display: none; }
   .tab {
     flex: 1; min-width: 0; border: 0; background: none; cursor: pointer; font-family: inherit; color: var(--muted);
@@ -57,7 +60,16 @@
     border-bottom: 3px solid transparent;
   }
   .tab.active { color: var(--fg); background: var(--bg); border-bottom-color: var(--accent); }
-  .tabIcon { font-size: 19px; line-height: 1.1; }
+  /* Linien-Icons, alle im selben Farbton (Akzentfarbe); nicht gewählte etwas blasser */
+  .tabIcon {
+    width: 22px; height: 22px; flex: none; margin-bottom: 1px;
+    fill: none; stroke: url(#icg); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+    opacity: .6; transition: opacity .15s, transform .15s;
+  }
+  .tab.active .tabIcon { opacity: 1; transform: scale(1.08); }
+  .tab:hover .tabIcon { opacity: .9; }
+  #panel.collapsed .tab .tabIcon { opacity: .85; transform: none; }
+  .tabClose svg { fill: none; stroke: #fff; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; display: block; }
   .tabName { font-size: 10.5px; font-weight: 700; letter-spacing: -.2px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
   .tabSum { font-size: 10px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tabSum:empty { display: none; }
@@ -93,7 +105,8 @@
   .qRow input[type=color] { width: 44px; height: 36px; flex: none; }
   .qRow .check { flex: 1; min-height: 40px; }
   .qName { font-weight: 600; }
-  .qSep { margin: 8px 0 2px; padding-top: 6px; border-top: 1px dashed var(--border); font-size: 12px; color: var(--muted); }
+  .qSep { margin: 8px 0 2px; padding-top: 6px; border-top: 1px dashed var(--border); font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+  .qSep.first { margin-top: 0; padding-top: 0; border-top: 0; }
   .qHint { display: block; font-size: 12px; color: var(--muted); font-weight: 400; line-height: 1.25; }
   .qDot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: -1px; margin-right: 4px; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
   /* kompakte Schieber-Zeile: Symbol + Kurzwort | Schieber | Wert */
@@ -114,11 +127,12 @@
   .chips { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   .chip { position: relative; cursor: pointer; }
   .chip input { position: absolute; opacity: 0; pointer-events: none; }
+  .chip span .ic { width: 17px; height: 17px; }
   .chip span {
     display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 10px; box-sizing: border-box;
     border: 1px solid var(--border); border-radius: 10px; font-size: 13px; background: #fff; user-select: none; white-space: nowrap;
   }
-  .chip input:checked + span { background: #ffe9dc; border-color: var(--accent); font-weight: 700; }
+  .chip input:checked + span { background: var(--accent-soft); border-color: var(--accent); font-weight: 700; }
   .chip input:checked + span::after { content: '✕'; margin-left: auto; color: var(--accent); font-size: 12px; }
   .chip input:focus-visible + span { outline: 2px solid var(--accent); }
   .check.sub { padding-left: 24px; }   /* Unterpunkt, gehört zur Zeile darüber */
@@ -130,7 +144,9 @@
   .legend { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin-top: 4px; }
   .legend svg { flex: none; }
   #panelBody { max-height: calc(100vh - 86px); overflow-y: auto; box-sizing: border-box; }
-  .poiSym { width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; flex: none; }
+  .poiSym { width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; flex: none; vertical-align: middle; }
+  .poiSym .ic { width: 15px; height: 15px; vertical-align: 0; }
+  .miniDot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin: 0 1px; box-shadow: 0 0 0 1px #fff; }
   .poiCount { color: var(--muted); font-size: 13px; }
   .preloadRow { display: flex; gap: 8px; }
   .preloadRow[hidden], .row[hidden] { display: none; }
@@ -166,7 +182,7 @@
 
   /* ---------- Route ---------- */
   .btn.small { min-height: 36px; padding: 0 10px; font-size: 13px; width: auto; margin-top: 6px; }
-  .btn.active { background: #1565c0; }
+  .btn.active { background: var(--accent-dark); }
   .routeTools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
   .routeTools .btn.small, .routeBtns .btn.small { width: auto; margin-top: 0; flex: 1 1 auto; }
   .routePoints .rp { display: flex; align-items: center; gap: 8px; min-height: 38px; border-bottom: 1px solid var(--border); font-size: 14px; }
@@ -186,7 +202,7 @@
   .routeLegend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 3px 0 6px; vertical-align: -1px; }
   .routeBtns { display: flex; gap: 6px; flex-wrap: wrap; }
   .routeErr { color: var(--error); font-size: 14px; }
-  .btn.fitBtn { background: #1565c0; margin: 4px 0 8px; }
+  .btn.fitBtn { margin: 4px 0 8px; }
   .optBox { margin-top: 12px; border: 1px solid var(--border); border-radius: 10px; padding: 0 10px; }
   .optBox > summary { cursor: pointer; font-weight: 600; font-size: 14px; min-height: 44px; display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; list-style: none; }
   .optBox > summary::-webkit-details-marker { display: none; }
@@ -202,7 +218,7 @@
     display: flex; flex-direction: column; align-items: center; gap: 2px; user-select: none; cursor: default;
   }
   .sideSlider.hidden { display: none; }
-  .ssIcon { font-size: 16px; line-height: 1; }
+  .ssIcon { font-size: 16px; line-height: 1; display: flex; }
   .ssLabel { font-size: 9px; font-weight: 700; color: var(--muted); }
   .ssValue { font-size: 11px; font-weight: 800; }
   .ssTrack { position: relative; width: 44px; height: 120px; }
@@ -215,12 +231,35 @@
   #map.routeMode { cursor: crosshair; }
   #map.routeMode .leaflet-grab { cursor: crosshair; }
   .routeToggle a { font-size: 22px; text-decoration: none; }
-  .routeToggle.on a { background: #1565c0 !important; }
+  .routeToggle.on a { background: var(--accent-grad) !important; }
+  .routeToggle.on a .ic { stroke: #fff; --badge: #fff; --badge-plus: #0e7490; }
   .routeFitCtl.hidden { display: none; }
   .routeFitCtl a { display: flex !important; align-items: center; justify-content: center; color: var(--fg); }
-  .routeFitCtl svg { display: block; }
+  .routeToggle a { display: flex !important; align-items: center; justify-content: center; }
+  .leaflet-bar a .ic.lg { width: 24px; height: 24px; }
+  /* Leaflet-Knöpfe im selben Stil: + / − in Petrol, Ebenen-Symbol als Linien-Icon mit Verlauf */
+  .leaflet-bar a.leaflet-control-zoom-in, .leaflet-bar a.leaflet-control-zoom-out { color: var(--accent); font-weight: 600; }
+  .leaflet-control-layers-toggle {
+    background-size: 24px 24px !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%230d9488'/%3E%3Cstop offset='.55' stop-color='%230e7490'/%3E%3Cstop offset='1' stop-color='%231d4ed8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg fill='none' stroke='url(%23g)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3 2.5 8 12 13l9.5-5z'/%3E%3Cpath d='m2.5 12.5 9.5 5 9.5-5'/%3E%3Cpath d='m2.5 16.5 9.5 5 9.5-5'/%3E%3C/g%3E%3C/svg%3E") !important;
+  }
   .preloadRow select { flex: 1; min-height: 44px; font: inherit; font-size: 15px; border: 1px solid var(--border); border-radius: 8px; padding: 0 8px; background: #fff; color: var(--fg); }
-  .btn { min-height: 44px; padding: 0 16px; border: 0; border-radius: 22px; background: var(--accent); color: #fff; font: 600 15px inherit; font-family: inherit; cursor: pointer; }
+  .btn {
+    min-height: 44px; padding: 0 16px; border: 0; border-radius: 22px; background: var(--accent-grad); color: #fff;
+    font: 600 15px inherit; font-family: inherit; cursor: pointer; box-shadow: 0 2px 6px rgba(14,116,144,.3);
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  }
+  .btn.light { box-shadow: none; }
+  /* Symbole: gemeinsamer Stil, Verlauf Petrol → Blau; auf farbigem Grund weiß */
+  .ic {
+    width: 18px; height: 18px; flex: none; vertical-align: -3px; pointer-events: none;
+    fill: none; stroke: url(#icg); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  }
+  .ic.lg { width: 22px; height: 22px; }
+  .btn:not(.light) .ic, .pill button .ic, .poi-marker .ic, .poiSym .ic, .rpBadge .ic { stroke: #fff; --lens-bg: #0e7490; }
+  .btn.light .ic, .gpxHead button .ic { --lens-bg: #eceff1; }
+  .btn:disabled .ic { stroke: #546e7a; }
+  .sLbl .ic, .optLine .ic, .tip .ic, .hint .ic, .secSum .ic { width: 16px; height: 16px; margin-right: 3px; }
   .btn.light { background: #eceff1; color: var(--fg); margin-top: 8px; width: 100%; }
   .hint { font-size: 13px; color: var(--muted); margin-top: 6px; line-height: 1.35; }
 
@@ -246,6 +285,7 @@
     box-shadow: 0 1px 5px rgba(0,0,0,.55);
     display: flex; align-items: center; justify-content: center; font-size: 16px; line-height: 1;
   }
+  .poi-marker .ic { width: 17px; height: 17px; stroke-width: 2.2; vertical-align: 0; }
   /* weiter herausgezoomt: kleinere Symbole, damit sie sich weniger überdecken */
   .zoom-low .poi-marker { transform: scale(.7); }
 
@@ -259,7 +299,7 @@
   }
   #locateBtn:active { transform: scale(.97); }
   #locateBtn svg { width: 22px; height: 22px; }
-  #locateBtn.active { color: #1a73e8; }
+  #locateBtn.active { color: var(--accent-dark); background: var(--accent-soft); }
   #locateBtn.busy svg { animation: spin 1.2s linear infinite; }
 
   /* ---------- Standort-Markierung ---------- */
@@ -311,7 +351,7 @@
   .pill button.light { background: #eceff1; color: var(--fg); }
   .pill button {
     min-height: 40px; padding: 0 16px; border: 0; border-radius: 20px;
-    background: var(--accent); color: #fff; font: 600 15px inherit; font-family: inherit; cursor: pointer;
+    background: var(--accent-grad); color: #fff; font: 600 15px inherit; font-family: inherit; cursor: pointer;
   }
   .spinner { width: 18px; height: 18px; border: 3px solid #ddd; border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; flex: none; }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -319,13 +359,17 @@
   /* ---------- Leaflet-Anpassungen ---------- */
   .leaflet-touch .leaflet-bar a { width: 44px; height: 44px; line-height: 44px; font-size: 22px; }
   .leaflet-control-layers-toggle { width: 44px !important; height: 44px !important; }
-  /* Zoomstufen-Anzeige unter + / − */
+  /* Zoomstufen-Anzeige unter + / −: Lupen-Symbol + Zahl im Petrol-Blau-Verlauf (gleicher Stil wie die übrigen Knöpfe) */
   .zoomInfo {
-    width: 44px; box-sizing: border-box; background: rgba(255,255,255,.92); text-align: center;
-    font-weight: 700; font-size: 16px; line-height: 1; padding: 4px 0 5px; color: #1d232a; cursor: default; user-select: none;
+    width: 44px; box-sizing: border-box; background: #fff; text-align: center; cursor: default; user-select: none;
+    display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 5px 0 4px; line-height: 1;
   }
   .leaflet-control.zoomInfo { margin-top: 6px; }
-  .zoomInfo span { display: block; font-size: 9px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 2px; }
+  .zoomInfo .ic { width: 15px; height: 15px; vertical-align: 0; }
+  .zoomInfo b {
+    font-size: 17px; font-weight: 800; letter-spacing: -.3px;
+    background: var(--accent-grad); -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
   .leaflet-popup-content { font-size: 14px; line-height: 1.45; margin: 12px 14px; }
   .leaflet-popup-content h3 { margin: 0 0 6px; font-size: 16px; }
   .leaflet-popup-content table { border-collapse: collapse; }
@@ -367,32 +411,107 @@
 </style>
 </head>
 <body>
+<!-- Symbol-Sammlung: schlichte Linien-Icons (24er Raster), Farbe = Verlauf #icg (Petrol → Blau).
+     Verwendung: <svg class="ic"><use href="#i-name"/></svg> bzw. im Skript ic('name') -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="icg" gradientUnits="userSpaceOnUse" x1="2" y1="2" x2="22" y2="22">
+      <stop offset="0" stop-color="#0d9488"/><stop offset=".55" stop-color="#0e7490"/><stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+  </defs>
+  <symbol id="i-road" viewBox="0 0 24 24"><path d="M7.5 21 10.5 3M16.5 21 13.5 3"/><path d="M12 6.5v1.5M12 11v2M12 16.5v2.5"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21.5s-7-6.1-7-11.5a7 7 0 0 1 14 0c0 5.4-7 11.5-7 11.5z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+  <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8.5 19H16a3.5 3.5 0 0 0 0-7H8a3.5 3.5 0 0 1 0-7h7.5"/></symbol>
+  <!-- Routenpunkte setzen: Routensymbol (verkleinert) + markantes gefülltes Plus-Abzeichen unten rechts -->
+  <symbol id="i-route-add" viewBox="0 0 24 24">
+    <g transform="scale(.74)" stroke-width="2.6"><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8.5 19H16a3.5 3.5 0 0 0 0-7H8a3.5 3.5 0 0 1 0-7h7.5"/></g>
+    <circle cx="18" cy="18" r="5.6" style="fill: var(--badge, url(#icg)); stroke: none"/>
+    <path d="M18 15.2v5.6M15.2 18h5.6" style="stroke: var(--badge-plus, #fff)" stroke-width="2.2"/>
+  </symbol>
+  <symbol id="i-gpx" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M8.5 17.5c1.5-.5 1.5-3 3.5-3s2.5-2 3.5-2.5"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3.5v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20.5h14"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20.5h14"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18h2"/></symbol>
+  <symbol id="i-install" viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M12 6.5v7"/><path d="m9.5 11 2.5 2.5 2.5-2.5"/><path d="M11 18h2"/></symbol>
+  <symbol id="i-chev-up" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></symbol>
+  <symbol id="i-chev-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+  <symbol id="i-locate" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5"/><circle cx="12" cy="12" r="8"/><path d="M12 1.5v2.5M12 20v2.5M1.5 12H4M20 12h2.5"/></symbol>
+  <symbol id="i-swap" viewBox="0 0 24 24"><path d="M8 4v15"/><path d="M4.5 7.5 8 4l3.5 3.5"/><path d="M16 20V5"/><path d="m12.5 16.5 3.5 3.5 3.5-3.5"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4.5h6V7"/><path d="m6.5 7 1 13h9l1-13"/><path d="M10 11v5M14 11v5"/></symbol>
+  <!-- Ganze Route zeigen: Routensymbol mit darübergelegter Lupe (Linse deckt die Route ab: --lens-bg = Untergrund) -->
+  <symbol id="i-fit" viewBox="0 0 24 24">
+    <g transform="scale(.78)" stroke-width="2.5"><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8.5 19H16a3.5 3.5 0 0 0 0-7H8a3.5 3.5 0 0 1 0-7h7.5"/></g>
+    <circle cx="16" cy="16" r="5" style="fill: var(--lens-bg, #fff)"/>
+    <path d="m19.6 19.6 2.9 2.9" stroke-width="2.6"/>
+  </symbol>
+  <symbol id="i-width" viewBox="0 0 24 24"><path d="M4 6h16" stroke-width="1.2"/><path d="M4 12h16" stroke-width="2.2"/><path d="M4 18.5h16" stroke-width="3.6"/></symbol>
+  <symbol id="i-opacity" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="url(#icg)" fill-opacity=".45"/></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><path d="M9 4 3 6.5V20l6-2.5 6 2.5 6-2.5V4l-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></symbol>
+  <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7L4 8.5"/><path d="M4 4v4.5h4.5"/></symbol>
+  <symbol id="i-gravel" viewBox="0 0 24 24"><circle cx="6" cy="17" r="2.2"/><circle cx="12.5" cy="16" r="2.8"/><circle cx="18.5" cy="17.5" r="2"/><circle cx="9" cy="10.5" r="1.8"/><circle cx="15.5" cy="10" r="1.6"/><path d="M3 21h18"/></symbol>
+  <symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/></symbol>
+  <symbol id="i-noentry" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M7.5 12h9"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-disk" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="2.5"/><path d="M5 6v12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V6"/><path d="M5 12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4 2.5 20h19z"/><path d="M12 10v4.5M12 17.5h.01"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7L20 8.5"/><path d="M20 4v4.5h-4.5"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3 2.5 8 12 13l9.5-5z"/><path d="m2.5 12.5 9.5 5 9.5-5"/><path d="m2.5 16.5 9.5 5 9.5-5"/></symbol>
+  <symbol id="i-motorway" viewBox="0 0 24 24"><path d="M4 21 8.5 3M20 21 15.5 3"/><path d="M12 4v2.5M12 10v3M12 16.5v4"/></symbol>
+  <symbol id="i-car" viewBox="0 0 24 24"><path d="M4.5 16.5V12l2-5h11l2 5v4.5z"/><path d="M4.5 12h15"/><circle cx="8" cy="17" r="1.8"/><circle cx="16" cy="17" r="1.8"/></symbol>
+  <symbol id="i-toll" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5a4 4 0 1 0 0 7"/><path d="M7 10.5h6M7 13.5h6"/></symbol>
+  <symbol id="i-ship" viewBox="0 0 24 24"><path d="M3 14h18l-2.5 5h-13z"/><path d="M7 14V9.5h10V14"/><path d="M12 9.5v-4"/><path d="M2.5 22c1.5 0 1.5-1 3-1s1.5 1 3 1 1.5-1 3-1 1.5 1 3 1 1.5-1 3-1 1.5 1 3 1"/></symbol>
+  <symbol id="i-waves" viewBox="0 0 24 24"><path d="M3 8c1.5 0 1.5-1.5 3-1.5S7.5 8 9 8s1.5-1.5 3-1.5S13.5 8 15 8s1.5-1.5 3-1.5S19.5 8 21 8"/><path d="M3 13c1.5 0 1.5-1.5 3-1.5S7.5 13 9 13s1.5-1.5 3-1.5S13.5 13 15 13s1.5-1.5 3-1.5S19.5 13 21 13"/><path d="M3 18c1.5 0 1.5-1.5 3-1.5S7.5 18 9 18s1.5-1.5 3-1.5S13.5 18 15 18s1.5-1.5 3-1.5S19.5 18 21 18"/></symbol>
+  <symbol id="i-town" viewBox="0 0 24 24"><path d="M3.5 20.5V11l5-4 5 4v9.5"/><path d="M13.5 20.5V8.5l3.5-3 3.5 3v12"/><path d="M2 20.5h20M7 20.5v-4h3v4"/></symbol>
+  <symbol id="i-mountain" viewBox="0 0 24 24"><path d="M2.5 19.5 9 7.5l4 6.5 2.5-3.5 6 9z"/></symbol>
+  <symbol id="i-fuel" viewBox="0 0 24 24"><rect x="4.5" y="4" width="9" height="16.5" rx="1.5"/><path d="M4.5 10h9"/><path d="M13.5 8.5l3 2.5v6.5a1.5 1.5 0 0 0 3 0V8L17 5"/></symbol>
+  <symbol id="i-cart" viewBox="0 0 24 24"><path d="M3 4h2.5l2.2 10.5h10l2-7.5H6.4"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></symbol>
+  <symbol id="i-food" viewBox="0 0 24 24"><path d="M7 3v18"/><path d="M4.5 3v5a2.5 2.5 0 0 0 5 0V3"/><path d="M16.5 21V3c-2 1-3 3.5-3 7h3"/></symbol>
+  <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9z"/></symbol>
+  <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></symbol>
+  <symbol id="i-tent" viewBox="0 0 24 24"><path d="M3 20.5 12 5l9 15.5z"/><path d="M9.5 20.5 12 15l2.5 5.5"/></symbol>
+  <symbol id="i-view" viewBox="0 0 24 24"><circle cx="7" cy="15.5" r="3.5"/><circle cx="17" cy="15.5" r="3.5"/><path d="M10.5 15.5h3M4 14l2-8h3l1 6M20 14l-2-8h-3l-1 6"/></symbol>
+</svg>
 <div id="map"></div>
 
 <div id="panel">
   <!-- Tab-Leiste = Kopfzeile des Menüs: Antippen öffnet den Teil, ▲ klappt das Menü wieder ein -->
   <div class="tabs" role="tablist">
-    <button type="button" class="tab" role="tab" data-tab="way" title="Schotterwege: Qualität, Farben, Linie"><span class="tabIcon">〰️</span><span class="tabName">Wege</span></button>
-    <button type="button" class="tab" role="tab" data-tab="poi" title="Tankstellen, Lebensmittel …"><span class="tabIcon">📍</span><span class="tabName">POI</span><span class="tabSum" id="sumPoi"></span></button>
-    <button type="button" class="tab" role="tab" data-tab="route" title="Route planen"><span class="tabIcon">🧭</span><span class="tabName">Route</span><span class="tabSum" id="sumRoute"></span></button>
-    <button type="button" class="tab" role="tab" data-tab="gpx" title="Eigene GPX-Tracks"><span class="tabIcon">📂</span><span class="tabName">GPX</span><span class="tabSum" id="sumGpx"></span></button>
-    <button type="button" class="tab" role="tab" data-tab="off" title="Länder offline speichern"><span class="tabIcon">💾</span><span class="tabName">Offline</span><span class="tabSum" id="sumOffline"></span></button>
-    <button type="button" class="tab" role="tab" data-tab="app" title="Installieren, Bildschirm wach halten"><span class="tabIcon">📱</span><span class="tabName">App</span></button>
-    <button type="button" id="panelClose" class="tabClose" title="Menü einklappen" aria-label="Menü einklappen"><span>▲</span></button>
+    <!-- Symbole: schlichte Linien-Icons (24er Raster, 2 px Strich) in der Akzentfarbe -->
+    <button type="button" class="tab" role="tab" data-tab="way" title="Schotterwege: Qualität, Farben, Linie">
+      <svg class="tabIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 21 10.5 3M16.5 21 13.5 3"/><path d="M12 6.5v1.5M12 11v2M12 16.5v2.5"/></svg><span class="tabName">Wege</span></button>
+    <button type="button" class="tab" role="tab" data-tab="poi" title="Tankstellen, Lebensmittel …">
+      <svg class="tabIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21.5s-7-6.1-7-11.5a7 7 0 0 1 14 0c0 5.4-7 11.5-7 11.5z"/><circle cx="12" cy="10" r="2.5"/></svg><span class="tabName">POI</span><span class="tabSum" id="sumPoi"></span></button>
+    <button type="button" class="tab" role="tab" data-tab="route" title="Route planen">
+      <svg class="tabIcon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8.5 19H16a3.5 3.5 0 0 0 0-7H8a3.5 3.5 0 0 1 0-7h7.5"/></svg><span class="tabName">Route</span><span class="tabSum" id="sumRoute"></span></button>
+    <button type="button" class="tab" role="tab" data-tab="gpx" title="Eigene GPX-Tracks">
+      <svg class="tabIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M8.5 17.5c1.5-.5 1.5-3 3.5-3s2.5-2 3.5-2.5"/></svg><span class="tabName">GPX</span><span class="tabSum" id="sumGpx"></span></button>
+    <button type="button" class="tab" role="tab" data-tab="off" title="Länder offline speichern">
+      <svg class="tabIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20.5h14"/></svg><span class="tabName">Offline</span><span class="tabSum" id="sumOffline"></span></button>
+    <button type="button" class="tab" role="tab" data-tab="app" title="Installieren, Bildschirm wach halten">
+      <svg class="tabIcon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18h2"/></svg><span class="tabName">App</span></button>
+    <button type="button" id="panelClose" class="tabClose" title="Menü einklappen" aria-label="Menü einklappen">
+      <span><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg></span></button>
   </div>
   <div id="panelBody">
 
    <!-- ===================== Schotterwege ===================== -->
    <div class="tabPanel" data-tab="way" role="tabpanel">
     <div class="row rowTop" id="qList"></div>
-    <button type="button" id="qReset" class="linkBtn">↺ Standardfarben</button>
-    <div class="srow" title="Linienbreite der Schotterwege"><span class="sLbl">▬ Breite</span>
+    <button type="button" id="qReset" class="linkBtn"><svg class="ic"><use href="#i-reset"/></svg> Standardfarben</button>
+    <div class="srow" title="Linienbreite der Schotterwege"><span class="sLbl"><svg class="ic"><use href="#i-width"/></svg>Breite</span>
       <input type="range" id="widthRange" min="1" max="5" step="1" value="2" aria-label="Linienbreite">
       <span class="sVal"><span id="widthValue">2</span> px</span></div>
-    <div class="srow" title="Transparenz der Schotterwege"><span class="sLbl">◐ Transparenz</span>
+    <div class="srow" title="Transparenz der Schotterwege"><span class="sLbl"><svg class="ic"><use href="#i-opacity"/></svg>Transparenz</span>
       <input type="range" id="transpRange" min="0" max="100" step="5" value="0" aria-label="Transparenz">
       <span class="sVal"><span id="transpValue">0</span> %</span></div>
-    <div class="srow" title="Hintergrundkarte blasser machen, damit die Wege herausstechen"><span class="sLbl">Karte blasser</span>
+    <div class="srow" title="Hintergrundkarte blasser machen, damit die Wege herausstechen"><span class="sLbl"><svg class="ic"><use href="#i-map"/></svg>Karte blasser</span>
       <input type="range" id="bgRange" min="0" max="100" step="10" value="60" aria-label="Hintergrund abschwächen">
       <span class="sVal"><span id="bgValue">60</span> %</span></div>
    </div>
@@ -400,7 +519,7 @@
    <!-- ===================== POI ===================== -->
    <div class="tabPanel" data-tab="poi" role="tabpanel">
     <div class="row rowTop" id="poiList"></div>
-    <div class="srow" title="Kleinere Zahl = POI schon weiter herausgezoomt sichtbar (bei vielen POI langsamer)"><span class="sLbl free">POI ab Zoomstufe anzeigen</span>
+    <div class="srow" title="Kleinere Zahl = POI schon weiter herausgezoomt sichtbar (bei vielen POI langsamer)"><span class="sLbl free"><svg class="ic"><use href="#i-search"/></svg>POI ab Zoomstufe anzeigen</span>
       <div class="stepper">
         <button type="button" id="poiZoomMinus" aria-label="früher einblenden">−</button>
         <span id="poiZoomValue">11</span>
@@ -411,18 +530,18 @@
    <!-- ===================== App ===================== -->
    <div class="tabPanel" data-tab="app" role="tabpanel">
     <div class="row rowTop">
-      <button type="button" id="installBtn" class="btn wide" hidden>📲 Installieren</button>
+      <button type="button" id="installBtn" class="btn wide" hidden><svg class="ic lg"><use href="#i-install"/></svg>Installieren</button>
       <div class="hint" id="installHint"></div>
     </div>
-    <label class="check"><input type="checkbox" id="wakeLock"> ☀️ Bildschirm wach halten</label>
+    <label class="check"><input type="checkbox" id="wakeLock"> <svg class="ic lg"><use href="#i-sun"/></svg> Bildschirm wach halten</label>
     <div class="hint" id="wakeHint">braucht mehr Akku</div>
    </div>
 
    <!-- ===================== Route planen ===================== -->
    <div class="tabPanel" data-tab="route" role="tabpanel">
     <div class="row rowTop">
-      <button type="button" id="routeModeBtn" class="btn wide">➕ Punkte setzen</button>
-      <details class="tip"><summary>ⓘ So geht's</summary>
+      <button type="button" id="routeModeBtn" class="btn wide"><svg class="ic lg"><use href="#i-plus"/></svg>Punkte setzen</button>
+      <details class="tip"><summary><svg class="ic"><use href="#i-info"/></svg>So geht's</summary>
         <ul>
           <li>Tippen = Punkt (erster = Start, letzter = Ziel)</li>
           <li>Punkt ziehen = verschieben</li>
@@ -433,24 +552,24 @@
     <div class="row">
       <div id="routePoints" class="routePoints"></div>
       <div class="routeTools">
-        <button type="button" id="routeFromGps" class="btn light small" title="Mein Standort als Start">📍 Start hier</button>
-        <button type="button" id="routeReverse" class="btn light small" title="Richtung umkehren">⇅ Umkehren</button>
-        <button type="button" id="routeClear" class="btn light small" title="Alle Punkte löschen">🗑 Löschen</button>
+        <button type="button" id="routeFromGps" class="btn light small" title="Mein Standort als Start"><svg class="ic"><use href="#i-locate"/></svg>Start hier</button>
+        <button type="button" id="routeReverse" class="btn light small" title="Richtung umkehren"><svg class="ic"><use href="#i-swap"/></svg>Umkehren</button>
+        <button type="button" id="routeClear" class="btn light small" title="Alle Punkte löschen"><svg class="ic"><use href="#i-trash"/></svg>Löschen</button>
       </div>
     </div>
     <!-- Ergebnis gleich unter den Punkten: Länge, Zeit, Anteile, "Ganze Route zeigen" -->
     <div class="row" id="routeResult"></div>
-    <div class="srow" title="Wie viel Umweg du für Schotter in Kauf nimmst"><span class="sLbl">🪨 Schotter</span>
+    <div class="srow" title="Wie viel Umweg du für Schotter in Kauf nimmst"><span class="sLbl"><svg class="ic"><use href="#i-gravel"/></svg>Schotter</span>
       <input type="range" id="prefRange" min="1" max="5" step="0.5" value="3" aria-label="Schotter-Vorliebe">
       <span class="sVal wide" id="prefValue">stark</span></div>
-    <div class="srow" title="Linienstärke der Route (Transparenz: Schieber links auf der Karte)"><span class="sLbl">▬ Linie</span>
+    <div class="srow" title="Linienstärke der Route (Transparenz: Schieber links auf der Karte)"><span class="sLbl"><svg class="ic"><use href="#i-width"/></svg>Linie</span>
       <input type="range" id="routeWidth" min="2" max="10" step="1" value="4" aria-label="Linienstärke der Route">
       <span class="sVal"><span id="routeWidthValue">4</span> px</span></div>
     <details class="optBox" id="routeOptBox">
-      <summary>🚫 Vermeiden <span class="secSum" id="routeOptSum"></span></summary>
+      <summary><svg class="ic lg"><use href="#i-ban"/></svg>Vermeiden <span class="secSum" id="routeOptSum"></span></summary>
       <div id="routeOpts" class="chips"></div>
       <div class="hint">nur wenn es gar nicht anders geht</div>
-      <div class="optLine">⛔ Gesperrte Wege: nie in der Route</div>
+      <div class="optLine"><svg class="ic"><use href="#i-noentry"/></svg>Gesperrte Wege: nie in der Route</div>
       <label class="check sub" title="gesperrt / nur Anrainer, Land- oder Forstwirtschaft – als graue Strichlinie"><input type="checkbox" id="showRestricted">
         <svg width="28" height="8"><line x1="0" y1="4" x2="28" y2="4" stroke="#777" stroke-width="3" stroke-dasharray="6 5"/></svg> auf der Karte zeigen</label>
     </details>
@@ -459,7 +578,7 @@
    <!-- ===================== GPX-Tracks ===================== -->
    <div class="tabPanel" data-tab="gpx" role="tabpanel">
     <div class="row rowTop">
-      <label class="btn wide fileBtn" title="Eigene Tracks anzeigen, z. B. TET – bleiben gespeichert">📂 GPX laden
+      <label class="btn wide fileBtn" title="Eigene Tracks anzeigen, z. B. TET – bleiben gespeichert"><svg class="ic lg"><use href="#i-upload"/></svg>GPX laden
         <input type="file" id="gpxFile" accept=".gpx,application/gpx+xml,application/xml,text/xml" multiple hidden>
       </label>
     </div>
@@ -471,30 +590,30 @@
     <div class="row rowTop" id="countryBox" hidden>
       <label class="check allEurope" title="Häkchen = auch ohne Netz verfügbar">
         <input type="checkbox" id="cbAll">
-        <span class="cName">🌍 Ganz Europa</span>
+        <span class="cName"><svg class="ic"><use href="#i-globe"/></svg> Ganz Europa</span>
         <span class="cSize" id="sizeAll"></span>
       </label>
       <div id="countryList" class="countryList"></div>
-      <button type="button" id="countryApply" class="btn wide">⬇ Laden</button>
-      <div class="hint">✔ gespeichert · ⟳ Update da · Häkchen weg = löschen</div>
+      <button type="button" id="countryApply" class="btn wide">Laden</button>
+      <div class="hint"><svg class="ic"><use href="#i-check"/></svg>gespeichert · <svg class="ic"><use href="#i-refresh"/></svg>Update da · Häkchen weg = löschen</div>
     </div>
     <div class="row">
       <div class="hint" id="dataInfo"></div>
       <div class="hint" id="cacheInfo">…</div>
-      <button type="button" id="clearCacheBtn" class="btn light">🗑 Alles löschen</button>
+      <button type="button" id="clearCacheBtn" class="btn light"><svg class="ic"><use href="#i-trash"/></svg>Alles löschen</button>
     </div>
    </div>
   </div>
 </div>
 
 <button id="locateBtn" type="button">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
+  <svg class="ic"><use href="#i-locate"/></svg>
   Mein Standort
 </button>
 
 <!-- Transparenz für angezeigte Route: nur sichtbar, solange eine Route angezeigt wird -->
 <div id="routeOpacityCtl" class="sideSlider leaflet-bar hidden" title="Transparenz für angezeigte Route">
-  <span class="ssIcon">🧭</span>
+  <span class="ssIcon"><svg class="ic"><use href="#i-route"/></svg></span>
   <span class="ssLabel">Route</span>
   <div class="ssTrack"><input type="range" id="routeTransp" min="0" max="90" step="10" value="0" aria-label="Transparenz für angezeigte Route"></div>
   <span class="ssLabel">Transp.</span>
@@ -669,6 +788,11 @@ assign initialcost
 (function () {
   'use strict';
 
+  // Symbol aus der Sammlung oben im <body> (#i-…), z. B. ic('trash') oder ic('plus', 'lg')
+  function ic(name, cls) {
+    return '<svg class="ic' + (cls ? ' ' + cls : '') + '" aria-hidden="true"><use href="#i-' + name + '"/></svg>';
+  }
+
   // ================= Einstellungen =================
   var OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 
@@ -693,25 +817,25 @@ assign initialcost
   // ================= Orte (POIs) – hier lassen sich Kategorien ergänzen =================
   // query: Overpass-Filter (nwr = Punkt, Weg oder Fläche), match: dieselbe Regel für die Zuordnung im Browser
   var POI_CATS = [
-    { id: 'fuel',  label: 'Tankstellen',        emoji: '⛽', color: '#d32f2f', on: true,
+    { id: 'fuel',  label: 'Tankstellen',        emoji: '⛽', icon: 'fuel', color: '#d32f2f', on: true,
       query: 'nwr["amenity"="fuel"]',
       match: function (t) { return t.amenity === 'fuel'; } },
-    { id: 'food',  label: 'Lebensmittel',       emoji: '🛒', color: '#2e7d32', on: false,
+    { id: 'food',  label: 'Lebensmittel',       emoji: '🛒', icon: 'cart', color: '#2e7d32', on: false,
       query: 'nwr["shop"~"^(supermarket|convenience|bakery|butcher|greengrocer|farm)$"]',
       match: function (t) { return /^(supermarket|convenience|bakery|butcher|greengrocer|farm)$/.test(t.shop || ''); } },
-    { id: 'gastro', label: 'Gasthaus / Café',   emoji: '🍽️', color: '#ef6c00', on: false,
+    { id: 'gastro', label: 'Gasthaus / Café',   emoji: '🍽️', icon: 'food', color: '#ef6c00', on: false,
       query: 'nwr["amenity"~"^(restaurant|cafe|fast_food|biergarten|pub)$"]',
       match: function (t) { return /^(restaurant|cafe|fast_food|biergarten|pub)$/.test(t.amenity || ''); } },
-    { id: 'moto',  label: 'Motorrad-Werkstatt / Händler', emoji: '🏍️', color: '#37474f', on: false,
+    { id: 'moto',  label: 'Motorrad-Werkstatt / Händler', emoji: '🏍️', icon: 'wrench', color: '#37474f', on: false,
       query: 'nwr["shop"~"^(motorcycle|motorcycle_repair)$"]',
       match: function (t) { return /^(motorcycle|motorcycle_repair)$/.test(t.shop || ''); } },
-    { id: 'water', label: 'Trinkwasser',        emoji: '💧', color: '#0277bd', on: false,
+    { id: 'water', label: 'Trinkwasser',        emoji: '💧', icon: 'drop', color: '#0277bd', on: false,
       query: 'nwr["amenity"="drinking_water"]',
       match: function (t) { return t.amenity === 'drinking_water'; } },
-    { id: 'camp',  label: 'Campingplätze',      emoji: '⛺', color: '#6d4c41', on: false,
+    { id: 'camp',  label: 'Campingplätze',      emoji: '⛺', icon: 'tent', color: '#6d4c41', on: false,
       query: 'nwr["tourism"="camp_site"]',
       match: function (t) { return t.tourism === 'camp_site'; } },
-    { id: 'view',  label: 'Aussichtspunkte',    emoji: '🔭', color: '#7b1fa2', on: false,
+    { id: 'view',  label: 'Aussichtspunkte',    emoji: '🔭', icon: 'view', color: '#7b1fa2', on: false,
       query: 'nwr["tourism"="viewpoint"]',
       match: function (t) { return t.tourism === 'viewpoint'; } }
   ];
@@ -731,13 +855,13 @@ assign initialcost
 
   // Routing-Optionen: id = Parameter im BRouter-Profil (avoid_<id>), on = Standard
   var ROUTE_OPTS = [
-    { id: 'motorway', on: true,  icon: '🛣️', label: 'Autobahn', hint: 'Autobahnen vermeiden (aus = schnelle Überstellung erlaubt)' },
-    { id: 'trunk',    on: false, icon: '🚗', label: 'Schnellstraße', hint: 'Schnell- und Kraftfahrstraßen vermeiden' },
-    { id: 'toll',     on: false, icon: '💶', label: 'Maut', hint: 'Mautstraßen und Mautstellen vermeiden (soweit eingetragen)' },
-    { id: 'ferry',    on: false, icon: '⛴️', label: 'Fähre', hint: 'Fähren vermeiden' },
-    { id: 'ford',     on: true,  icon: '🌊', label: 'Furt', hint: 'Bachdurchfahrten vermeiden' },
-    { id: 'town',     on: false, icon: '🏘️', label: 'Ortsgebiet', hint: 'Wohngebiete möglichst umfahren' },
-    { id: 'steep',    on: false, icon: '⛰️', label: 'Steilstücke', hint: 'starke Steigungen bergauf/bergab vermeiden' }
+    { id: 'motorway', on: true,  icon: 'motorway', label: 'Autobahn', hint: 'Autobahnen vermeiden (aus = schnelle Überstellung erlaubt)' },
+    { id: 'trunk',    on: false, icon: 'car', label: 'Schnellstraße', hint: 'Schnell- und Kraftfahrstraßen vermeiden' },
+    { id: 'toll',     on: false, icon: 'toll', label: 'Maut', hint: 'Mautstraßen und Mautstellen vermeiden (soweit eingetragen)' },
+    { id: 'ferry',    on: false, icon: 'ship', label: 'Fähre', hint: 'Fähren vermeiden' },
+    { id: 'ford',     on: true,  icon: 'waves', label: 'Furt', hint: 'Bachdurchfahrten vermeiden' },
+    { id: 'town',     on: false, icon: 'town', label: 'Ortsgebiet', hint: 'Wohngebiete möglichst umfahren' },
+    { id: 'steep',    on: false, icon: 'mountain', label: 'Steilstücke', hint: 'starke Steigungen bergauf/bergab vermeiden' }
   ];
 
   var settings = { width: 2, transparency: 0, bgFade: 60, poiMinZoom: 11, route: { pts: [], pref: 3, width: 4, transp: 0, opt: {} }, showRestricted: false, poi: {}, q: {}, panelOpen: false, tab: 'way', offline: [], noAsk: [], wakeLock: false };
@@ -800,7 +924,8 @@ assign initialcost
     if (p) {
       var on = POI_CATS.filter(function (c) { return settings.poi[c.id]; });
       // kurz – steht klein unter dem Tab
-      p.textContent = on.length > 2 ? on.length + ' an' : on.map(function (c) { return c.emoji; }).join('');
+      if (on.length > 2) p.textContent = on.length + ' an';
+      else p.innerHTML = on.map(function (c) { return '<span class="miniDot" style="background:' + c.color + '"></span>'; }).join('');
     }
     var ap = document.getElementById('sumApp');
     if (ap) ap.textContent = (typeof isStandalone !== 'undefined' && isStandalone ? 'installiert' : 'im Browser') +
@@ -840,7 +965,7 @@ assign initialcost
     onAdd: function (m) {
       var el = L.DomUtil.create('div', 'leaflet-bar zoomInfo');
       el.title = 'Zoomstufe';
-      function upd() { el.innerHTML = '<span>Zoom</span>' + m.getZoom(); }
+      function upd() { el.innerHTML = ic('search') + '<b>' + m.getZoom() + '</b>'; }
       m.on('zoomend', upd);
       upd();
       L.DomEvent.disableClickPropagation(el);
@@ -1443,7 +1568,7 @@ assign initialcost
 
   function updateViewStatus() {
     if (map.getZoom() < MIN_ZOOM) {
-      setStatus('<span>🔍 Bitte weiter hineinzoomen' + (offlineCount ? ' · <span style="color:#2e7d32">grün</span> = offline gespeichert' : '') + '</span>');
+      setStatus('<span>' + ic('search') + ' Bitte weiter hineinzoomen' + (offlineCount ? ' · <span style="color:#2e7d32">grün</span> = offline gespeichert' : '') + '</span>');
       return;
     }
     if (viewError) { showError(viewError); return; }
@@ -1776,7 +1901,7 @@ assign initialcost
         fillColor: '#43a047', fillOpacity: complete ? 0.35 : 0.15, dashArray: complete ? null : '6 5'
       };
       var popup = '<h3>' + esc(r.name) + '</h3>' +
-        (complete ? '✔ offline gespeichert' : '⟳ teilweise gespeichert') + ' (' + sizeText(r.size || 0) + ')<br>' +
+        (complete ? ic('check') + ' offline gespeichert' : ic('refresh') + ' teilweise gespeichert') + ' (' + sizeText(r.size || 0) + ')<br>' +
         '<a href="#" class="osm zoomHere">Hier hineinzoomen</a>';
       var layer;
       if (outlines && outlines[r.id]) {
@@ -1822,7 +1947,7 @@ assign initialcost
     var list = names.length > 4 ? names.slice(0, 3).join(', ') + ' und ' + (names.length - 3) + ' weitere' : names.join(', ');
     updateEl.className = 'pill offer';
     updateEl.innerHTML =
-      '<div class="offerText">🔄 <b>Aktuellere Offline-Daten verfügbar</b> (Stand ' + new Date(staticBuilt).toLocaleDateString('de-AT') + '). ' +
+      '<div class="offerText">' + ic('refresh') + ' <b>Aktuellere Offline-Daten verfügbar</b> (Stand ' + new Date(staticBuilt).toLocaleDateString('de-AT') + '). ' +
       'Alle angehakten Länder jetzt aktualisieren? ' + esc(list) + ' <b>(≈ ' + sizeText(bytes) + ')</b></div>' +
       '<div class="offerBtns"><button type="button" id="updYes">Jetzt aktualisieren</button>' +
       '<button type="button" id="updLater" class="light">Später</button></div>';
@@ -1878,7 +2003,7 @@ assign initialcost
     offerEl.dataset.region = r.id;
     offerEl.className = 'pill offer';
     offerEl.innerHTML =
-      '<div class="offerText">📥 Für <b>' + esc(r.name) + '</b> sind noch keine Offline-Daten gespeichert. ' +
+      '<div class="offerText">' + ic('download') + ' Für <b>' + esc(r.name) + '</b> sind noch keine Offline-Daten gespeichert. ' +
       'Jetzt für die Offline-Nutzung herunterladen? <b>(≈ ' + sizeText(bytes) + ')</b></div>' +
       '<div class="offerBtns"><button type="button" id="offerYes">Ja, herunterladen</button>' +
       '<button type="button" id="offerLater" class="light">Später</button></div>' +
@@ -1915,7 +2040,7 @@ assign initialcost
       var st = regionState(r);
       var done = st.missing === 0;
       r._state.className = 'cState' + (done ? ' ok' : st.stale ? ' upd' : '');
-      r._state.textContent = done ? '✔' : st.stale ? '⟳' : '';
+      r._state.innerHTML = done ? ic('check') : st.stale ? ic('refresh') : '';
       r._state.title = done ? 'gespeichert' : st.stale ? 'neuer Datenstand verfügbar' : '';
       if (r._cb.checked) sel++;
     });
@@ -1926,8 +2051,8 @@ assign initialcost
     var m = selectedMissing();
     if (preload && !preload.error) { btn.disabled = true; btn.textContent = 'Wird geladen …'; }
     else if (!sel) { btn.disabled = true; btn.textContent = 'Länder anhaken'; }
-    else if (!m.cells.length) { btn.disabled = true; btn.textContent = '✔ Alles gespeichert'; }
-    else { btn.disabled = false; btn.textContent = '⬇ Laden (≈ ' + sizeText(m.bytes) + ')'; }
+    else if (!m.cells.length) { btn.disabled = true; btn.innerHTML = ic('check', 'lg') + 'Alles gespeichert'; }
+    else { btn.disabled = false; btn.innerHTML = ic('download', 'lg') + 'Laden (≈ ' + sizeText(m.bytes) + ')'; }
     renderCountries();
     if (map.getZoom() < MIN_ZOOM) updateViewStatus();
   }
@@ -1936,7 +2061,7 @@ assign initialcost
   // alle anderen über die Overpass-Warteschlange (langsam, nacheinander)
   function preloadCells(missing, center) {
     if (!missing.length) {
-      setPreloadStatus('<span>✔ Dieses Gebiet ist schon komplett gespeichert</span>', 'ok');
+      setPreloadStatus('<span>' + ic('check') + ' Dieses Gebiet ist schon komplett gespeichert</span>', 'ok');
       preloadHideTimer = setTimeout(function () { setPreloadStatus(''); }, 5000);
       return;
     }
@@ -2007,7 +2132,7 @@ assign initialcost
     if (preload.done >= preload.total) {
       preload = null;
       flushBlocks(); // letzte gesammelte Blöcke sofort speichern
-      setPreloadStatus('<span>✔ Vorladen fertig – das Gebiet ist jetzt gespeichert</span>', 'ok');
+      setPreloadStatus('<span>' + ic('check') + ' Vorladen fertig – das Gebiet ist jetzt gespeichert</span>', 'ok');
       preloadHideTimer = setTimeout(function () { setPreloadStatus(''); }, 6000);
       updateCountryList();
       if (loadAfterPreload) { loadAfterPreload = false; setTimeout(function () { loadSelectedCountries(true); }, 500); }
@@ -2026,7 +2151,7 @@ assign initialcost
     var d = new Date(staticBuilt);
     var n = staticIndex.regions.length;
     var di = document.getElementById('dataInfo');
-    di.textContent = '📅 Daten vom ' + d.toLocaleDateString('de-AT') + ' · ' +
+    di.innerHTML = ic('calendar') + ' Daten vom ' + d.toLocaleDateString('de-AT') + ' · ' +
       (n > 6 ? n + ' Länder' : staticIndex.regions.map(function (r) { return r.name; }).join(', '));
     di.title = 'Andere Gebiete werden langsamer über Overpass geladen.';
   }
@@ -2036,14 +2161,14 @@ assign initialcost
     var sum = document.getElementById('sumOffline');
     if (!el) return;
     if (!dbOk) {
-      el.textContent = '⚠ Speichern hier nicht möglich (nur bis zum Schließen)';
+      el.innerHTML = ic('warn') + ' Speichern hier nicht möglich (nur bis zum Schließen)';
       sum.textContent = 'nicht möglich';
       return;
     }
     var n = 0, bytes = 0;
     stored.forEach(function (e) { if (e.v === DATA_VERSION) { n++; bytes += e.s || 0; } });
     var mb = (bytes / 1048576).toFixed(1).replace('.', ',') + ' MB';
-    el.textContent = n ? '💾 ' + mb + ' gespeichert (' + n + ' Kacheln)' : '💾 noch nichts gespeichert';
+    el.innerHTML = ic('disk') + (n ? ' ' + mb + ' gespeichert (' + n + ' Kacheln)' : ' noch nichts gespeichert');
     var nc = settings.offline.length;
     // kurz – steht klein unter dem Tab
     sum.textContent = n ? mb : '';
@@ -2204,7 +2329,7 @@ assign initialcost
   POI_CATS.forEach(function (c) {
     poiIcons[c.id] = L.divIcon({
       className: 'poi-icon',
-      html: '<div class="poi-marker" style="background:' + c.color + '">' + c.emoji + '</div>',
+      html: '<div class="poi-marker" style="background:' + c.color + '">' + ic(c.icon) + '</div>',
       iconSize: [32, 32], iconAnchor: [16, 16], popupAnchor: [0, -16]
     });
   });
@@ -2288,7 +2413,7 @@ assign initialcost
     if (!accessRows) accessRows = '<tr><td>Zugang</td><td>keine Beschränkung eingetragen</td></tr>';
 
     return '<h3>' + (name ? esc(name) : 'Ohne Namen') + '</h3>' +
-      (w.restricted ? '<div class="warn">⛔ Für Motorräder gesperrt / eingeschränkt</div>' : '') +
+      (w.restricted ? '<div class="warn">' + ic('noentry') + ' Für Motorräder gesperrt / eingeschränkt</div>' : '') +
       '<table>' +
       '<tr><td>Qualität</td><td><b><span class="qDot" style="background:' + settings.q[w.q.lvl].color + '"></span>' +
         QUALITY[w.q.lvl - 1].name + '</b> <span style="color:var(--muted)">(' + esc(w.q.why) + ')</span></td></tr>' +
@@ -2327,9 +2452,9 @@ assign initialcost
     if (web && /^https?:\/\//i.test(web)) rows += '<tr><td>Webseite</td><td><a href="' + esc(web) + '" target="_blank" rel="noopener">öffnen ↗</a></td></tr>';
     if (t.amenity === 'fuel' && (t.automated === 'yes' || t.self_service === 'yes')) rows += '<tr><td>Hinweis</td><td>Selbstbedienung / Automat</td></tr>';
 
-    return '<h3>' + cat.emoji + ' ' + esc(name) + '</h3>' +
+    return '<h3><span class="poiSym" style="background:' + cat.color + '">' + ic(cat.icon) + '</span> ' + esc(name) + '</h3>' +
       '<table>' + rows + '</table>' +
-      '<a href="#" class="osm addRoute" data-lat="' + p.lat + '" data-lon="' + p.lon + '" data-name="' + esc(name) + '">➕ Zur Route hinzufügen</a><br>' +
+      '<a href="#" class="osm addRoute" data-lat="' + p.lat + '" data-lon="' + p.lon + '" data-name="' + esc(name) + '">' + ic('plus') + ' Zur Route hinzufügen</a><br>' +
       '<a class="osm" href="https://www.google.com/maps/dir/?api=1&destination=' + p.lat.toFixed(6) + ',' + p.lon.toFixed(6) + '" target="_blank" rel="noopener">Navigation starten ↗</a><br>' +
       '<a class="osm" href="https://www.openstreetmap.org/' + p.type + '/' + p.id + '" target="_blank" rel="noopener">Auf openstreetmap.org ansehen ↗</a>';
   }
@@ -2367,6 +2492,8 @@ assign initialcost
     });
   });
   document.getElementById('panelClose').addEventListener('click', function () { setPanelOpen(false); });
+  // kurz in die Karte tippen/klicken (nicht verschieben) → offenes Menü klappt von selbst ein
+  map.on('click', function () { if (!panel.classList.contains('collapsed')) setPanelOpen(false); });
   showTab(settings.tab || 'way');
 
   // ---------- App: installieren und Bildschirm wach halten ----------
@@ -2434,10 +2561,10 @@ assign initialcost
   var qList = document.getElementById('qList');
   var qInputs = {};
   QUALITY.forEach(function (q) {
-    if (q.lvl === 4) {   // Trennung: 1–3 = Big Enduro, 4–5 = für Geübte
+    if (q.lvl === 1 || q.lvl === 4) {   // Überschriften: 1–3 = Big Enduro, 4–5 = für Geübte
       var sep = document.createElement('div');
-      sep.className = 'qSep';
-      sep.textContent = 'für Geübte / Hard Enduro';
+      sep.className = 'qSep' + (q.lvl === 1 ? ' first' : '');
+      sep.textContent = q.lvl === 1 ? 'BigEnduro' : 'für Geübte / Hard Enduro';
       qList.appendChild(sep);
     }
     var row = document.createElement('div');
@@ -2504,7 +2631,7 @@ assign initialcost
   POI_CATS.forEach(function (c) {
     var lab = document.createElement('label');
     lab.className = 'check';
-    lab.innerHTML = '<input type="checkbox"><span class="poiSym" style="background:' + c.color + '">' + c.emoji + '</span>' +
+    lab.innerHTML = '<input type="checkbox"><span class="poiSym" style="background:' + c.color + '">' + ic(c.icon) + '</span>' +
       '<span>' + c.label + ' <span class="poiCount" id="poiCount-' + c.id + '"></span></span>';
     var box = lab.querySelector('input');
     box.checked = settings.poi[c.id];
@@ -2719,12 +2846,12 @@ assign initialcost
         '<input type="color" data-k="color" value="' + t.color + '" title="Farbe">' +
         '<span class="gpxMeta">' + Math.round(t.km).toLocaleString('de-AT') + ' km · ' + t.lines.length +
           (t.lines.length === 1 ? ' Abschnitt' : ' Abschnitte') + '</span>' +
-        '<button type="button" data-a="zoom" title="Track ganz zeigen">🔍</button>' +
-        '<button type="button" data-a="del" title="entfernen">✕</button></div>' +
-        '<div class="srow" title="Linienstärke"><span class="sLbl">▬ Breite</span>' +
+        '<button type="button" data-a="zoom" title="Track ganz zeigen">' + ic('fit') + '</button>' +
+        '<button type="button" data-a="del" title="entfernen">' + ic('trash') + '</button></div>' +
+        '<div class="srow" title="Linienstärke"><span class="sLbl">' + ic('width') + 'Breite</span>' +
         '<input type="range" data-k="width" min="1" max="10" step="1" value="' + t.width + '" aria-label="Linienstärke">' +
         '<span class="sVal"><span>' + t.width + '</span> px</span></div>' +
-        '<div class="srow" title="Transparenz"><span class="sLbl">◐ Transparenz</span>' +
+        '<div class="srow" title="Transparenz"><span class="sLbl">' + ic('opacity') + 'Transparenz</span>' +
         '<input type="range" data-k="transp" min="0" max="90" step="10" value="' + t.transp + '" aria-label="Transparenz">' +
         '<span class="sVal"><span>' + t.transp + '</span> %</span></div>' +
         '</div>';
@@ -2844,9 +2971,9 @@ assign initialcost
       box.innerHTML = pts.map(function (p, i) {
         return '<div class="rp"><span class="rpBadge ' + pinClass(i, n) + '">' + pinText(i, n) + '</span>' +
           '<span class="rpName" title="' + esc(pointName(p)) + '">' + esc(pointName(p)) + '</span>' +
-          (i > 0 ? '<button type="button" data-act="up" data-i="' + i + '" title="nach oben">↑</button>' : '') +
-          (i < n - 1 ? '<button type="button" data-act="down" data-i="' + i + '" title="nach unten">↓</button>' : '') +
-          '<button type="button" data-act="del" data-i="' + i + '" title="entfernen">✕</button></div>';
+          (i > 0 ? '<button type="button" data-act="up" data-i="' + i + '" title="nach oben">' + ic('chev-up') + '</button>' : '') +
+          (i < n - 1 ? '<button type="button" data-act="down" data-i="' + i + '" title="nach unten">' + ic('chev-down') + '</button>' : '') +
+          '<button type="button" data-act="del" data-i="' + i + '" title="entfernen">' + ic('x') + '</button></div>';
       }).join('');
     }
     updateRouteSummary();
@@ -2866,13 +2993,13 @@ assign initialcost
     map.getContainer().classList.toggle('routeMode', on);
     roadsPane.style.pointerEvents = on ? 'none' : '';    // Wege nicht antippbar – Tippen setzt einen Punkt
     var btn = document.getElementById('routeModeBtn');
-    btn.textContent = on ? '✔ Fertig' : '➕ Punkte setzen';
+    btn.innerHTML = on ? ic('check', 'lg') + 'Fertig' : ic('plus', 'lg') + 'Punkte setzen';
     btn.classList.toggle('active', on);
     if (routeToggleEl) routeToggleEl.classList.toggle('on', on);
     if (on) showTab('route');   // Menü zeigt gleich die Routenpunkte
     if (on) {
       routeHintEl.className = 'pill';
-      routeHintEl.innerHTML = '<span>🧭 Tippen = Routenpunkt</span><button type="button" id="routeHintDone">Fertig</button>';
+      routeHintEl.innerHTML = '<span>' + ic('route') + ' Tippen = Routenpunkt</span><button type="button" id="routeHintDone">' + ic('check') + ' Fertig</button>';
       document.getElementById('routeHintDone').onclick = function () { setRouteMode(false); };
     } else {
       routeHintEl.className = 'pill hidden'; routeHintEl.innerHTML = '';
@@ -2948,14 +3075,14 @@ assign initialcost
       } else if (err.name === 'TypeError') {
         msg = 'Der Routing-Server ist nicht erreichbar (Internet?).';
       }
-      showRouteResult('<div class="routeErr">⚠ ' + esc(msg) + '</div>');
+      showRouteResult('<div class="routeErr">' + ic('warn') + ' ' + esc(msg) + '</div>');
       updateRouteSummary();
     });
   }
 
   function showRoute(json, pts) {
     var f = json.features && json.features[0];
-    if (!f) { showRouteResult('<div class="routeErr">⚠ Keine Route gefunden.</div>'); return; }
+    if (!f) { showRouteResult('<div class="routeErr">' + ic('warn') + ' Keine Route gefunden.</div>'); return; }
     var coords = f.geometry.coordinates, msgs = f.properties.messages || [], head = msgs[0] || [];
     var iLon = head.indexOf('Longitude'), iLat = head.indexOf('Latitude'), iDist = head.indexOf('Distance'), iTags = head.indexOf('WayTags');
 
@@ -3129,15 +3256,15 @@ assign initialcost
     var pct = function (c) { return Math.round(r.by[c] / r.total * 100); };
     showRouteResult(
       '<div class="routeStats"><b>' + kmText(r.dist) + '</b> · ≈ ' + timeText(r.hours) + (r.ascend ? ' · ↑ ' + Math.round(r.ascend) + ' m' : '') + '</div>' +
-      (r.ferryForced ? '<div class="routeErr">⛴ Ohne Fähre wurde keine Route gefunden – diese Route enthält daher eine Fähre.</div>' : '') +
-      '<button type="button" id="routeFit" class="btn wide fitBtn">🔍 Ganze Route zeigen</button>' +
+      (r.ferryForced ? '<div class="routeErr">' + ic('ship') + ' Ohne Fähre wurde keine Route gefunden – diese Route enthält daher eine Fähre.</div>' : '') +
+      '<button type="button" id="routeFit" class="btn wide fitBtn">' + ic('fit', 'lg') + 'Ganze Route zeigen</button>' +
       '<div class="routeBar">' + parts.map(function (p) {
         return r.by[p.cls] ? '<span style="width:' + (r.by[p.cls] / r.total * 100) + '%;background:' + p.color + '"></span>' : '';
       }).join('') + '</div>' +
       // Legende nur mit den vorkommenden Anteilen (spart Platz)
       '<div class="routeLegend">' + parts.filter(function (p) { return r.by[p.cls] > 0; })
         .map(function (p) { return '<i style="background:' + p.color + '"></i>' + p.name + ' ' + pct(p.cls) + ' %'; }).join(' ') + '</div>' +
-      '<div class="routeBtns"><button type="button" id="routeGpx" class="btn light small" title="z. B. für Garmin, OsmAnd, Kurviger">⬇ GPX speichern</button></div>');
+      '<div class="routeBtns"><button type="button" id="routeGpx" class="btn light small" title="z. B. für Garmin, OsmAnd, Kurviger">' + ic('download') + 'GPX speichern</button></div>');
     document.getElementById('routeFit').onclick = function () { fitRoute(true); };
     document.getElementById('routeGpx').onclick = downloadGpx;
   }
@@ -3225,11 +3352,11 @@ assign initialcost
   var routeOptsEl = document.getElementById('routeOpts');
   function updateRouteOptSum() {
     var on = ROUTE_OPTS.filter(function (o) { return settings.route.opt[o.id]; });
-    document.getElementById('routeOptSum').textContent = on.length ? on.map(function (o) { return o.icon; }).join(' ') : 'nichts';
+    document.getElementById('routeOptSum').innerHTML = on.length ? on.map(function (o) { return ic(o.icon); }).join('') : 'nichts';
   }
   routeOptsEl.innerHTML = ROUTE_OPTS.map(function (o) {
     return '<label class="chip" title="' + o.hint + '"><input type="checkbox" data-opt="' + o.id + '"' + (settings.route.opt[o.id] ? ' checked' : '') + '>' +
-      '<span>' + o.icon + ' ' + o.label + '</span></label>';
+      '<span>' + ic(o.icon) + o.label + '</span></label>';
   }).join('');
   routeOptsEl.addEventListener('change', function (e) {
     var id = e.target.dataset && e.target.dataset.opt;
@@ -3259,7 +3386,7 @@ assign initialcost
     options: { position: 'topleft' },
     onAdd: function () {
       var el = L.DomUtil.create('div', 'leaflet-bar routeToggle');
-      el.innerHTML = '<a href="#" role="button" title="Routenpunkte setzen">🧭</a>';
+      el.innerHTML = '<a href="#" role="button" title="Routenpunkte setzen">' + ic('route-add', 'lg') + '</a>';
       L.DomEvent.disableClickPropagation(el);
       el.firstChild.addEventListener('click', function (e) { e.preventDefault(); setRouteMode(!routeMode); });
       routeToggleEl = el;
@@ -3273,9 +3400,7 @@ assign initialcost
     options: { position: 'topleft' },
     onAdd: function () {
       var el = L.DomUtil.create('div', 'leaflet-bar routeFitCtl' + (lastRoute ? '' : ' hidden'));
-      el.innerHTML = '<a href="#" role="button" title="Ganze Route zeigen" aria-label="Ganze Route zeigen">' +
-        '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' +
-        '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/><path d="M8 15c2-1 2-5 4-6s3 1 4-1" stroke="#1565c0"/></svg></a>';
+      el.innerHTML = '<a href="#" role="button" title="Ganze Route zeigen" aria-label="Ganze Route zeigen">' + ic('fit', 'lg') + '</a>';
       L.DomEvent.disableClickPropagation(el);
       el.firstChild.addEventListener('click', function (e) { e.preventDefault(); fitRoute(false); });
       routeFitEl = el;

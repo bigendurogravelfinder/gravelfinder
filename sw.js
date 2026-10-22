@@ -2,7 +2,7 @@
 // Hält nur die App selbst (Seite, Symbole, Leaflet) vor, damit sie auch ohne Netz startet.
 // Karten-Kacheln, Schotter-Daten, Overpass und BRouter laufen unverändert übers Netz
 // (die Schotter-Daten speichert die App ohnehin selbst in IndexedDB).
-var CACHE = 'gravelfinder-app-v1';
+var CACHE = 'gravelfinder-app-v2';   // erhöhen, wenn sich Symbole o. Ä. ändern → alter Speicher wird verworfen
 var SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
 var LEAFLET = 'https://unpkg.com/leaflet@1.9.4/';
 
