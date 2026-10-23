@@ -1,7 +1,7 @@
 {
   "name": "endurowandern.com",
   "short_name": "endurowandern.com",
-  "description": "Schotterwege-Karte für Big-Enduro-Fahrer – mit Routing, GPX-Tracks und Offline-Daten.",
+  "description": "Offroadkarte für Big-Enduro-Fahrer – mit Routing, GPX-Tracks und Offline-Daten.",
   "lang": "de",
   "start_url": "./",
   "scope": "./",

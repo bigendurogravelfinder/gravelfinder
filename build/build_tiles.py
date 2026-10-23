@@ -27,6 +27,7 @@ import gzip
 import json
 import math
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -80,10 +81,32 @@ BORDER_SIMPLIFY_M = 15.0
 SEA_BORDER = {'territorial', 'baseline', 'maritime', 'eez', 'contiguous'}
 
 
+NOT_BORDER_KEYS = ('building', 'office', 'government', 'amenity', 'landuse', 'leisure', 'shop', 'tourism', 'man_made')
+
+
 def is_land_border(t):
-    if t.get('admin_level') != '2' or t.get('boundary', 'administrative') != 'administrative':
+    # boundary=administrative MUSS eingetragen sein: admin_level=2 allein steht auch an Behörden mit
+    # Bundeszuständigkeit (z. B. office=government in Hannover) – das sind keine Grenzen
+    if t.get('admin_level') != '2' or t.get('boundary') != 'administrative':
+        return False
+    if any(k in t for k in NOT_BORDER_KEYS):
         return False
     return t.get('maritime') != 'yes' and t.get('border_type') not in SEA_BORDER and t.get('natural') != 'coastline'
+
+
+NON_LATIN = re.compile('[Ͱ-Ͽἀ-῿Ѐ-ӿ]')   # griechisch, kyrillisch
+LATIN_KEYS = ('name:sr-Latn', 'name:latin', 'int_name', 'name:en', 'name:de')
+
+
+def latin_name(t):
+    """Lateinische Schreibweise für kyrillische/griechische Ortsnamen (z. B. Београд → Beograd). Sonst ''."""
+    if not NON_LATIN.search(t.get('name', '')):
+        return ''
+    for k in LATIN_KEYS:
+        v = t.get(k)
+        if v and not NON_LATIN.search(v):
+            return v
+    return ''   # die App schreibt dann selbst um
 
 
 def population(t):
@@ -162,9 +185,12 @@ class Store:
             c = self.cells[key] = {'w': set(), 'p': [], 'l': []}
         return c
 
-    def add_place(self, name, rank, lat, lon, pop):
-        # [Name, Rang, lat, lon, Einwohner]
-        self.cell(cell_of(lat, lon))['l'].append([name, rank, round(lat, 4), round(lon, 4), pop])
+    def add_place(self, name, rank, lat, lon, pop, latin=''):
+        # [Name, Rang, lat, lon, Einwohner(, lateinischer Name – nur bei kyrillischen/griechischen Namen)]
+        rec = [name, rank, round(lat, 4), round(lon, 4), pop]
+        if latin:
+            rec.append(latin)
+        self.cell(cell_of(lat, lon))['l'].append(rec)
         self.n_places += 1
 
     def add_way(self, wid, tags, coords):
@@ -198,7 +224,7 @@ class Collector(osmium.SimpleHandler):
             self.s.add_poi('n', n.id, n.location.lat, n.location.lon, pick(t, POI_KEYS))
         rank = PLACE_RANK.get(t.get('place'))
         if rank and 'name' in t:
-            self.s.add_place(t.get('name'), rank, n.location.lat, n.location.lon, population(t))
+            self.s.add_place(t.get('name'), rank, n.location.lat, n.location.lon, population(t), latin_name(t))
 
     def way(self, w):
         t = w.tags
@@ -292,7 +318,7 @@ def flush(store, out_dir, block_info, region_blocks):
             rec.setdefault('l', [])
             have_w = {w[0] for w in rec['w']}
             have_p = {(p[0], p[1]) for p in rec['p']}
-            have_l = {(p[0], p[2], p[3]) for p in rec['l']}
+            have_l = {(p[0], p[2], p[3]) for p in rec['l']}   # (Eintrag kann 5 oder 6 Felder haben)
             for pl in c['l']:
                 if (pl[0], pl[2], pl[3]) not in have_l:
                     rec['l'].append(pl)

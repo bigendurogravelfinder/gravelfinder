@@ -131,8 +131,13 @@ Fahrzeug durchkommt; `tracktype` grade1–5):
 Die Ortsnamen der Hintergrundkarte liegen unter den Wegen und gehen dort unter (Beschriftungs-Kacheln ohne
 Bild gibt es nur noch mit API-Schlüssel). Darum beschriftet die App selbst:
 - Daten: `place=city` (Rang 1), `town` (2), `village` (3) mit `name` – in den Schnell-Daten je Kachel als
-  `l: [[Name, Rang, lat, lon, Einwohner], …]`, über Overpass zusätzlich `node["place"~"^(city|town|village)$"]["name"]`.
-- **Immer an, ohne Einstellungen** (keine Schalter, keine Farbe/Transparenz/Leuchtrand – alte gespeicherte Werte
+  `l: [[Name, Rang, lat, lon, Einwohner(, lateinischer Name)], …]`, über Overpass zusätzlich `node["place"~"^(city|town|village)$"]["name"]`.
+- **Kyrillisch/griechisch lesbar:** ist `name` nicht lateinisch, liefert das Skript (und die Overpass-Auswertung) als
+  6. Feld die erste lateinische Angabe aus `name:sr-Latn`, `name:latin`, `int_name`, `name:en`, `name:de`. Fehlt
+  sie, schreibt die App selbst um (serbische Schreibweise: Београд → Beograd, Љ → Lj, ђ → đ …; Griechisch: θ → th,
+  χ → ch, ψ → ps …). Auswahl im Tab „Wege“ unter „ORTSNAMEN (Z. B. SERBIEN)“ als drei Knöpfe
+  „Beograd“ (lateinisch, Standard) · „Београд“ (Original) · „beides“ → „Beograd (Београд)“ (`settings.placeScript`).
+- **Sonst ohne Einstellungen** (keine Schalter, keine Farbe/Transparenz/Leuchtrand – alte gespeicherte Werte
   werden ignoriert). Eigene Leaflet-Pane **zIndex 610 – über Wegen, Route und POI-Symbolen (600)**, mit
   `pointer-events: none` – Klicks gehen durch.
 - Zoom 9–10: Städte und Märkte, ab Zoom 11 auch Dörfer. Reihenfolge Rang, dann Einwohner; überlappende Namen
@@ -220,7 +225,7 @@ Sieben Kategorien, einzeln ein-/ausschaltbar, mit Anzahl im Ausschnitt:
   Kachel gilt nicht als vollständig → Overpass ergänzt sie.
 - Ist eine Block-Datei nicht erreichbar (z. B. offline), werden diese Kacheln über Overpass versucht.
 - Anzeige unten: „X Schotterwege im Ausschnitt (+ Y gesperrt)“, während des Ladens Spinner +
-  „Lade Schotterwege … (Teil 1 von 3)“.
+  „Lade Offroadwege … (Teil 1 von 3)“. (Seitentitel „Offroadkarte“; Zähler „604 Offroadwege im Ausschnitt“.)
 
 ### Overpass (Fallback)
 - `https://overpass-api.de/api/interpreter`, POST, `[out:json][timeout:90][bbox:s,w,n,e]`.
@@ -366,8 +371,11 @@ Sieben Kategorien, einzeln ein-/ausschaltbar, mit Anzahl im Ausschnitt:
   Daten fehlen, erscheint unten ein Kasten:
   „📥 Für **Österreich** sind noch keine Offline-Daten gespeichert. Jetzt für die Offline-Nutzung herunterladen? **(≈ 20 MB)**“
   mit [Ja, herunterladen] [Später] und Link „Für Österreich nicht mehr fragen“.
-- Land bestimmen: Block in der Kartenmitte zählt 3-fach, die 8 Nachbarblöcke 1-fach; Land mit den meisten
-  Stimmen (an Grenzen das Land, das den Ausschnitt überwiegend füllt).
+- **Auch grenzüberschreitend:** geprüft werden ALLE Länder, deren Daten-Blöcke im sichtbaren Ausschnitt liegen – also
+  schon, sobald ein Nachbarland am Rand ins Bild kommt und dessen Daten nachgeladen werden. Weil Blöcke (~22 km) ins
+  Nachbarland ragen, zusätzlich mit `outlines.json` prüfen: Umriss-Punkt im Bild oder Bildmitte im Umriss.
+  Reihenfolge: Land mit den meisten Blöcken im Bild zuerst (Block in der Mitte zählt 1,5-fach); gefragt wird nach
+  dem ersten, das nicht offline gewählt ist, Daten fehlen und nicht „Später“/„nicht mehr fragen“ hat.
 - **Ja:** Land in den Einstellungen dauerhaft anhaken und sofort laden (läuft schon ein Download, danach).
 - **Später:** in dieser Sitzung für dieses Land nicht mehr fragen. Ebenso nach bewusstem Abwählen im Menü.
 - **Nicht mehr fragen:** dauerhaft gemerkt; wird zurückgesetzt, wenn man das Land selbst anhakt.
@@ -495,9 +503,10 @@ Anstieg (`filtered ascend`), Farbbalken und Anteile hoch/mittel/niedrig/Straße,
   `pointer-events: none`, eigener Canvas-Renderer; alle Abschnitte als EINE Linie mit vielen Teilen (schnell).
 - Stil: weißer Rand (Deckkraft 0,9) und darüber die farbige Linie (Deckkraft 0,95).
 - **Einstellbar** im Tab „Wege“ unter der Überschrift „STAATSGRENZEN“ (gespeichert in `settings.border`):
-  - Farbfeld + Häkchen „anzeigen“ mit kleiner Vorschau-Linie (Standard: an, Violett #6d28d9),
+  - Farbfeld + Häkchen „anzeigen“ mit kleiner Vorschau-Linie (Standard: an, **Grau #5f6368**; gespeichertes
+    früheres Standard-Violett #6d28d9 mit 3 px wird automatisch auf Grau/5 px umgestellt),
   - Stil als drei Knöpfe nebeneinander mit Linien-Vorschau: **Strich-Punkt** (Standard), **gestrichelt**, **durchgehend**,
-  - „Stärke“ 1–6 px (Standard 3). Aus = Farbe, Stil und Stärke ausgegraut.
+  - „Stärke“ 1–6 px (Standard **5**, dick). Aus = Farbe, Stil und Stärke ausgegraut.
   - Stärke gilt ab Zoom 10; unter 10 × 0,8 (mind. 1,5), unter 7 × 0,55 (mind. 1). Weißer Rand = Stärke + max(3, 0,9 × Stärke).
     Muster wächst mit (u = max(Stärke, 2)): Strich-Punkt `3,5u 1,6u 0,7u 1,6u`, gestrichelt `3u 2u`.
 
@@ -555,8 +564,10 @@ Am Ende:
 - Größe je Land (Summe der komprimierten Blöcke, in denen es Daten hat) und Gesamtgröße in `index.json`.
 - `outlines.json`: GeoJSON der Ländergrenzen, vereinfacht mit 0,01° und auf 3 Nachkommastellen gerundet.
   (Geofabrik-Grenzlinien sind gepuffert und ungenau – nur für die Offline-Einfärbung, nicht als Grenzlinie.)
-- `borders.json`: `{v: 1, b: [Polyline, …]}` – alle Wege mit `admin_level=2` + `boundary=administrative`
-  (Vorfilter `w/admin_level=2`), ohne Seegrenzen (`maritime=yes`, `border_type` territorial/baseline/maritime/eez/
+- `borders.json`: `{v: 1, b: [Polyline, …]}` – alle Wege mit `admin_level=2` UND ausdrücklich
+  `boundary=administrative` (Vorfilter `w/admin_level=2`). **Nicht** Wege mit building/office/government/amenity/
+  landuse/leisure/shop/tourism/man_made – Bundesbehörden tragen auch `admin_level=2` (z. B. Bundessortenamt Hannover,
+  sonst kleine Flecken). Ohne Seegrenzen (`maritime=yes`, `border_type` territorial/baseline/maritime/eez/
   contiguous, `natural=coastline`), je Weg-ID nur einmal (Grenzwege liegen in beiden Länderdateien), Douglas-Peucker 15 m.
 - Ausgabe: Länder, Dateien, MB, Dauer, größte Länder, übersprungene Länder.
 - **Abbruch**, wenn mehr als 95 % von 1 GB (Grenze von GitHub Pages) – dann bleibt die alte Version online.

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Schotterkarte</title>
+<title>Offroadkarte</title>
 <!-- als App installierbar (Android: "Zum Startbildschirm hinzufügen" / "App installieren") -->
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0e7490">
@@ -109,7 +109,7 @@
   .qSep.first { margin-top: 0; padding-top: 0; border-top: 0; }
   .tabPanel > .qSep { margin-top: 14px; }
   /* Grenzlinie: Vorschau-Strich und Stil-Auswahl (3 Knöpfe nebeneinander) */
-  .borderSample { display: inline-block; width: 34px; height: 0; border-top: 3px dashed #6d28d9; vertical-align: middle; }
+  .borderSample { display: inline-block; width: 34px; height: 0; border-top: 3px dashed #5f6368; vertical-align: middle; }
   .seg { display: flex; gap: 6px; margin-top: 8px; }
   .seg button {
     flex: 1; min-height: 40px; border: 1px solid var(--border); border-radius: 10px; background: #fff; cursor: pointer;
@@ -119,6 +119,8 @@
   .seg button.on { background: var(--accent-soft); border-color: var(--accent); }
   .seg button.on svg { stroke: var(--accent); }
   .seg button:disabled { opacity: .45; cursor: default; }
+  .seg.txt button { font: 600 14px inherit; font-family: inherit; color: #546e7a; }
+  .seg.txt button.on { color: var(--accent-dark); }
   .qHint { display: block; font-size: 12px; color: var(--muted); font-weight: 400; line-height: 1.25; }
   .qDot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: -1px; margin-right: 4px; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
   /* kompakte Schieber-Zeile: Symbol + Kurzwort | Schieber | Wert */
@@ -496,7 +498,7 @@
   <!-- Tab-Leiste = Kopfzeile des Menüs: Antippen öffnet den Teil, ▲ klappt das Menü wieder ein -->
   <div class="tabs" role="tablist">
     <!-- Symbole: schlichte Linien-Icons (24er Raster, 2 px Strich) in der Akzentfarbe -->
-    <button type="button" class="tab" role="tab" data-tab="way" title="Schotterwege: Qualität, Farben, Linie">
+    <button type="button" class="tab" role="tab" data-tab="way" title="Offroadwege: Qualität, Farben, Linie">
       <svg class="tabIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 21 10.5 3M16.5 21 13.5 3"/><path d="M12 6.5v1.5M12 11v2M12 16.5v2.5"/></svg><span class="tabName">Wege</span></button>
     <button type="button" class="tab" role="tab" data-tab="poi" title="Tankstellen, Lebensmittel …">
       <svg class="tabIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21.5s-7-6.1-7-11.5a7 7 0 0 1 14 0c0 5.4-7 11.5-7 11.5z"/><circle cx="12" cy="10" r="2.5"/></svg><span class="tabName">POI</span><span class="tabSum" id="sumPoi"></span></button>
@@ -527,6 +529,14 @@
       <input type="range" id="bgRange" min="0" max="100" step="10" value="60" aria-label="Hintergrund abschwächen">
       <span class="sVal"><span id="bgValue">60</span> %</span></div>
 
+    <!-- Ortsnamen in fremder Schrift (kyrillisch, griechisch): lateinisch / Original / beides -->
+    <div class="qSep">Ortsnamen (z. B. Serbien)</div>
+    <div class="seg txt" id="placeScript" role="radiogroup" aria-label="Schrift der Ortsnamen">
+      <button type="button" data-v="latin" title="lateinische Buchstaben, z. B. Beograd">Beograd</button>
+      <button type="button" data-v="orig" title="Originalschrift, z. B. Београд">Београд</button>
+      <button type="button" data-v="both" title="beides, z. B. Beograd (Београд)">beides</button>
+    </div>
+
     <!-- Staatsgrenzen: ein/aus, Farbe, Stil, Stärke -->
     <div class="qSep">Staatsgrenzen</div>
     <div class="qRow">
@@ -539,8 +549,8 @@
       <button type="button" data-style="solid" title="durchgehend"><svg viewBox="0 0 44 8"><path d="M2 4h40"/></svg></button>
     </div>
     <div class="srow" title="Stärke der Grenzlinie"><span class="sLbl"><svg class="ic"><use href="#i-width"/></svg>Stärke</span>
-      <input type="range" id="borderWidth" min="1" max="6" step="1" value="3" aria-label="Stärke der Grenzlinie">
-      <span class="sVal"><span id="borderWidthValue">3</span> px</span></div>
+      <input type="range" id="borderWidth" min="1" max="6" step="1" value="5" aria-label="Stärke der Grenzlinie">
+      <span class="sVal"><span id="borderWidthValue">5</span> px</span></div>
    </div>
 
    <!-- ===================== POI ===================== -->
@@ -892,7 +902,8 @@ assign initialcost
   ];
 
   var settings = { width: 2, transparency: 0, bgFade: 60, poiMinZoom: 11, route: { pts: [], pref: 3, width: 4, transp: 0, opt: {} }, showRestricted: false, poi: {}, q: {}, panelOpen: false, tab: 'way', offline: [], noAsk: [], wakeLock: false,
-    border: { show: true, color: '#6d28d9', style: 'dashdot', width: 3 } };
+    border: { show: true, color: '#5f6368', style: 'dashdot', width: 5 },   // Grenze: grau, dick, Strich-Punkt
+    placeScript: 'latin' };   // Ortsnamen in kyrillischer/griechischer Schrift: latin (Umschrift) | orig | both
   POI_CATS.forEach(function (c) { settings.poi[c.id] = c.on; });
   ROUTE_OPTS.forEach(function (o) { settings.route.opt[o.id] = o.on; });
   QUALITY.forEach(function (q) { settings.q[q.lvl] = { color: q.color, show: q.show }; });
@@ -927,12 +938,14 @@ assign initialcost
       if (/^(way|poi|route|gpx|off|app)$/.test(saved.tab)) settings.tab = saved.tab;
       if (typeof saved.panelOpen === 'boolean') settings.panelOpen = saved.panelOpen;
       if (typeof saved.wakeLock === 'boolean') settings.wakeLock = saved.wakeLock;
+      if (/^(latin|orig|both)$/.test(saved.placeScript)) settings.placeScript = saved.placeScript;
       if (saved.border) {
         var sb = saved.border, b = settings.border;
         if (typeof sb.show === 'boolean') b.show = sb.show;
-        if (/^#[0-9a-f]{6}$/i.test(sb.color)) b.color = sb.color;
+        // frühere Standardwerte (Violett, 3 px) → neue Standardwerte; selbst gewählte bleiben
+        if (/^#[0-9a-f]{6}$/i.test(sb.color) && sb.color.toLowerCase() !== '#6d28d9') b.color = sb.color;
         if (/^(dashdot|dashed|solid)$/.test(sb.style)) b.style = sb.style;
-        if (sb.width >= 1 && sb.width <= 6) b.width = Number(sb.width);
+        if (sb.width >= 1 && sb.width <= 6 && !(sb.width === 3 && (sb.color || '').toLowerCase() === '#6d28d9')) b.width = Number(sb.width);
       }
       if (Array.isArray(saved.offline)) settings.offline = saved.offline.filter(function (x) { return typeof x === 'string'; });
       if (Array.isArray(saved.noAsk)) settings.noAsk = saved.noAsk.filter(function (x) { return typeof x === 'string'; });
@@ -1615,7 +1628,7 @@ assign initialcost
     if (viewBusy()) {
       var r = running && running.job.kind === 'view' && running.job.retryIn;
       var part = viewTotal > 1 ? ' (Teil ' + Math.min(viewDone + 1, viewTotal) + ' von ' + viewTotal + ')' : '';
-      setStatus(SPINNER + '<span>' + (r ? 'Server ausgelastet – neuer Versuch in ' + r + ' s …' : 'Lade Schotterwege …' + part) + '</span>');
+      setStatus(SPINNER + '<span>' + (r ? 'Server ausgelastet – neuer Versuch in ' + r + ' s …' : 'Lade Offroadwege …' + part) + '</span>');
       return;
     }
     var extra = '', z = map.getZoom();
@@ -1716,9 +1729,9 @@ assign initialcost
         var rec = recs[cellOf(lat, lon)];
         if (!rec) return;
         if (PLACE_RANK[tags.place] && tags.name) {
-          // Ortsname: [Name, Rang, lat, lon, Einwohner]
+          // Ortsname: [Name, Rang, lat, lon, Einwohner, lateinischer Name (nur bei kyrillisch/griechisch)]
           rec.l.push([tags.name, PLACE_RANK[tags.place], Math.round(lat * 1e4) / 1e4, Math.round(lon * 1e4) / 1e4,
-            parseInt(String(tags.population || '0').replace(/[.\s]/g, ''), 10) || 0]);
+            parseInt(String(tags.population || '0').replace(/[.\s]/g, ''), 10) || 0, latinAltName(tags)]);
         }
         if (POI_CATS.some(function (c) { return c.match(tags); })) {
           rec.p.push([el.type.charAt(0), el.id, r5(lat), r5(lon), pick(tags, POI_KEYS)]);
@@ -1766,7 +1779,7 @@ assign initialcost
     });
     (rec.l || []).forEach(function (l) {
       var key = l[0] + '|' + l[2] + '|' + l[3];
-      if (!places.has(key)) places.set(key, { name: l[0], rank: l[1], lat: l[2], lon: l[3], pop: l[4] || 0 });
+      if (!places.has(key)) places.set(key, { name: l[0], rank: l[1], lat: l[2], lon: l[3], pop: l[4] || 0, latin: l[5] || '' });
     });
     if (markLoaded !== false) cells.set(rec.k, rec.t);
   }
@@ -1977,6 +1990,14 @@ assign initialcost
   }
   map.on('zoomend', styleBorders);
 
+  // Bedienelemente im Tab "Wege" → Ortsnamen-Schrift
+  (function () {
+    var btns = Array.prototype.slice.call(document.querySelectorAll('#placeScript button'));
+    function sync() { btns.forEach(function (b) { var on = b.dataset.v === settings.placeScript; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); }); }
+    btns.forEach(function (b) { b.addEventListener('click', function () { settings.placeScript = b.dataset.v; sync(); saveSettings(); renderLabels(); }); });
+    sync();
+  })();
+
   // Bedienelemente im Tab "Wege" → Abschnitt Staatsgrenzen
   (function () {
     var b = settings.border;
@@ -2082,23 +2103,47 @@ assign initialcost
 
   // Land in der Kartenmitte: Block in der Mitte zählt dreifach, die 8 Nachbar-Blöcke einfach
   // (so wird an Grenzen das Land gewählt, das den Ausschnitt überwiegend ausfüllt)
-  function regionAtView() {
+  // Alle Länder, deren Daten-Blöcke im sichtbaren Ausschnitt liegen (auch Nachbarländer am Rand),
+  // sortiert nach Anteil am Bild – das Land mit den meisten Blöcken (bei Gleichstand: das in der Mitte) zuerst
+  function regionsInView() {
     if (!blockRegions) {
       blockRegions = {};
       staticIndex.regions.forEach(function (r) {
         r.blocks.forEach(function (bk) { (blockRegions[bk] = blockRegions[bk] || []).push(r); });
       });
     }
-    var c = map.getCenter();
-    var bi = Math.floor(Math.floor(c.lat / CELL_LAT) / BLOCK), bj = Math.floor(Math.floor(c.lng / CELL_LON) / BLOCK);
-    var votes = {}, best = null;
-    for (var di = -1; di <= 1; di++) for (var dj = -1; dj <= 1; dj++) {
-      (blockRegions[(bi + di) + ',' + (bj + dj)] || []).forEach(function (r) {
-        votes[r.id] = (votes[r.id] || 0) + (di === 0 && dj === 0 ? 3 : 1);
-        if (!best || votes[r.id] > votes[best.id]) best = r;
+    var b = map.getBounds(), c = map.getCenter();
+    var blk = function (lat, lon) { return [Math.floor(Math.floor(lat / CELL_LAT) / BLOCK), Math.floor(Math.floor(lon / CELL_LON) / BLOCK)]; };
+    var lo = blk(b.getSouth(), b.getWest()), hi = blk(b.getNorth(), b.getEast()), mid = blk(c.lat, c.lng);
+    var votes = {}, regs = {};
+    for (var bi = lo[0]; bi <= hi[0]; bi++) for (var bj = lo[1]; bj <= hi[1]; bj++) {
+      (blockRegions[bi + ',' + bj] || []).forEach(function (r) {
+        votes[r.id] = (votes[r.id] || 0) + (bi === mid[0] && bj === mid[1] ? 1.5 : 1);
+        regs[r.id] = r;
       });
     }
-    return best;
+    // Blöcke ragen bis zu ~20 km ins Nachbarland – mit dem Länder-Umriss prüfen, ob das Land wirklich im Bild ist
+    return Object.keys(regs).filter(function (id) { return outlineInView(id, b); })
+      .sort(function (a, z) { return votes[z] - votes[a]; }).map(function (id) { return regs[id]; });
+  }
+  function outlineInView(id, b) {
+    var f = outlines && outlines[id];
+    if (!f) return true;   // ohne Umrisse: Blöcke genügen
+    var polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
+    var c = b.getCenter(), hit = false;
+    polys.some(function (poly) {
+      var ring = poly[0];
+      // ein Umriss-Punkt im Bild → Grenze läuft durchs Bild
+      if (ring.some(function (p) { return b.contains([p[1], p[0]]); })) return (hit = true);
+      // Bildmitte im Land → ganzes Bild im Land
+      var inside = false;
+      for (var i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        var xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+        if ((yi > c.lat) !== (yj > c.lat) && c.lng < (xj - xi) * (c.lat - yi) / (yj - yi) + xi) inside = !inside;
+      }
+      return (hit = inside);
+    });
+    return hit;
   }
 
   function hideOffer() { offerEl.className = 'pill offer hidden'; offerEl.innerHTML = ''; offerEl.dataset.region = ''; placeLocateBtn(); }
@@ -2106,10 +2151,15 @@ assign initialcost
   function maybeOfferRegion() {
     if (!staticIndex || !dbOk || map.getZoom() < MIN_ZOOM) { hideOffer(); return; }
     if (!updateEl.classList.contains('hidden')) { hideOffer(); return; } // erst die Update-Frage beantworten
-    var r = regionAtView();
-    if (!r || settings.offline.indexOf(r.id) !== -1 || settings.noAsk.indexOf(r.id) !== -1 || askedThisSession[r.id]) { hideOffer(); return; }
-    var st = regionState(r);
-    if (st.missing === 0) { hideOffer(); return; }
+    // erstes Land im Bild, das nicht offline gewählt ist, für das Daten fehlen und nach dem gefragt werden darf
+    var r = null, st = null;
+    regionsInView().some(function (c) {
+      if (settings.offline.indexOf(c.id) !== -1 || settings.noAsk.indexOf(c.id) !== -1 || askedThisSession[c.id]) return false;
+      var s = regionState(c);
+      if (s.missing === 0) return false;
+      r = c; st = s; return true;
+    });
+    if (!r) { hideOffer(); return; }
     if (offerEl.dataset.region === r.id) return; // wird schon angezeigt
     var bytes = (r.size || 0) * st.missing / Math.max(1, st.total);
     offerEl.dataset.region = r.id;
@@ -2357,7 +2407,7 @@ assign initialcost
         ql._qlvl = lvl;
         ql.addTo(roadLayer); drawn.lines.push(ql);
       });
-      lastCountText = countOk + (countOk === 1 ? ' Schotterweg' : ' Schotterwege') + ' im Ausschnitt';
+      lastCountText = countOk + (countOk === 1 ? ' Offroadweg' : ' Offroadwege') + ' im Ausschnitt';
       if (settings.showRestricted && countRestricted) lastCountText += ' (+ ' + countRestricted + ' gesperrt)';
       updateViewStatus();
       return;
@@ -2386,7 +2436,7 @@ assign initialcost
       drawn.lines.push(l);
     });
 
-    lastCountText = countOk + (countOk === 1 ? ' Schotterweg' : ' Schotterwege') + ' im Ausschnitt';
+    lastCountText = countOk + (countOk === 1 ? ' Offroadweg' : ' Offroadwege') + ' im Ausschnitt';
     if (settings.showRestricted && countRestricted) lastCountText += ' (+ ' + countRestricted + ' gesperrt)';
     updateViewStatus();
   }
@@ -2405,6 +2455,39 @@ assign initialcost
   // ein Name, der einen schon platzierten überdecken würde, wird weggelassen.
   var labelLayer = L.layerGroup().addTo(map);
   var MAX_LABELS = 250;
+  // ----- Ortsnamen in lesbarer Schrift (z. B. Serbien, Bulgarien, Griechenland) -----
+  var NON_LATIN = /[Ͱ-Ͽἀ-῿Ѐ-ӿ]/;
+  var CYR = { а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', ђ: 'đ', е: 'e', ж: 'ž', з: 'z', и: 'i', ј: 'j', к: 'k', л: 'l', љ: 'lj',
+    м: 'm', н: 'n', њ: 'nj', о: 'o', п: 'p', р: 'r', с: 's', т: 't', ћ: 'ć', у: 'u', ф: 'f', х: 'h', ц: 'c', ч: 'č', џ: 'dž',
+    ш: 'š', ѓ: 'gj', ќ: 'kj', ѕ: 'dz', й: 'j', щ: 'št', ъ: 'a', ы: 'y', ь: '', э: 'e', ю: 'ju', я: 'ja', є: 'je', і: 'i',
+    ї: 'ji', ґ: 'g', ё: 'jo', ў: 'u',
+    α: 'a', β: 'v', γ: 'g', δ: 'd', ε: 'e', ζ: 'z', η: 'i', θ: 'th', ι: 'i', κ: 'k', λ: 'l', μ: 'm', ν: 'n', ξ: 'x', ο: 'o',
+    π: 'p', ρ: 'r', σ: 's', ς: 's', τ: 't', υ: 'y', φ: 'f', χ: 'ch', ψ: 'ps', ω: 'o', ά: 'a', έ: 'e', ή: 'i', ί: 'i', ό: 'o',
+    ύ: 'y', ώ: 'o', ϊ: 'i', ϋ: 'y', ΐ: 'i', ΰ: 'y' };
+  // Umschrift kyrillisch/griechisch → lateinisch (serbische Schreibweise; Großbuchstaben bleiben groß: Љ → Lj)
+  function transliterate(s) {
+    var out = '';
+    for (var i = 0; i < s.length; i++) {
+      var ch = s.charAt(i), lo = ch.toLowerCase(), t = CYR[lo];
+      if (t === undefined) { out += ch; continue; }
+      out += ch !== lo && t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+    }
+    return out;
+  }
+  // lateinische Schreibweise aus den OSM-Angaben (wie im Aufbereitungs-Skript), nur wenn der Name nicht lateinisch ist
+  function latinAltName(t) {
+    if (!NON_LATIN.test(t.name || '')) return '';
+    var keys = ['name:sr-Latn', 'name:latin', 'int_name', 'name:en', 'name:de'];
+    for (var i = 0; i < keys.length; i++) if (t[keys[i]] && !NON_LATIN.test(t[keys[i]])) return t[keys[i]];
+    return '';
+  }
+  // angezeigter Name je Einstellung: lateinisch (Standard) · Original · beides
+  function placeName(p) {
+    if (!NON_LATIN.test(p.name)) return p.name;
+    var lat = p.latin || transliterate(p.name);
+    return settings.placeScript === 'orig' ? p.name : settings.placeScript === 'both' ? lat + ' (' + p.name + ')' : lat;
+  }
+
   function renderLabels() {
     labelLayer.clearLayers();
     if (map.getZoom() < MIN_ZOOM) return;
@@ -2416,9 +2499,10 @@ assign initialcost
     var boxes = [];
     for (var i = 0; i < list.length && boxes.length < MAX_LABELS; i++) {
       var p = list[i];
-      var fs = p.rank === 1 ? 15 : p.rank === 2 ? 13 : 12;
+      var fs = p.rank === 1 ? 17 : p.rank === 2 ? 15 : 13;   // wie die Schriftgrößen in .placeLabel
       var pt = map.latLngToContainerPoint([p.lat, p.lon]);
-      var w = p.name.length * fs * 0.58 + 10, h = fs + 8;
+      var label = placeName(p);
+      var w = label.length * fs * 0.6 + 10, h = fs + 8;
       var b = [pt.x - w / 2, pt.y - h / 2, pt.x + w / 2, pt.y + h / 2];
       var hit = false;
       for (var k = 0; k < boxes.length && !hit; k++) {
@@ -2429,7 +2513,7 @@ assign initialcost
       boxes.push(b);
       L.marker([p.lat, p.lon], {
         pane: 'labelPane', interactive: false, keyboard: false,
-        icon: L.divIcon({ className: 'placeLabel r' + p.rank, html: '<span>' + esc(p.name) + '</span>', iconSize: [0, 0] })
+        icon: L.divIcon({ className: 'placeLabel r' + p.rank, html: '<span>' + esc(label) + '</span>', iconSize: [0, 0] })
       }).addTo(labelLayer);
     }
   }
