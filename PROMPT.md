@@ -530,8 +530,8 @@ plus je Routing-Option `&profile:avoid_<id>=1|0` (BRouter akzeptiert nur Zahlen,
   ihre Klick-Freigabe einzeln.
 - Schieberegler unter der Überschrift „VERHÄLTNIS ASPHALT / OFFROAD“, links „Asphalt“, rechts „Offroad“ (intern Schotter-Vorliebe `settings.route.pref`) 0–5: nur Asphalt · kaum · gering · gering · mittel · mittel ·
   stark (Standard 3) · stark · sehr stark · sehr stark · maximal.
-- Tab Route: Knopf-Raster · Ergebnis/Höhenprofil · So geht's · Punktliste. Tab Profil: Fahrzeug · „Verhältnis Asphalt / Offroad“ ·
-  Erlaubt / gemieden · „▬ Linie“.
+- Tab Route: „▬ Linie“ · Knopf-Raster · Ergebnis/Höhenprofil · So geht's · Punktliste. Tab Profil: Fahrzeug ·
+  „Verhältnis Asphalt / Offroad“ · Erlaubt / gemieden · Länderregeln (Abschnitt „Darstellung der Route“ entfernt).
 - Abschnitt **„Erlaubt / gemieden“** im Tab Profil (Überschrift mit Stand „6 ✓ 2 ✕“ in Grün/Rot) mit Legende
   „✓ grün = darf genutzt werden · ✕ rot = wird gemieden“ und acht **Kacheln** in 2 Spalten (Symbol + Name):
   Gesperrte Wege · Autobahn · Schnellstraße · Maut · Fähre · Furt · Ortsgebiet · Steilstücke.
@@ -591,7 +591,7 @@ plus je Routing-Option `&profile:avoid_<id>=1|0` (BRouter akzeptiert nur Zahlen,
   daneben liegt). Antippen im Menü am Handy hochkant klappt das Menü zuerst ein.
 - Route, Vorliebe und Optionen werden gespeichert (überstehen Neuladen).
 
-**Linienstärke:** Schieber „Linienstärke der Route“ im Tab Profil, 2–10 px (Standard 4 px), weißer Rand = Stärke + 4 px.
+**Linienstärke:** Schieber „▬ Linie“ **ganz oben im Tab Route** (über dem Knopf-Raster, ohne Überschrift), 2–10 px (Standard 4 px), weißer Rand = Stärke + 4 px.
 **Transparenz:** senkrechter Schieber „Transparenz für angezeigte Route“ als Kartensteuerung in der **linken
 Knopfleiste direkt unter dem 🧭-Knopf** (44 px breit wie die Knöpfe) – dort verdeckt ihn das Menü nie (rechts wurde er
 vom ausgeklappten Menü verdeckt). 0–90 %, oben = durchsichtiger; nur sichtbar, solange eine Route angezeigt wird; wirkt auf die ganze Routen-Pane (CSS-Opacity),
@@ -672,9 +672,13 @@ die Angabe aber oft. Vereinfachung, keine Rechtsauskunft (Recherche 23.10.2026).
   beachtet; Mitte des Weges, Ergebnis am Weg gemerkt `w.law`). `outlines.json` wird jetzt wie die Grenzen in IndexedDB
   (`blocks`, Schlüssel `outlines`) gespeichert → auch offline.
 - **Einstellung** Tab Profil unter „gesperrte Wege zeigen“: Überschrift „LÄNDERREGELN FÜR WALDWEGE“, Knöpfe **aus ·
-  Hinweis · streng** (`settings.lawMode`, Standard `hint`), Erklärzeile, aufklappbar „ⓘ Welche Länder?“ mit zwei Gruppen
-  („Fahrverbot ohne Freigabe – wird beachtet“ mit orangem Punkt / „Andere Länder – nur zur Info“), je Land Text + Link „… ↗“,
-  darunter Hinweis (keine Rechtsauskunft; grenzüberschreitende Abschnitte höchstens „Hinweis“).
+  Hinweis · streng** (`settings.lawMode`, Standard `hint`), Erklärzeile, darunter nur der Link-Knopf
+  „ⓘ Welche Länder? Regeln und Gesetze ansehen“ (`.linkBtn`). Er öffnet ein **eigenes Fenster** (`<dialog id="lawDlg">`,
+  `showModal`, abgedunkelter Hintergrund, max. 560 px breit / 86 % hoch, Inhalt scrollt, Kopf „Länderregeln für Waldwege“
+  mit ✕; schließen auch mit Esc oder Tipp daneben): oben Hinweis (gilt für Wege ohne Zugangsregel in OSM; keine
+  Rechtsauskunft; grenzüberschreitend höchstens „Hinweis“), dann zwei Gruppen („Fahrverbot ohne Freigabe – wird beachtet“
+  mit orangem Punkt / „Andere Länder – nur zur Info“), je Land Text + Link „… ↗“ (neuer Tab). Inhalt kommt aus `LAW_RULES`
+  (steckt in der App → auch offline).
 - **Karte:** Hinweis = fraglicher Weg mit **gestricheltem dunklem Rand** (statt durchgehend; Orange wäre wie Stufe
   „mittel“), Zähler „…, davon N fraglich“; streng = wie gesperrte Wege (nur sichtbar mit „gesperrte Wege zeigen“).
   Info-Fenster: orange „⚠ Wahrscheinlich Fahrverbot (Land): <Regel> Hier ist keine Freigabe eingetragen …“.
