@@ -138,7 +138,7 @@
   .tip > summary::-webkit-details-marker { display: none; }
   .tip ul { margin: 2px 0 0; padding-left: 18px; line-height: 1.5; }
   /* Symbol-Kacheln (an/aus) */
-  .chips { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .chips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
   .chip { position: relative; cursor: pointer; }
   .chip input { position: absolute; opacity: 0; pointer-events: none; }
   .chip span .ic { width: 17px; height: 17px; }
@@ -146,8 +146,21 @@
     display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 10px; box-sizing: border-box;
     border: 1px solid var(--border); border-radius: 10px; font-size: 13px; background: #fff; user-select: none; white-space: nowrap;
   }
-  .chip input:checked + span { background: var(--accent-soft); border-color: var(--accent); font-weight: 700; }
-  .chip input:checked + span::after { content: '✕'; margin-left: auto; color: var(--accent); font-size: 12px; }
+  /* Erlaubt (Häkchen aus) = grün mit ✓, gemieden (Häkchen an) = rot mit ✕ – auf einen Blick erkennbar */
+  .chip span { background: #e8f5e9 !important; border-color: #66bb6a !important; color: #1b5e20; font-weight: 600;
+    padding: 0 8px !important; gap: 5px !important; font-size: 12.5px !important; white-space: normal !important; line-height: 1.15; min-width: 0; }
+  .chip span::after { content: '✓'; margin-left: auto; font-weight: 800; color: #2e7d32; }
+  .chip input:checked + span { background: #fdecea !important; border-color: #ef5350 !important; color: #b71c1c; }
+  .chip input:checked + span::after { content: '✕'; color: #c62828; }
+  .chip span .ic { stroke: currentColor; }
+  .optLegend { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; font-weight: 700; margin: 2px 0 8px; }
+  .optLegend .ok, .sumOk { color: #2e7d32; } .optLegend .no, .sumNo { color: #c62828; }
+  body.dark .sumOk { color: #81c784; } body.dark .sumNo { color: #ef9a9a; }
+  body.dark .chip span { background: #16351f !important; border-color: #2e7d32 !important; color: #a5d6a7; }
+  body.dark .chip span::after { color: #81c784; }
+  body.dark .chip input:checked + span { background: #3d1a1a !important; border-color: #e53935 !important; color: #ef9a9a; }
+  body.dark .chip input:checked + span::after { color: #ef9a9a; }
+  body.dark .optLegend .ok { color: #81c784; } body.dark .optLegend .no { color: #ef9a9a; }
   .chip input:focus-visible + span { outline: 2px solid var(--accent); }
   .check.sub { padding-left: 24px; }   /* Unterpunkt, gehört zur Zeile darüber */
   .optLine { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 14px; font-weight: 600; }
@@ -202,7 +215,19 @@
   .routeGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   .routeGrid .btn { min-height: 46px; margin: 0; width: 100%; padding: 4px 8px; font-size: 13px; line-height: 1.15;
     border-radius: 14px; white-space: normal; text-align: left; justify-content: flex-start; }
-  .routeGrid .btn.span2 { grid-column: 1 / -1; justify-content: center; }  .routeTools .btn.small, .routeBtns .btn.small { width: auto; margin-top: 0; flex: 1 1 auto; }
+  .routeGrid .btn.span2 { grid-column: 1 / -1; justify-content: center; }
+  /* Fahrzeug-Auswahl: 4 × 2 Kacheln mit Symbol und kurzem Namen */
+  .vehHead { margin-top: 12px !important; }
+  .vehGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+  .vehGrid button {
+    border: 1px solid var(--border); border-radius: 10px; background: var(--bg); cursor: pointer; padding: 5px 2px 4px;
+    display: flex; flex-direction: column; align-items: center; gap: 2px; font: 600 10.5px inherit; font-family: inherit;
+    color: var(--muted); line-height: 1.1; min-height: 56px;
+  }
+  .vehGrid button { --halo: var(--bg); }   /* Trennfugen/Fenster im Symbol = Kachelfarbe */
+  .vehGrid button .ic { width: 50px; height: 33px; }
+  .vehGrid button.on { --halo: var(--accent-soft); background: var(--accent-soft); border-color: var(--accent); color: var(--fg); box-shadow: inset 0 0 0 1px var(--accent); }
+  body.dark .vehGrid button.on { border-color: #38bdf8; box-shadow: inset 0 0 0 1px #38bdf8; }  .routeTools .btn.small, .routeBtns .btn.small { width: auto; margin-top: 0; flex: 1 1 auto; }
   .routePoints .rp { display: flex; align-items: center; gap: 8px; min-height: 38px; border-bottom: 1px solid var(--border); font-size: 14px; }
   .routePoints .rp:last-child { border-bottom: 0; }
   .rp .rpName { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -222,6 +247,22 @@
   .routeLegend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 3px 0 6px; vertical-align: -1px; }
   .routeBtns { display: flex; gap: 6px; flex-wrap: wrap; }
   .routeErr { color: var(--error); font-size: 14px; }
+  /* ---------- Höhenprofil (im Route-Tab unter dem Ergebnis) ---------- */
+  .elev { margin-top: 12px; border: 1px solid var(--border); border-radius: 12px; padding: 8px 10px 6px; background: var(--bg); }
+  .elevHead { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+  .elevHead span { margin-left: auto; color: var(--muted); font-size: 13px; font-weight: 600; }
+  .elevPlot { position: relative; height: 92px; margin-top: 6px; touch-action: none; cursor: crosshair; }
+  .elevSvg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .elevMax, .elevMin { position: absolute; left: 2px; font-size: 10px; font-weight: 700; color: var(--muted); z-index: 1;
+    text-shadow: 0 0 3px var(--bg), 0 0 3px var(--bg); }
+  .elevMax { top: 0; } .elevMin { bottom: 2px; }
+  .elevStrip { display: block; width: 100%; height: 6px; border-radius: 3px; margin-top: 2px; }
+  .elevAxis { display: flex; justify-content: space-between; gap: 6px; font-size: 10px; color: var(--muted); margin-top: 3px; }
+  .elevAxis span:nth-child(2) { text-align: center; }
+  .elevCursor { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px solid #0e7490; pointer-events: none; }
+  .elevTip { position: absolute; top: -2px; left: 6px; white-space: nowrap; background: var(--accent-grad); color: #fff;
+    font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 9px; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+  .elevTip.left { left: auto; right: 6px; }
   .btn.fitBtn { margin: 4px 0 8px; }
   .optBox { margin-top: 12px; border: 1px solid var(--border); border-radius: 10px; padding: 0 10px; }
   .optBox > summary { cursor: pointer; font-weight: 600; font-size: 14px; min-height: 44px; display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; list-style: none; }
@@ -229,6 +270,9 @@
   .optBox > summary::after { content: '›'; margin-left: auto; font-size: 20px; color: var(--muted); transition: transform .2s; }
   .optBox[open] > summary::after { transform: rotate(90deg); }
   .optBox[open] { padding-bottom: 10px; }
+  .qSep .secSum { display: inline-flex; margin-left: 6px; text-transform: none; letter-spacing: 0; }
+  .tabPanel[data-tab="ropt"] .optLegend { gap: 4px 12px; }
+  .tabPanel[data-tab="ropt"] > .check { font-size: 14px; padding-left: 0; }
   .optBox .check { min-height: 38px; font-size: 14px; align-items: flex-start; padding-top: 6px; }
   .optBox .check input { flex: none; margin: 0; }
   /* senkrechter Schieber "Transparenz für angezeigte Route" am rechten Kartenrand */
@@ -479,6 +523,10 @@
     <linearGradient id="icg" gradientUnits="userSpaceOnUse" x1="2" y1="2" x2="22" y2="22">
       <stop offset="0" stop-color="#0d9488"/><stop offset=".55" stop-color="#0e7490"/><stop offset="1" stop-color="#1d4ed8"/>
     </linearGradient>
+    <!-- gleicher Verlauf für die breiten Fahrzeug-Symbole (48 × 32) -->
+    <linearGradient id="icv" gradientUnits="userSpaceOnUse" x1="2" y1="2" x2="46" y2="30">
+      <stop offset="0" stop-color="#0d9488"/><stop offset=".55" stop-color="#0e7490"/><stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
   </defs>
   <symbol id="i-road" viewBox="0 0 24 24"><path d="M7.5 21 10.5 3M16.5 21 13.5 3"/><path d="M12 6.5v1.5M12 11v2M12 16.5v2.5"/></symbol>
   <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21.5s-7-6.1-7-11.5a7 7 0 0 1 14 0c0 5.4-7 11.5-7 11.5z"/><circle cx="12" cy="10" r="2.5"/></symbol>
@@ -541,6 +589,77 @@
   <symbol id="i-start" viewBox="0 0 24 24"><path d="M8.5 5.5v13L19 12z" fill="#fff" stroke-linejoin="round"/></symbol>
   <symbol id="i-finish" viewBox="0 0 24 24"><path d="M6 21.5V3.5"/><path d="M6 4h13v9H6"/>
     <path d="M6 4h4.3v4.5H6zM14.7 4H19v4.5h-4.3zM10.3 8.5h4.4V13h-4.4z" fill="#fff" stroke="none"/></symbol>
+  <!-- Fahrzeugtypen: Seitenansichten (48 × 32, Front rechts), gefüllte Formen + Räder, Verlauf #icv.
+       Trennfugen/Fenster in var(--halo) = Kachel-Hintergrund. -->
+  <g id="vb-big" stroke="url(#icv)">
+    <circle cx="9" cy="24.5" r="5.6" stroke-width="2.4"/><circle cx="39" cy="24.5" r="5.6" stroke-width="2.4"/>
+    <circle cx="9" cy="24.5" r="1.4" fill="url(#icv)" stroke="none"/><circle cx="39" cy="24.5" r="1.4" fill="url(#icv)" stroke="none"/>
+    <path d="M39 24.5 35 10M9 24.5 20 21.5" stroke-width="2.4"/>
+    <path d="M35 18.2q4-2 8.4.4" stroke-width="1.6"/>
+    <path d="M4 12.6 17 12q2-2.6 5-2.7l9-.9q3.2 0 4.2 2.6l.6 3.3-4.6 2-1 4.6q-5 2.2-11 1.2l-3-5-7.5-1z" fill="url(#icv)" stroke="none"/>
+    <path d="M34 10.5 35.4 3.6l2.6.3-1.4 6.6z" fill="url(#icv)" fill-opacity=".75" stroke="none"/>
+    <path d="M35.6 12.4 43.4 14.6l-1.6 1.6-5.8-1z" fill="url(#icv)" stroke="none"/>
+    <path d="M33.6 7.2 31 6.2" stroke-width="1.8"/>
+    <rect x="1.2" y="13.6" width="10" height="7.6" rx="1.3" fill="url(#icv)" stroke="var(--halo)" stroke-width="1.2"/>
+  </g>
+  <g id="vb-enduro" stroke="url(#icv)">
+    <circle cx="9" cy="24.5" r="5.2" stroke-width="2"/><circle cx="39" cy="24.5" r="5.2" stroke-width="2"/>
+    <circle cx="9" cy="24.5" r="6.4" stroke-width="1.5" stroke-dasharray="1.3 1.4" stroke-linecap="butt"/>
+    <circle cx="39" cy="24.5" r="6.4" stroke-width="1.5" stroke-dasharray="1.3 1.4" stroke-linecap="butt"/>
+    <circle cx="9" cy="24.5" r="1.2" fill="url(#icv)" stroke="none"/><circle cx="39" cy="24.5" r="1.2" fill="url(#icv)" stroke="none"/>
+    <path d="M39 24.5 34.4 8.6M9 24.5 21 20.2" stroke-width="2.3"/>
+    <path d="M1.6 10.2 8 11.4l18-1 4.6-1.6 3.6-.3.8 2.6-4.8 2.6-2.4 6.2-6.2 1.4-2.6-5.4-6.4-.8-6.6-1.4z" fill="url(#icv)" stroke="none"/>
+    <path d="M14.5 14.4 6 12.4" stroke="var(--halo)" stroke-width="1.1"/>
+    <path d="M34.6 11.4 44.2 12.2l-.9 1.6-8.2-.6z" fill="url(#icv)" stroke="none"/>
+    <path d="M35.2 7.8 37.6 6.8l1.1 4.6-2.5.6z" fill="url(#icv)" stroke="none"/>
+    <path d="M34 6.4 31.2 5.4" stroke-width="1.8"/>
+  </g>
+  <symbol id="i-v-big" viewBox="0 0 48 32"><use href="#vb-big"/></symbol>
+  <symbol id="i-v-enduro" viewBox="0 0 48 32"><use href="#vb-enduro"/></symbol>
+  <!-- Hard Enduro: Enduro im Wheelie über einem Felsblock -->
+  <symbol id="i-v-hard" viewBox="0 0 48 32">
+    <path d="M29 31.5 31.5 25.6 36 23.6l6.2.4 4.2 3.4.8 4.1z" fill="url(#icv)" fill-opacity=".45" stroke="none"/>
+    <use href="#vb-enduro" transform="translate(1.5 0) rotate(-14 9 24.5)"/></symbol>
+  <!-- Mit Sozius: Reisemaschine mit Fahrer und Beifahrer -->
+  <symbol id="i-v-sozius" viewBox="0 0 48 32"><use href="#vb-big"/>
+    <g stroke="var(--halo)"><path d="M12.4 11.2 15 5.2M15 6.6l5.6 1.6" stroke-width="5"/><circle cx="16" cy="3" r="3.3"/></g>
+    <g stroke="url(#icv)"><path d="M12.4 11.2 15 5.2" stroke-width="3.6"/><path d="M15 6.6l5.6 1.6" stroke-width="2"/><circle cx="16" cy="3" r="2.4" fill="url(#icv)" stroke="none"/></g>
+    <g stroke="var(--halo)"><path d="M21 10.6 24.4 4.6M24.4 5.6 31 6.6" stroke-width="5"/><circle cx="25.6" cy="2.4" r="3.3"/></g>
+    <g stroke="url(#icv)"><path d="M21 10.6 24.4 4.6" stroke-width="3.6"/><path d="M24.4 5.6 31 6.6" stroke-width="2"/><circle cx="25.6" cy="2.4" r="2.4" fill="url(#icv)" stroke="none"/></g>
+  </symbol>
+  <!-- Scrambler: Speichenräder, runder Tank, Sitzbank, hochgezogener Auspuff, runder Scheinwerfer -->
+  <symbol id="i-v-scrambler" viewBox="0 0 48 32"><g stroke="url(#icv)">
+    <circle cx="9" cy="24.5" r="5.4" stroke-width="2.8"/><circle cx="39" cy="24.5" r="5.4" stroke-width="2.8"/>
+    <path d="M9 20.5v8M5 24.5h8M6.2 21.7l5.6 5.6M11.8 21.7l-5.6 5.6M39 20.5v8M35 24.5h8M36.2 21.7l5.6 5.6M41.8 21.7l-5.6 5.6" stroke-width=".7"/>
+    <path d="M39 24.5 35.4 10M9 24.5 20 22M11.4 13.2 13.4 20" stroke-width="2.2"/>
+    <path d="M35 18.4q4-2.2 8.2 0M3.6 14.4q4.4-2.6 9 0" stroke-width="1.6"/>
+    <path d="M18 15.4h9.4l1.4 5.8-9.2 1.2z" fill="url(#icv)" stroke="none"/>
+    <path d="M19.4 16.8h7.8M19.8 18.6h7.6" stroke="var(--halo)" stroke-width=".8"/>
+    <path d="M14 13.6h14l3-3.2" stroke-width="1.8"/>
+    <path d="M21 12q.8-4.6 6.2-4.6 4.4.2 5 3l-2.2 2.2z" fill="url(#icv)" stroke="none"/>
+    <path d="M6.6 10.6h14.8l.4 2.4H7.4z" fill="url(#icv)" stroke="none"/>
+    <path d="M19.4 19.4 15.6 16.2H3.4" stroke-width="2"/>
+    <circle cx="37.2" cy="10" r="2.4" fill="url(#icv)" stroke="none"/>
+    <path d="M35.4 7.2 32.6 6.2" stroke-width="1.8"/></g></symbol>
+  <!-- Quad (ATV): breite Räder, Kotflügel über beiden Achsen, Sitz, Lenker, Gepäckträger -->
+  <symbol id="i-v-quad" viewBox="0 0 48 32"><g stroke="url(#icv)">
+    <circle cx="10" cy="24.5" r="5.2" stroke-width="3"/><circle cx="38" cy="24.5" r="5.2" stroke-width="3"/>
+    <circle cx="10" cy="24.5" r="1.4" fill="url(#icv)" stroke="none"/><circle cx="38" cy="24.5" r="1.4" fill="url(#icv)" stroke="none"/>
+    <path d="M15 21.6h18" stroke-width="2.2"/>
+    <path d="M1.4 18 3.8 13.4 16 13l3-2.2h10l3 2.2 12.2.4 2.4 4.6-2.4.4q-6-5-12.4 0H16.8q-6.4-5-12.4 0z" fill="url(#icv)" stroke="none"/>
+    <path d="M14.4 11.4 15.6 8.6h9.6l1 2.4z" fill="url(#icv)" stroke="none"/>
+    <path d="M29.6 11 31.6 5.4M30 5.4h4.2" stroke-width="2"/>
+    <path d="M2.4 11.4h11M3.4 11.4v2M12.4 11.4v1.6M35 11.4h10.2M36 11.4v2M44.2 11.4v2" stroke-width="1.3"/></g></symbol>
+  <!-- 4×4: kantiger Geländewagen mit Fenstern, Dachträger, Schnorchel und Reserverad -->
+  <symbol id="i-v-4x4" viewBox="0 0 48 32"><g stroke="url(#icv)">
+    <circle cx="11.5" cy="25" r="5" stroke-width="2.8"/><circle cx="37.5" cy="25" r="5" stroke-width="2.8"/>
+    <circle cx="11.5" cy="25" r="1.4" fill="url(#icv)" stroke="none"/><circle cx="37.5" cy="25" r="1.4" fill="url(#icv)" stroke="none"/>
+    <path d="M3.5 22.5V8.4q0-1.2 1.2-1.2h32l2.4 6.2 6.4.9q.9.2.9 1.2v7H44.6a7.1 7.1 0 0 0-14.2 0H18.6a7.1 7.1 0 0 0-14.2 0z" fill="url(#icv)" stroke="none"/>
+    <path d="M6 9.2h7.6v4.4H6zM15.6 9.2h7.6v4.4h-7.6zM25.2 9.2h8.6l1.8 4.4H25.2z" fill="var(--halo)" stroke="none"/>
+    <rect x=".6" y="11" width="2.6" height="9" rx="1.2" fill="url(#icv)" stroke="none"/>
+    <path d="M5 5h30M8 5v2M20 5v2M32 5v2" stroke-width="1.3"/>
+    <path d="M41 14.4 39.4 6.4" stroke-width="1.6"/></g></symbol>
+  <symbol id="i-v-custom" viewBox="-8 -3 40 28"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/><path d="M4 12h13M21 12h-1"/><circle cx="18.5" cy="12" r="1.6"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
   <symbol id="i-monument" viewBox="0 0 24 24"><path d="M10.5 18V6.5L12 3l1.5 3.5V18"/><path d="M8 18h8l1 3H7z"/></symbol>
   <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></symbol>
@@ -559,6 +678,8 @@
       <svg class="tabIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21.5s-7-6.1-7-11.5a7 7 0 0 1 14 0c0 5.4-7 11.5-7 11.5z"/><circle cx="12" cy="10" r="2.5"/></svg><span class="tabName">POI</span><span class="tabSum" id="sumPoi"></span></button>
     <button type="button" class="tab" role="tab" data-tab="route" title="Route planen">
       <svg class="tabIcon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8.5 19H16a3.5 3.5 0 0 0 0-7H8a3.5 3.5 0 0 1 0-7h7.5"/></svg><span class="tabName">Route</span><span class="tabSum" id="sumRoute"></span></button>
+    <button type="button" class="tab" role="tab" data-tab="ropt" title="Routing-Optionen: Fahrzeug, Schotter-Vorliebe, erlaubt/gemieden">
+      <svg class="tabIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9M4 12h13M21 12h-1"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/><circle cx="19" cy="12" r="1.8"/></svg><span class="tabName">Profil</span><span class="tabSum" id="sumRopt"></span></button>
     <button type="button" class="tab" role="tab" data-tab="gpx" title="Eigene GPX-Tracks">
       <svg class="tabIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M8.5 17.5c1.5-.5 1.5-3 3.5-3s2.5-2 3.5-2.5"/></svg><span class="tabName">GPX</span><span class="tabSum" id="sumGpx"></span></button>
     <button type="button" class="tab" role="tab" data-tab="off" title="Länder offline speichern">
@@ -658,20 +779,28 @@
     </div>
     <!-- Ergebnis gleich unter den Punkten: Länge, Zeit, Anteile, "Ganze Route zeigen" -->
     <div class="row" id="routeResult"></div>
+   </div>
+
+   <!-- ===================== Routing-Optionen (wie gerechnet wird) ===================== -->
+   <div class="tabPanel" data-tab="ropt" role="tabpanel">
+    <!-- Fahrzeugtyp: setzt Stufen, Schotter-Vorliebe, Erlaubt/gemieden und Fahrzeit auf einen Tipp -->
+    <div class="qSep first" style="padding-top:12px">Fahrzeug</div>
+    <div class="vehGrid" id="vehGrid" role="radiogroup" aria-label="Fahrzeugtyp"></div>
+    <div class="hint" id="vehHint"></div>
     <div class="srow" title="Wie viel Umweg du für Schotter in Kauf nimmst"><span class="sLbl"><svg class="ic"><use href="#i-gravel"/></svg>Schotter</span>
       <input type="range" id="prefRange" min="1" max="5" step="0.5" value="3" aria-label="Schotter-Vorliebe">
       <span class="sVal wide" id="prefValue">stark</span></div>
+    <div class="qSep">Erlaubt / gemieden <span class="secSum" id="routeOptSum"></span></div>
+    <div class="optLegend"><span class="ok">✓ grün = darf genutzt werden</span><span class="no">✕ rot = wird gemieden</span></div>
+    <div id="routeOpts" class="chips"></div>
+    <div class="hint">Antippen wechselt. Gemieden heißt: nur, wenn es gar nicht anders geht.</div>
+    <div class="routeErr" id="restrictWarn" hidden><svg class="ic"><use href="#i-warn"/></svg> Gesperrte Wege sind erlaubt – nur fahren, wo du wirklich darfst (Fahrverbot!).</div>
+    <label class="check sub" title="gesperrt / nur Anrainer, Land- oder Forstwirtschaft – als graue Strichlinie"><input type="checkbox" id="showRestricted">
+      <svg width="28" height="8"><line x1="0" y1="4" x2="28" y2="4" stroke="#777" stroke-width="3" stroke-dasharray="6 5"/></svg> gesperrte Wege auf der Karte zeigen</label>
+    <div class="qSep">Darstellung der Route</div>
     <div class="srow" title="Linienstärke der Route (Transparenz: Schieber links auf der Karte)"><span class="sLbl"><svg class="ic"><use href="#i-width"/></svg>Linie</span>
       <input type="range" id="routeWidth" min="2" max="10" step="1" value="4" aria-label="Linienstärke der Route">
       <span class="sVal"><span id="routeWidthValue">4</span> px</span></div>
-    <details class="optBox" id="routeOptBox">
-      <summary><svg class="ic lg"><use href="#i-ban"/></svg>Vermeiden <span class="secSum" id="routeOptSum"></span></summary>
-      <div id="routeOpts" class="chips"></div>
-      <div class="hint">nur wenn es gar nicht anders geht</div>
-      <div class="optLine"><svg class="ic"><use href="#i-noentry"/></svg>Gesperrte Wege: nie in der Route</div>
-      <label class="check sub" title="gesperrt / nur Anrainer, Land- oder Forstwirtschaft – als graue Strichlinie"><input type="checkbox" id="showRestricted">
-        <svg width="28" height="8"><line x1="0" y1="4" x2="28" y2="4" stroke="#777" stroke-width="3" stroke-dasharray="6 5"/></svg> auf der Karte zeigen</label>
-    </details>
    </div>
 
    <!-- ===================== GPX-Tracks ===================== -->
@@ -761,6 +890,8 @@ assign avoid_ferry    = 0  # %avoid_ferry% | Fähren vermeiden | number
 assign avoid_ford     = 1  # %avoid_ford% | Furten vermeiden | number
 assign avoid_town     = 0  # %avoid_town% | Ortsgebiet meiden | number
 assign avoid_steep    = 0  # %avoid_steep% | Starke Steigungen meiden | number
+assign avoid_restricted = 1  # %avoid_restricted% | Gesperrte Wege/Straßen meiden | number
+assign veh_car = 0  # %veh_car% | Zugang wie Kraftfahrzeug (Quad, Geländewagen) statt Motorrad | number
 
 # Welche Qualitätsstufen in der App eingeblendet sind (1 = ja) – nur diese werden bevorzugt
 assign show_q1 = 1  # %show_q1% | Stufe 1 sehr gut | number
@@ -778,13 +909,14 @@ assign downhillcutoff = if equal avoid_steep 1 then 10 else 0
 ---context:way
 
 # ---------- Zugang: der genaueste vorhandene Schlüssel entscheidet (wie in der Karte) ----------
+# veh_car = 1 (Quad, Geländewagen): Angaben nur für Motorräder (motorcycle=…) zählen nicht
+assign blocked_car
+  if motor_vehicle= then
+    ( if vehicle= then ( access=no|private ) else vehicle=no|private )
+  else motor_vehicle=no|private|agricultural|destination   # (forestry ist bei BRouter ein Alias von agricultural)
 assign blocked
-  if motorcycle= then
-    ( if motor_vehicle= then
-        ( if vehicle= then
-            ( access=no|private )
-          else vehicle=no|private )
-      else motor_vehicle=no|private|agricultural|destination )
+  if equal veh_car 1 then blocked_car
+  else if motorcycle= then blocked_car
   else motorcycle=no|private
 
 # ---------- Schotterweg? (gleicher Filter wie die Karte) ----------
@@ -863,9 +995,12 @@ assign optcost
   else if and ( equal avoid_town 1 ) highway=residential|living_street then 4
   else 1
 
+assign basecost multiply optcost ( if isgravel then gravelcost else roadcost )
+# Gesperrte Wege/Straßen (Fahrverbot, nur Anrainer, Land-/Forstwirtschaft): Standard praktisch gesperrt.
+# In der App erlaubbar (z. B. mit Genehmigung) – dann nur etwas teurer, damit freie Wege Vorrang behalten.
 assign costfactor
-  if blocked then 10000
-  else multiply optcost ( if isgravel then gravelcost else roadcost )
+  if blocked then ( if equal avoid_restricted 1 then 10000 else multiply 1.5 basecost )
+  else basecost
 
 assign turncost 30
 # Fähre: Einstieg kostet immer etwas (Wartezeit); "Fähren vermeiden" macht jeden Fähr-Meter sehr teuer (siehe optcost).
@@ -980,8 +1115,31 @@ assign initialcost
     { lvl: 5, name: 'sehr schlecht',   hint: 'Hard Enduro: Schlamm, Sand, kaum erkennbar – grade5, very_horrible/impassable', color: '#b026ff', show: false, old: [] }
   ];
 
-  // Routing-Optionen: id = Parameter im BRouter-Profil (avoid_<id>), on = Standard
+  // Fahrzeugtypen: setzen auf einen Tipp Qualitätsstufen (q: Stufe 1–5 an/aus), Schotter-Vorliebe (pref), Optionen
+  // (opt: true = gemieden), Zugangsregeln (car: true = wie Kraftfahrzeug statt Motorrad) und Tempo für die Fahrzeit
+  // (speed: km/h je Stufe 1–5, road: Faktor auf die Straßen-Geschwindigkeiten). "custom" = eigene Einstellung.
+  var VEHICLES = [
+    { id: 'bigenduro', label: 'Big Enduro', icon: 'v-big', hint: 'Große Reiseenduro (GS, Africa Twin, Ténéré) – Stufen 1–3',
+      q: [1, 1, 1, 0, 0], pref: 3, opt: { ford: true, motorway: true }, speed: [35, 28, 18, 12, 7], road: 1 },
+    { id: 'enduro', label: 'Enduro', icon: 'v-enduro', hint: 'Leichte Enduro / Sportenduro – Stufen 1–4, Furten erlaubt',
+      q: [1, 1, 1, 1, 0], pref: 4, opt: { motorway: true }, speed: [40, 32, 22, 15, 9], road: 0.95 },
+    { id: 'hard', label: 'Hard Enduro', icon: 'v-hard', hint: 'Hard Enduro – alle 5 Stufen, Furten und Steilstücke erlaubt',
+      q: [1, 1, 1, 1, 1], pref: 5, opt: { motorway: true }, speed: [35, 30, 22, 16, 11], road: 0.9 },
+    { id: 'sozius', label: 'Mit Sozius', icon: 'v-sozius', hint: 'Reiseenduro mit Sozius / Gepäck – nur Stufen 1–2, Steilstücke meiden',
+      q: [1, 1, 0, 0, 0], pref: 2, opt: { ford: true, motorway: true, steep: true }, speed: [30, 24, 15, 10, 6], road: 0.95 },
+    { id: 'scrambler', label: 'Scrambler', icon: 'v-scrambler', hint: 'Scrambler / Straßenmaschine – Stufen 1–2, eher Straße',
+      q: [1, 1, 0, 0, 0], pref: 1.5, opt: { ford: true, motorway: true }, speed: [35, 25, 15, 9, 5], road: 1 },
+    { id: 'quad', label: 'Quad', icon: 'v-quad', hint: 'Quad / ATV – Stufen 1–4, Zugang wie Kraftfahrzeug, keine Autobahn/Schnellstraße',
+      q: [1, 1, 1, 1, 0], pref: 3, opt: { motorway: true, trunk: true }, speed: [30, 24, 16, 11, 7], road: 0.8, car: true },
+    { id: 'offroad', label: '4×4', icon: 'v-4x4', hint: 'Geländewagen 4×4 – Stufen 1–4, Zugang wie Kraftfahrzeug, Autobahn erlaubt',
+      q: [1, 1, 1, 1, 0], pref: 3, opt: {}, speed: [30, 22, 14, 9, 5], road: 1, car: true },
+    { id: 'custom', label: 'Eigenes', icon: 'v-custom', hint: 'Eigenes Profil – Stufen, Schotter-Vorliebe und Optionen frei einstellen' }
+  ];
+  function vehicle() { return VEHICLES.filter(function (v) { return v.id === settings.vehicle; })[0] || VEHICLES[0]; }
+
+  // Routing-Optionen: id = Parameter im BRouter-Profil (avoid_<id>), on = Standard (true = wird gemieden)
   var ROUTE_OPTS = [
+    { id: 'restricted', on: true, icon: 'noentry', label: 'Gesperrte Wege', hint: 'Fahrverbot, nur Anrainer, Land-/Forstwirtschaft – grün nur, wenn du dort fahren darfst (z. B. mit Genehmigung)' },
     { id: 'motorway', on: true,  icon: 'motorway', label: 'Autobahn', hint: 'Autobahnen vermeiden (aus = schnelle Überstellung erlaubt)' },
     { id: 'trunk',    on: false, icon: 'car', label: 'Schnellstraße', hint: 'Schnell- und Kraftfahrstraßen vermeiden' },
     { id: 'toll',     on: false, icon: 'toll', label: 'Maut', hint: 'Mautstraßen und Mautstellen vermeiden (soweit eingetragen)' },
@@ -994,6 +1152,7 @@ assign initialcost
   var settings = { width: 2, transparency: 0, bgFade: 60, poiMinZoom: 11, route: { pts: [], pref: 3, width: 4, transp: 0, opt: {} }, showRestricted: false, poi: {}, q: {}, panelOpen: false, tab: 'way', offline: [], noAsk: [], wakeLock: false,
     border: { show: true, color: '#5f6368', style: 'dashdot', width: 5 },   // Grenze: grau, dick, Strich-Punkt
     hillshade: false,       // Höhenschummerung
+    vehicle: 'bigenduro',   // Fahrzeugtyp fürs Routing (siehe VEHICLES)
     dark: 'off' };          // dunkles Design (Menü und Karte): off | system (wie am Handy eingestellt) | on
   POI_CATS.forEach(function (c) { settings.poi[c.id] = c.on; });
   ROUTE_OPTS.forEach(function (o) { settings.route.opt[o.id] = o.on; });
@@ -1026,10 +1185,11 @@ assign initialcost
       if (typeof saved.showRestricted === 'boolean') settings.showRestricted = saved.showRestricted;
       // früherer Tab "Einstellungen" (set) hatte die Unterpunkte – zuletzt offener Unterpunkt wird zum Tab
       if (saved.tab === 'set') saved.tab = { secPoi: 'poi', secApp: 'app' }[saved.openSection] || 'way';
-      if (/^(way|poi|route|gpx|off|app)$/.test(saved.tab)) settings.tab = saved.tab;
+      if (/^(way|poi|route|ropt|gpx|off|app)$/.test(saved.tab)) settings.tab = saved.tab;
       if (typeof saved.panelOpen === 'boolean') settings.panelOpen = saved.panelOpen;
       if (typeof saved.wakeLock === 'boolean') settings.wakeLock = saved.wakeLock;
       if (typeof saved.hillshade === 'boolean') settings.hillshade = saved.hillshade;
+      if (VEHICLES.some(function (v) { return v.id === saved.vehicle; })) settings.vehicle = saved.vehicle;
       if (typeof saved.dark === 'boolean') settings.dark = saved.dark ? 'on' : 'off';   // früher nur ein/aus
       else if (/^(off|system|on)$/.test(saved.dark)) settings.dark = saved.dark;
       if (saved.border) {
@@ -1540,8 +1700,10 @@ assign initialcost
   }
 
   function isRestricted(tags) {
+    var car = !!vehicle().car;   // Quad/4×4: Angaben nur für Motorräder (motorcycle=…) zählen nicht
     for (var i = 0; i < ACCESS_KEYS.length; i++) {
       var key = ACCESS_KEYS[i];
+      if (car && key === 'motorcycle') continue;
       if (tags[key] !== undefined) {
         var parts = String(tags[key]).split(';').map(function (s) { return s.trim(); });
         return parts.every(function (p) { return BLOCKED[key].indexOf(p) !== -1; });
@@ -2907,7 +3069,7 @@ assign initialcost
 
   // Qualitätsstufen: je Stufe Farbfeld (sofort wirksam) und Häkchen (ein-/ausblenden)
   var qList = document.getElementById('qList');
-  var qInputs = {};
+  var qInputs = {}, qBoxes = {};
   QUALITY.forEach(function (q) {
     if (q.lvl === 1) {   // eine Überschrift über allen fünf Stufen
       var sep = document.createElement('div');
@@ -2926,8 +3088,9 @@ assign initialcost
     box.checked = settings.q[q.lvl].show;
     color.addEventListener('input', function () { settings.q[q.lvl].color = color.value; applyStyle(); saveSettings(); });
     // Stufe ein/aus wirkt auch aufs Routing (nur eingeblendete Stufen werden bevorzugt) → Route neu rechnen
-    box.addEventListener('change', function () { settings.q[q.lvl].show = box.checked; saveSettings(); render(); scheduleRoute(); });
+    box.addEventListener('change', function () { settings.q[q.lvl].show = box.checked; vehicleCheck(); saveSettings(); render(); scheduleRoute(); });
     qInputs[q.lvl] = color;
+    qBoxes[q.lvl] = box;
     qList.appendChild(row);
   });
   document.getElementById('qReset').addEventListener('click', function () {
@@ -3418,7 +3581,8 @@ assign initialcost
           return '&profile:avoid_' + o.id + '=' + (on ? 1 : 0);
         }).join('') +
         // Route nutzt die eingeblendeten Stufen; ausgeblendete nur, wenn es nicht anders geht
-        QUALITY.map(function (q) { return '&profile:show_q' + q.lvl + '=' + (settings.q[q.lvl].show ? 1 : 0); }).join('');
+        QUALITY.map(function (q) { return '&profile:show_q' + q.lvl + '=' + (settings.q[q.lvl].show ? 1 : 0); }).join('') +
+        '&profile:veh_car=' + (vehicle().car ? 1 : 0);
       // Mit "Fähren vermeiden" höchstens 12 s auf einen Landweg warten, danach mit Fähre rechnen
       if (settings.route.opt.ferry && !allowFerry) {
         setTimeout(function () { if (routeCtrl === ctrl) { ferryTimedOut = true; ctrl.abort(); } }, 12000);
@@ -3484,7 +3648,9 @@ assign initialcost
     var total = 0, by = { q1: 0, q2: 0, q3: 0, q4: 0, q5: 0, road: 0 }, hours = 0;
     segs.forEach(function (s) {
       total += s.dist; by[s.cls] += s.dist;
-      var v = s.cls === 'road' ? (ROAD_SPEED[s.hw] || 40) : Q_SPEED[s.cls.charAt(1)];
+      // Tempo je Fahrzeugtyp ("Eigenes" = Big-Enduro-Werte)
+      var veh = vehicle(), qs = veh.speed || VEHICLES[0].speed, rf = veh.road || 1;
+      var v = s.cls === 'road' ? (ROAD_SPEED[s.hw] || 40) * rf : qs[Number(s.cls.charAt(1)) - 1];
       hours += s.dist / 1000 / v;
     });
     var props = f.properties;
@@ -3506,7 +3672,8 @@ assign initialcost
     });
 
     lastRoute = { coords: coords, dist: dist, by: by, total: total || 1, hours: hours, ascend: ascend, bounds: L.latLngBounds(all),
-      gravelShare: (total - by.road) / (total || 1), pts: pts, all: all, wpIdx: matchWaypoints(all, pts) };
+      gravelShare: (total - by.road) / (total || 1), pts: pts, all: all, wpIdx: matchWaypoints(all, pts),
+      segs: segs.map(function (s) { return { cls: s.cls, dist: s.dist }; }), profile: buildProfile(coords) };
     drawRouteHit(all);
     showRouteOpacity(true);
     renderRouteResult();
@@ -3636,21 +3803,113 @@ assign initialcost
     saveRoute();
   }
 
+  // ---- Höhenprofil: aus den Routenpunkten (BRouter liefert [lon, lat, Höhe]) ----
+  // Ergebnis: höchstens ~240 Stützpunkte {d: km ab Start, e: Höhe m, ll}, dazu Anstieg/Abstieg (mit 3-m-Schwelle,
+  // damit Messrauschen nicht als Höhenmeter zählt – 8 m, ähnlich dem gefilterten Wert von BRouter), tiefster und höchster Punkt.
+  function buildProfile(coords) {
+    if (!coords || coords.length < 2 || coords[0].length < 3) return null;
+    var all = [], d = 0, prev = null;
+    coords.forEach(function (c) {
+      var ll = L.latLng(c[1], c[0]);
+      if (prev) d += prev.distanceTo(ll);
+      all.push({ d: d / 1000, e: Number(c[2]), ll: ll });
+      prev = ll;
+    });
+    var up = 0, down = 0, ref = all[0].e, min = Infinity, max = -Infinity, maxAt = 0;
+    all.forEach(function (p) {
+      if (p.e - ref >= 8) { up += p.e - ref; ref = p.e; } else if (ref - p.e >= 8) { down += ref - p.e; ref = p.e; }
+      if (p.e < min) min = p.e;
+      if (p.e > max) { max = p.e; maxAt = p.d; }
+    });
+    var step = Math.max(1, Math.ceil(all.length / 240)), pts = [];
+    for (var i = 0; i < all.length; i += step) pts.push(all[i]);
+    if (pts[pts.length - 1] !== all[all.length - 1]) pts.push(all[all.length - 1]);
+    return { pts: pts, km: d / 1000, up: up, down: down, min: min, max: max, maxAt: maxAt };
+  }
+
+  // Profil als SVG: Fläche im Petrol-Verlauf, Linie im Verlauf wie die Symbole, darunter ein Streifen mit der
+  // Weg-Qualität entlang der Strecke (gleiche Farben wie die Route auf der Karte).
+  var PW = 300, PH = 92;
+  function profileHtml(r) {
+    var p = r.profile;
+    if (!p || p.max - p.min < 1) return '';
+    var lo = p.min - (p.max - p.min) * 0.08, hi = p.max + (p.max - p.min) * 0.12, span = hi - lo;
+    var X = function (d) { return (d / p.km * PW).toFixed(1); }, Y = function (e) { return (PH - (e - lo) / span * PH).toFixed(1); };
+    var line = p.pts.map(function (q, i) { return (i ? 'L' : 'M') + X(q.d) + ' ' + Y(q.e); }).join('');
+    var area = line + 'L' + PW + ' ' + PH + 'L0 ' + PH + 'Z';
+    // Qualitäts-Streifen: Abschnitte der Reihe nach, Breite = Anteil an der Strecke
+    var total = r.segs.reduce(function (s, x) { return s + x.dist; }, 0) || 1, x0 = 0;
+    var strip = r.segs.map(function (s) {
+      var w = s.dist / total * PW, col = s.cls === 'road' ? ROUTE_ROAD_COLOR : settings.q[s.cls.charAt(1)].color;
+      var out = '<rect x="' + x0.toFixed(1) + '" y="0" width="' + (w + 0.4).toFixed(1) + '" height="6" fill="' + col + '"/>';
+      x0 += w; return out;
+    }).join('');
+    return '<div class="elev" id="elevBox">' +
+      '<div class="elevHead">' + ic('mountain') + '<b>Höhenprofil</b>' +
+        '<span>↑ ' + Math.round(p.up) + ' m · ↓ ' + Math.round(p.down) + ' m</span></div>' +
+      '<div class="elevPlot">' +
+        '<span class="elevMax">' + Math.round(p.max) + ' m</span><span class="elevMin">' + Math.round(p.min) + ' m</span>' +
+        '<svg class="elevSvg" viewBox="0 0 ' + PW + ' ' + PH + '" preserveAspectRatio="none" aria-hidden="true">' +
+          '<defs><linearGradient id="elevFill" x1="0" y1="0" x2="0" y2="1">' +
+            '<stop offset="0" stop-color="#0e7490" stop-opacity=".45"/><stop offset="1" stop-color="#0d9488" stop-opacity=".06"/></linearGradient>' +
+          '<linearGradient id="elevLine" x1="0" y1="0" x2="1" y2="0">' +
+            '<stop offset="0" stop-color="#0d9488"/><stop offset=".55" stop-color="#0e7490"/><stop offset="1" stop-color="#1d4ed8"/></linearGradient></defs>' +
+          '<path d="' + area + '" fill="url(#elevFill)"/>' +
+          '<path d="' + line + '" fill="none" stroke="url(#elevLine)" stroke-width="2.2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>' +
+        '</svg>' +
+        '<div class="elevCursor" hidden><div class="elevTip"></div></div>' +
+      '</div>' +
+      '<svg class="elevStrip" viewBox="0 0 ' + PW + ' 6" preserveAspectRatio="none" aria-hidden="true">' + strip + '</svg>' +
+      '<div class="elevAxis"><span>0 km</span><span>höchster Punkt ' + Math.round(p.max) + ' m bei km ' + p.maxAt.toFixed(1).replace('.', ',') + '</span>' +
+        '<span>' + kmText(p.km * 1000) + '</span></div>' +
+    '</div>';
+  }
+
+  // Finger/Maus über dem Profil: Strich + Wert im Profil, Punkt an derselben Stelle auf der Karte
+  var elevMarker = null;
+  function bindProfile(r) {
+    if (elevMarker) { map.removeLayer(elevMarker); elevMarker = null; }
+    var box = document.getElementById('elevBox');
+    if (!box) return;
+    var plot = box.querySelector('.elevPlot'), cur = box.querySelector('.elevCursor'), tip = box.querySelector('.elevTip');
+    var p = r.profile;
+    function show(ev) {
+      var rect = plot.getBoundingClientRect(), f = Math.min(1, Math.max(0, (ev.clientX - rect.left) / rect.width));
+      var d = f * p.km, best = p.pts[0];
+      p.pts.forEach(function (q) { if (Math.abs(q.d - d) < Math.abs(best.d - d)) best = q; });
+      cur.hidden = false;
+      cur.style.left = (best.d / p.km * 100) + '%';
+      tip.textContent = best.d.toFixed(1).replace('.', ',') + ' km · ' + Math.round(best.e) + ' m';
+      tip.classList.toggle('left', f > 0.6);
+      if (!elevMarker) elevMarker = L.circleMarker(best.ll, { pane: 'routePinPane', radius: 8, color: '#fff', weight: 3, fillColor: '#0e7490', fillOpacity: 1, interactive: false }).addTo(map);
+      else elevMarker.setLatLng(best.ll);
+    }
+    function hide() { cur.hidden = true; if (elevMarker) { map.removeLayer(elevMarker); elevMarker = null; } }
+    plot.addEventListener('pointerdown', function (ev) { plot.setPointerCapture(ev.pointerId); show(ev); });
+    plot.addEventListener('pointermove', show);
+    plot.addEventListener('pointerleave', hide);
+    plot.addEventListener('pointerup', function (ev) { if (ev.pointerType !== 'mouse') setTimeout(hide, 1500); });
+  }
+
   function renderRouteResult() {
     var r = lastRoute;
     if (!r) return;
     var parts = QUALITY.map(function (q) { return { cls: 'q' + q.lvl, name: q.name, color: settings.q[q.lvl].color }; })
       .concat([{ cls: 'road', name: 'Straße', color: ROUTE_ROAD_COLOR }]);
     var pct = function (c) { return Math.round(r.by[c] / r.total * 100); };
+    // Höhenmeter überall gleich: aus dem Höhenprofil, sonst der Wert von BRouter
+    var up = r.profile ? r.profile.up : r.ascend;
     showRouteResult(
-      '<div class="routeStats"><b>' + kmText(r.dist) + '</b> · ≈ ' + timeText(r.hours) + (r.ascend ? ' · ↑ ' + Math.round(r.ascend) + ' m' : '') + '</div>' +
+      '<div class="routeStats"><b>' + kmText(r.dist) + '</b> · ≈ ' + timeText(r.hours) + (up ? ' · ↑ ' + Math.round(up) + ' m' : '') + '</div>' +
       (r.ferryForced ? '<div class="routeErr">' + ic('ship') + ' Ohne Fähre wurde keine Route gefunden – diese Route enthält daher eine Fähre.</div>' : '') +
       '<div class="routeBar">' + parts.map(function (p) {
         return r.by[p.cls] ? '<span style="width:' + (r.by[p.cls] / r.total * 100) + '%;background:' + p.color + '"></span>' : '';
       }).join('') + '</div>' +
       // Legende nur mit den vorkommenden Anteilen (spart Platz)
       '<div class="routeLegend">' + parts.filter(function (p) { return r.by[p.cls] > 0; })
-        .map(function (p) { return '<i style="background:' + p.color + '"></i>' + p.name + ' ' + pct(p.cls) + ' %'; }).join(' ') + '</div>');
+        .map(function (p) { return '<i style="background:' + p.color + '"></i>' + p.name + ' ' + pct(p.cls) + ' %'; }).join(' ') + '</div>' +
+      profileHtml(r));
+    bindProfile(r);
     // "Ganze Route zeigen" und "GPX speichern" stehen fest oben im Tab (siehe showRouteOpacity)
   }
 
@@ -3735,13 +3994,15 @@ assign initialcost
   prefRange.value = settings.route.pref;
   prefValue.textContent = PREF_NAMES[settings.route.pref] || settings.route.pref;
   prefRange.addEventListener('input', function () { prefValue.textContent = PREF_NAMES[prefRange.value] || prefRange.value; });
-  prefRange.addEventListener('change', function () { settings.route.pref = Number(prefRange.value); saveSettings(); scheduleRoute(); });
+  prefRange.addEventListener('change', function () { settings.route.pref = Number(prefRange.value); vehicleCheck(); saveSettings(); scheduleRoute(); });
 
   // Routing-Optionen (Häkchen) – jede Änderung rechnet die Route neu
   var routeOptsEl = document.getElementById('routeOpts');
   function updateRouteOptSum() {
     var on = ROUTE_OPTS.filter(function (o) { return settings.route.opt[o.id]; });
-    document.getElementById('routeOptSum').innerHTML = on.length ? on.map(function (o) { return ic(o.icon); }).join('') : 'nichts';
+    // zugeklappt: Anzahl erlaubt (grün) / gemieden (rot)
+    document.getElementById('routeOptSum').innerHTML = '<b class="sumOk">' + (ROUTE_OPTS.length - on.length) + ' ✓</b> <b class="sumNo">' + on.length + ' ✕</b>';
+    document.getElementById('restrictWarn').hidden = !!settings.route.opt.restricted;   // Warnung, wenn gesperrte erlaubt
   }
   routeOptsEl.innerHTML = ROUTE_OPTS.map(function (o) {
     return '<label class="chip" title="' + o.hint + '"><input type="checkbox" data-opt="' + o.id + '"' + (settings.route.opt[o.id] ? ' checked' : '') + '>' +
@@ -3751,9 +4012,60 @@ assign initialcost
     var id = e.target.dataset && e.target.dataset.opt;
     if (!id) return;
     settings.route.opt[id] = e.target.checked;
-    saveSettings(); updateRouteOptSum(); scheduleRoute();
+    vehicleCheck(); saveSettings(); updateRouteOptSum(); scheduleRoute();
   });
   updateRouteOptSum();
+
+  // ---- Fahrzeugtyp ----
+  var vehGridEl = document.getElementById('vehGrid');
+  vehGridEl.innerHTML = VEHICLES.map(function (v) {
+    return '<button type="button" data-veh="' + v.id + '" title="' + v.hint + '" role="radio">' + ic(v.icon) + v.label + '</button>';
+  }).join('');
+  function syncVehicleUi() {
+    var cur = vehicle();
+    Array.prototype.forEach.call(vehGridEl.children, function (b) {
+      var on = b.dataset.veh === cur.id; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on));
+    });
+    document.getElementById('vehHint').textContent = cur.hint;
+    document.getElementById('sumRopt').textContent = cur.label;   // kurz unter dem Tab "Optionen"
+  }
+  // Passen die aktuellen Einstellungen (noch) zum gewählten Fahrzeug? ("Gesperrte Wege" bleibt immer deine Wahl)
+  function vehicleMatches(v) {
+    if (!v.q) return false;
+    var ok = QUALITY.every(function (q, i) { return settings.q[q.lvl].show === !!v.q[i]; }) && settings.route.pref === v.pref;
+    return ok && ROUTE_OPTS.every(function (o) { return o.id === 'restricted' || !!settings.route.opt[o.id] === !!v.opt[o.id]; });
+  }
+  // nach einer Änderung von Hand: passt es nicht mehr zum Fahrzeug → "Eigenes"
+  function vehicleCheck() {
+    if (!vehGridEl || settings.vehicle === 'custom') return;
+    if (!vehicleMatches(vehicle())) { settings.vehicle = 'custom'; syncVehicleUi(); }
+  }
+  function applyVehicle(id) {
+    settings.vehicle = id;
+    var v = vehicle();
+    if (v.q) {
+      QUALITY.forEach(function (q, i) { settings.q[q.lvl].show = !!v.q[i]; if (qBoxes[q.lvl]) qBoxes[q.lvl].checked = !!v.q[i]; });
+      settings.route.pref = v.pref;
+      prefRange.value = v.pref; prefValue.textContent = PREF_NAMES[v.pref] || v.pref;
+      ROUTE_OPTS.forEach(function (o) {
+        if (o.id === 'restricted') return;
+        settings.route.opt[o.id] = !!v.opt[o.id];
+        var box = routeOptsEl.querySelector('[data-opt="' + o.id + '"]');
+        if (box) box.checked = !!v.opt[o.id];
+      });
+      updateRouteOptSum();
+    }
+    syncVehicleUi();
+    // Zugangsregeln hängen vom Fahrzeug ab (Motorrad / Kraftfahrzeug) → "gesperrt" für alle geladenen Wege neu bestimmen
+    ways.forEach(function (w) { w.restricted = isRestricted(w.tags); });
+    saveSettings(); render(); scheduleRoute();
+  }
+  vehGridEl.addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-veh]');
+    if (b) applyVehicle(b.dataset.veh);
+  });
+  vehicleCheck();      // ältere, von Hand angepasste Einstellungen → "Eigenes"
+  syncVehicleUi();
 
   var routeWidthEl = document.getElementById('routeWidth');
   routeWidthEl.value = settings.route.width;

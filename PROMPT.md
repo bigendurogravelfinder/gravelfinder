@@ -324,19 +324,20 @@ Zehn Kategorien, einzeln ein-/ausschaltbar, mit Anzahl im Ausschnitt (Symbol = L
   Rechts in der Tab-Leiste ein eigener **Einklapp-Knopf ▲** (dunkler runder Knopf, 42 px breit, „Menü einklappen“),
   nur bei offenem Menü sichtbar.
 - **Beim ersten Start ist alles eingeklappt**; danach werden Menü-Zustand und aktiver Tab gemerkt.
-- **Tab-Leiste mit sechs Hauptpunkten, keine Unterpunkte** (früherer Tab „Einstellungen“ mit aufklappbaren
+- **Tab-Leiste mit sieben Hauptpunkten, keine Unterpunkte** (früherer Tab „Einstellungen“ mit aufklappbaren
   Unterpunkten wurde aufgelöst; gespeichert `tab: 'set'` → zuletzt offener Unterpunkt wird der Tab, sonst „Wege“).
   Je Tab Symbol, kurzer Name, darunter klein der Stand; `title` mit Erklärung:
   | Tab | Inhalt | Kurzstand unter dem Tab |
   |---|---|---|
   | 〰️ **Wege** | Qualitätsstufen (Farbe + Ein/Aus, Anzahl), „↺ Standardfarben“, „▬ Breite“, „◐ Transparenz“, „Karte blasser“ | – |
   | 📍 **POI** | 10 Kategorien, „POI ab Zoomstufe anzeigen“ (− / +) | Symbole der aktiven (bis 2), sonst „3 an“ |
-  | 🧭 **Route** | Route planen (Abschnitt 10a) | z. B. „41 km“ / „2 Punkte“ |
+  | 🧭 **Route** | nur die aktuelle Route: Knopf-Raster, „So geht's“, Punktliste + Umkehren, Ergebnis + Höhenprofil (Abschnitt 10a) | z. B. „41 km“ / „2 Punkte“ |
+  | 🎚 **Profil** | Routing-Optionen (Symbol: drei Schieberegler, `title` „Routing-Optionen …“): „FAHRZEUG“ (Kacheln + Beschreibung), „Schotter“-Schieber, „ERLAUBT / GEMIEDEN“ (Stand „5 ✓ 3 ✕“ in der Überschrift, Legende, Kacheln, Hinweis, Warnung, Häkchen gesperrte Wege zeigen – nicht mehr aufklappbar), „DARSTELLUNG DER ROUTE“ mit „Linie“ | Name des Fahrzeugtyps, z. B. „Big Enduro“ |
   | 📂 **GPX** | eigene GPX-Tracks (Abschnitt 10c) | z. B. „2 Tracks“ / „1/2 Tracks“ |
   | 💾 **Offline** | Offline Karten (Abschnitt 9) | z. B. „56 MB“ |
   | 📱 **App** | „📲 Installieren“ (nur wenn der Browser `beforeinstallprompt` liefert) mit Einzeiler-Hinweis (installiert / Chrome-Menü ⋮ / iPhone: Teilen → Zum Home-Bildschirm / `file://` nicht möglich) und „☀️ Bildschirm wach halten“ (Screen Wake Lock, gespeichert, bei `visibilitychange` neu anfordern, ohne Unterstützung ausgegraut) | – |
-  Alle Tabs gleich breit (6 × ca. 43 px + ▲ 42 px bei 300 px Menübreite); Namen passen ungekürzt.
-  „Gesperrte Wege“ steht im Route-Tab (Kasten „🚫 Vermeiden“). Ortsnamen haben keine Optionen.
+  Alle Tabs gleich breit (7 × ca. 37 px + ▲ 42 px bei 300 px Menübreite); Namen passen ungekürzt (darum „Profil“
+  statt „Optionen“). „Gesperrte Wege“ steht im Tab Profil (Erlaubt / gemieden). Ortsnamen haben keine Optionen.
   Keine Mini-Emojis wie 🏷/🌫 vor Texten – Windows zeigt sie winzig und unverständlich.
 - **Beschriftungen auf das Minimum** (selbsterklärend durch Symbole):
   - Schieber als eine Zeile `.srow`: „Symbol + Kurzwort“ (104 px) | Schieber | Wert rechts (fett, „2 px“, „60 %“, „stark“).
@@ -417,6 +418,7 @@ plus je Routing-Option `&profile:avoid_<id>=1|0` (BRouter akzeptiert nur Zahlen,
 - **Routing-Optionen** (Profil-Parameter `avoid_*`, 1 = ja; Kosten werden mit dem Faktor multipliziert):
   | Option | Standard | Wirkung |
   |---|---|---|
+  | Gesperrte Wege/Straßen meiden (`restricted`) | **an** | gesperrt (Zugangsregel wie die Karte) ×10000; erlaubt → `basecost` × 1,5 (freie Wege behalten Vorrang). Test Wels–Linz: erlaubt 3 gesperrte Abschnitte, gemieden 0 |
   | Autobahnen vermeiden (`motorway`) | **an** | motorway/motorway_link ×10000 |
   | Schnellstraßen vermeiden (`trunk`) | aus | trunk/trunk_link und `motorroad=yes` ×50 |
   | Mautstraßen vermeiden (`toll`) | aus | `toll=yes` ×50, Knoten `barrier=toll_booth` +100000 |
@@ -457,28 +459,68 @@ plus je Routing-Option `&profile:avoid_<id>=1|0` (BRouter akzeptiert nur Zahlen,
   `pointer-events: none` – sonst fangen leere Canvas/SVG-Flächen alle Klicks ab; Marker und Greif-Linie bekommen
   ihre Klick-Freigabe einzeln.
 - Schieberegler „Schotter-Vorliebe“ 1–5 (gering … maximal, Standard 3 „stark“).
-- Reihenfolge im Tab: Punkte setzen · Punktliste · Ergebnis · „🪨 Schotter“ · „▬ Linie“ · Vermeiden.
-- Aufklappbarer Kasten **„🚫 Vermeiden“** (Zusammenfassung = Symbole der aktiven Optionen, z. B. „🛣️ 🌊“, sonst „nichts“)
-  mit acht **Symbol-Kacheln** in 2 Spalten (an = orange hinterlegt mit ✕): 🛣️ Autobahn · 🚗 Schnellstraße · 💶 Maut ·
-  ⛴️ Fähre · 🌊 Furt · 🏘️ Ortsgebiet · ⛰️ Steilstücke (Erklärung als Tooltip); jede Änderung rechnet sofort
-  neu. Darunter klein „nur wenn es gar nicht anders geht“.
-  Danach (Trennlinie) fest „⛔ Gesperrte Wege: nie in der Route“ und eingerückt das Häkchen
-  „- - - auf der Karte zeigen“ (= frühere Einstellung „Auch gesperrte Wege anzeigen“, `settings.showRestricted`,
-  nur Anzeige – das Routing sperrt diese Wege immer).
+- Tab Route: Knopf-Raster · So geht's · Punktliste · Ergebnis/Höhenprofil. Tab Profil: Fahrzeug · „🪨 Schotter“ ·
+  Erlaubt / gemieden · „▬ Linie“.
+- Abschnitt **„Erlaubt / gemieden“** im Tab Profil (Überschrift mit Stand „6 ✓ 2 ✕“ in Grün/Rot) mit Legende
+  „✓ grün = darf genutzt werden · ✕ rot = wird gemieden“ und acht **Kacheln** in 2 Spalten (Symbol + Name):
+  Gesperrte Wege · Autobahn · Schnellstraße · Maut · Fähre · Furt · Ortsgebiet · Steilstücke.
+  **Grün** (hellgrün hinterlegt, grüner Rand, ✓) = erlaubt, **Rot** (hellrot, roter Rand, ✕) = gemieden; Antippen
+  wechselt, Route wird sofort neu berechnet; Erklärung als Tooltip; dunkles Design mit dunkelgrün/dunkelrot.
+  Standard: Gesperrte Wege, Autobahn und Furt rot, Rest grün. Darunter „Antippen wechselt. Gemieden heißt: nur, wenn
+  es gar nicht anders geht.“ Sind gesperrte Wege grün, erscheint rot: „⚠ Gesperrte Wege sind erlaubt – nur fahren, wo
+  du wirklich darfst (Fahrverbot!).“ Zuletzt das Häkchen „- - - gesperrte Wege auf der Karte zeigen“
+  (`settings.showRestricted`, nur Anzeige).
 - Fahrzeit-Schätzung kennt auch Autobahn (110 km/h, Auffahrt 60).
+- **Fahrzeug-Symbole** = realistische Seitenansichten (Front rechts, Raster 48 × 32, 50 × 33 px in der Kachel), gefüllte
+  Formen im Verlauf `#icv` (wie `#icg`, aber über 48 × 32), Trennfugen/Fenster in `var(--halo)` = Kachelfarbe:
+  Big Enduro = Reiseenduro mit Windschild, Schnabel, großem Tank und Alu-Koffer · Enduro = schlank, hoher Kotflügel,
+  Stollenreifen · Hard Enduro = dieselbe Enduro im Wheelie über einem Felsblock · Mit Sozius = Reiseenduro mit Fahrer und
+  Beifahrer · Scrambler = Speichenräder, runder Tank, Sitzbank, hochgezogener Auspuff, runder Scheinwerfer · Quad =
+  breite Räder, Kotflügel, Gepäckträger vorne/hinten · 4×4 = kantiger Geländewagen mit Fenstern, Dachträger, Schnorchel,
+  Reserverad · Eigenes = Schieberegler. Gemeinsame Teile als `<g id="vb-big">` / `<g id="vb-enduro">`, per `<use>` wiederverwendet.
+- **Fahrzeugtyp** (ganz oben im Tab Profil, Überschrift „FAHRZEUG“, 4 × 2 Kacheln mit Symbol + Namen,
+  gewählte Kachel Petrol hinterlegt, darunter die Beschreibung; `settings.vehicle`, Standard Big Enduro). Ein Tipp setzt
+  Qualitätsstufen (auch Kartenanzeige!), Schotter-Vorliebe, Erlaubt/gemieden (außer „Gesperrte Wege“ – bleibt immer
+  die eigene Wahl), Zugangsregeln und Fahrzeit-Tempo:
+
+  | Typ | Stufen | Vorliebe | gemieden | Tempo Stufe 1–5 (km/h) · Straße | Zugang |
+  |---|---|---|---|---|---|
+  | Big Enduro (Koffer) | 1–3 | 3 | Autobahn, Furt | 35·28·18·12·7 · ×1 | Motorrad |
+  | Enduro (hoher Kotflügel) | 1–4 | 4 | Autobahn | 40·32·22·15·9 · ×0,95 | Motorrad |
+  | Hard Enduro (Schlamm-Punkte) | 1–5 | 5 | Autobahn | 35·30·22·16·11 · ×0,9 | Motorrad |
+  | Mit Sozius (zwei Helme) | 1–2 | 2 | Autobahn, Furt, Steilstücke | 30·24·15·10·6 · ×0,95 | Motorrad |
+  | Scrambler (runder Scheinwerfer) | 1–2 | 1,5 | Autobahn, Furt | 35·25·15·9·5 · ×1 | Motorrad |
+  | Quad | 1–4 | 3 | Autobahn, Schnellstraße | 30·24·16·11·7 · ×0,8 | Kraftfahrzeug |
+  | 4×4 (Geländewagen) | 1–4 | 3 | – | 30·22·14·9·5 · ×1 | Kraftfahrzeug |
+  | Eigenes (Schieberegler) | frei | frei | frei | wie Big Enduro | Motorrad |
+
+  Ändert man danach Stufe, Vorliebe oder eine Kachel von Hand, springt die Auswahl auf „Eigenes“ (auch beim Start,
+  wenn die gespeicherten Einstellungen zu keinem Typ passen). **Zugang „Kraftfahrzeug“** (Profil-Parameter
+  `veh_car=1`): `motorcycle=…` zählt nicht, es entscheidet motor_vehicle → vehicle → access (BRouter: `forestry` ist
+  Alias von `agricultural`, nicht eigens nennen); auch die Kartenanzeige „gesperrt“ wird beim Wechsel neu bestimmt.
 - **Während der Berechnung** (auch bei geschlossenem Menü): Hinweis-Pille unten über der Karte (`#routeBusy`, ganz oben
   im Hinweisstapel) mit **bewegtem Routensymbol** – ein Stück Linie läuft im Verlauf vom Start- zum Zielpunkt
   (stroke-dashoffset-Animation 1,1 s), die beiden Punkte pulsieren abwechselnd – und „Route wird berechnet …“.
   Ein bei jeder Neuberechnung (Punkt gesetzt/verschoben, Option/Stufe geändert), aus bei Ergebnis oder Fehler.
 - **Ergebnis direkt unter den Routenpunkten** (vor Schotter-Vorliebe): Länge · Zeit · Höhenmeter, Anteils-Balken,
-  Legende. „Ganze Route zeigen“ und „GPX speichern“ stehen oben im Knopf-Raster (nicht mehr im Ergebnis).
+  Legende, darunter das **Höhenprofil**:
+  - Kasten mit Kopfzeile „⛰ Höhenprofil“ und rechts „↑ 288 m · ↓ 18 m“; Fläche im Petrol-Verlauf (oben 45 %, unten 6 %
+    Deckkraft), Linie im Verlauf Petrol → Blau wie die Symbole (SVG 300 × 92, `preserveAspectRatio="none"`,
+    `vector-effect: non-scaling-stroke`), links klein höchster/tiefster Wert, darunter ein 6 px-Streifen mit der
+    Weg-Qualität entlang der Strecke (Abschnitte der Reihe nach, Farben wie die Route), Achse „0 km · höchster Punkt
+    744 m bei km 25,8 · 26 km“.
+  - Daten: BRouter-Koordinaten [lon, lat, Höhe]; Entfernung kumuliert, auf ~240 Stützpunkte ausgedünnt; Anstieg/Abstieg
+    mit 8-m-Schwelle (gegen Messrauschen). Diese Höhenmeter stehen auch oben in der Ergebniszeile (überall dieselbe Zahl).
+  - Finger/Maus über dem Profil: senkrechter Strich + Pille „18,1 km · 591 m“ (Verlauf) und ein Punkt an derselben Stelle
+    auf der Karte (Kreis, weißer Rand); beim Loslassen (Touch) nach 1,5 s, beim Verlassen (Maus) sofort weg.
+  - Funktioniert auch im dunklen Design (Farben über CSS-Variablen). „Ganze Route zeigen“ und „GPX speichern“ stehen oben im Knopf-Raster (nicht mehr im Ergebnis).
 - **„Ganze Route zeigen“ auch als Kartenknopf** in der linken Knopfleiste direkt unter 🧭 (Symbol: Rahmen-Ecken mit
   blauer Linie), nur sichtbar solange eine Route angezeigt wird.
   Zoomt mit Rand (oben/links 70 px, unten 90 px, rechts 30 px bzw. Menübreite + 30 px, wenn das Menü offen
   daneben liegt). Antippen im Menü am Handy hochkant klappt das Menü zuerst ein.
 - Route, Vorliebe und Optionen werden gespeichert (überstehen Neuladen).
 
-**Linienstärke:** Schieber „Linienstärke der Route“ im Tab Route, 2–10 px (Standard 4 px), weißer Rand = Stärke + 4 px.
+**Linienstärke:** Schieber „Linienstärke der Route“ im Tab Profil, 2–10 px (Standard 4 px), weißer Rand = Stärke + 4 px.
 **Transparenz:** senkrechter Schieber „Transparenz für angezeigte Route“ als Kartensteuerung in der **linken
 Knopfleiste direkt unter dem 🧭-Knopf** (44 px breit wie die Knöpfe) – dort verdeckt ihn das Menü nie (rechts wurde er
 vom ausgeklappten Menü verdeckt). 0–90 %, oben = durchsichtiger; nur sichtbar, solange eine Route angezeigt wird; wirkt auf die ganze Routen-Pane (CSS-Opacity),
@@ -641,7 +683,13 @@ jeweils mit deutschem Namen. Ausgeschaltet: turkey, georgia (großteils Asien). 
 - Auslöser: **jeden Montag 02:00 UTC**, von Hand („Run workflow“, optional nur bestimmte Länder),
   bei Push auf `main` von index.html, manifest.webmanifest, sw.js, *.png, regions.json, build/** oder der Workflow-Datei.
 - Rechte: contents read, pages write, id-token write; `concurrency: pages` ohne Abbruch laufender Läufe.
-- Neu aufbereiten bei Zeitplan, Start von Hand und Änderungen an regions.json/build/ (nicht bei Änderung nur der Workflow-Datei).
+- Neu aufbereiten bei Zeitplan, Start von Hand und **immer, wenn sich `regions.json` / `build/build_tiles.py` /
+  `build/requirements.txt` seit dem gespeicherten Datenstand geändert haben**: Prüfsumme dieser Dateien
+  („Fingerabdruck“, sha256, 16 Zeichen) wird nach jedem vollständigen Lauf als `site/data/.buildhash` mit in den
+  Cache gelegt; bei Push Cache holen und vergleichen – fehlt oder abweichend → neu aufbereiten.
+  Grund: Mehrere einzeln hochgeladene Dateien = mehrere Läufe; GitHub ersetzt wartende Läufe durch neuere
+  (`concurrency`) – früher entschied nur der Unterschied des LETZTEN Commits, so ging eine Skript-Änderung verloren
+  (Lauf #44 nutzte alte Daten ohne die neuen POI-Kategorien). Teil-Läufe („nur diese Länder“) schreiben keinen Fingerabdruck.
   Bei reiner App-Änderung die letzten Daten aus dem Actions-Cache (`kartendaten-v2-…`) wiederverwenden (ca. 1 Minute).
 - Vor dem Aufbereiten Speicherplatz schaffen (dotnet, android, ghc, CodeQL, boost löschen – Deutschland/Frankreich > 4 GB).
 - Danach: Daten im Cache sichern, `index.html`, die App-Dateien (Manifest, sw.js, Symbole; fehlende nur melden) und `.nojekyll` dazulegen, `actions/upload-pages-artifact@v3`,
