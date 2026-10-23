@@ -362,12 +362,12 @@ Zehn Kategorien, einzeln ein-/ausschaltbar, mit Anzahl im Ausschnitt (Symbol = L
 - **Beim ersten Start ist alles eingeklappt**; danach werden Menü-Zustand und aktiver Tab gemerkt.
 - **Tab-Leiste mit sieben Hauptpunkten, keine Unterpunkte** (früherer Tab „Einstellungen“ mit aufklappbaren
   Unterpunkten wurde aufgelöst; gespeichert `tab: 'set'` → zuletzt offener Unterpunkt wird der Tab, sonst „Wege“).
-  Reihenfolge links → rechts: Profil · Route · Karte · GPX · POI · Offline · App. Je Tab Symbol, kurzer Name, darunter klein der Stand; `title` mit Erklärung:
+  Reihenfolge links → rechts: Profil · Karte · Route · GPX · POI · Offline · App. Je Tab Symbol, kurzer Name, darunter klein der Stand; `title` mit Erklärung:
   | Tab | Inhalt | Kurzstand unter dem Tab |
   |---|---|---|
   | 🎚 **Profil** | Routing-Optionen (Symbol = Bild des aktiven Fahrzeugtyps, `<use id="ropTabIcon">`, 33 × 22 px, wechselt in `syncVehicleUi`; `title` „Routing-Optionen …“): „FAHRZEUG“ (Kacheln + Beschreibung), „Schotter“-Schieber, „ERLAUBT / GEMIEDEN“ (Stand „5 ✓ 3 ✕“ in der Überschrift, Legende, Kacheln, Hinweis, Warnung, Häkchen gesperrte Wege zeigen – nicht mehr aufklappbar), „DARSTELLUNG DER ROUTE“ mit „Linie“ | Name des Fahrzeugtyps, z. B. „Big Enduro“ |
-  | 🧭 **Route** | nur die aktuelle Route: Knopf-Raster, Ergebnis + Höhenprofil, „So geht's“, Punktliste + Umkehren (Abschnitt 10a) | z. B. „41 km“ / „2 Punkte“ |
   | 🗺 **Karte** (früher „Wege“; Symbol Faltkarte wie `i-map`, interne id bleibt `way`) | Qualitätsstufen (Farbe + Ein/Aus, Anzahl), „↺ Standardfarben“, „▬ Breite“, „◐ Transparenz“, „Karte blasser“, Höhenschummerung, „GEDREHTE KARTE“, „STAATSGRENZEN“ | – |
+  | 🧭 **Route** | nur die aktuelle Route: Knopf-Raster, Ergebnis + Höhenprofil, „So geht's“, Punktliste + Umkehren (Abschnitt 10a) | z. B. „41 km“ / „2 Punkte“ |
   | 📂 **GPX** | eigene GPX-Tracks (Abschnitt 10c) | z. B. „2 Tracks“ / „1/2 Tracks“ |
   | 📍 **POI** | 10 Kategorien, „POI ab Zoomstufe anzeigen“ (− / +) | Symbole der aktiven (bis 2), sonst „3 an“ |
   | 💾 **Offline** | Offline Karten (Abschnitt 9) | z. B. „56 MB“ |
