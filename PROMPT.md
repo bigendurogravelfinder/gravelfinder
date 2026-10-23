@@ -449,6 +449,9 @@ plus je Routing-Option `&profile:avoid_<id>=1|0` (BRouter akzeptiert nur Zahlen,
   Umsetzung: unsichtbare, 24 px breite Greif-Linie (SVG-Renderer, eigene Pane zIndex 495) mit `pointerdown`,
   danach `pointermove`/`pointerup` am Dokument (Maus und Touch), Kartenverschieben währenddessen aus. Abschnitt =
   Wegpunkte der Reihe nach der nächstgelegenen Geometrie-Stelle zugeordnet. Nur Antippen (< 6 px) fügt nichts ein.
+  **Wichtig:** Nach dem Loslassen meldet der Browser zusätzlich einen Klick auf die Karte – im Modus „Punkte setzen“
+  würde der einen weiteren Punkt als neues ZIEL anhängen. Darum diesen einen Klick abfangen (Capture-Listener auf
+  `window` für `click`, nach 400 ms wieder entfernt).
 - WICHTIG: Panes mit Zeichenflächen über der Karte (Routenpunkte, Greif-Linie, Standort) brauchen
   `pointer-events: none` – sonst fangen leere Canvas/SVG-Flächen alle Klicks ab; Marker und Greif-Linie bekommen
   ihre Klick-Freigabe einzeln.

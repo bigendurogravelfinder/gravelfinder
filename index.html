@@ -3616,6 +3616,11 @@ assign initialcost
     map.removeLayer(routeDrag.preview); map.removeLayer(routeDrag.ghost);
     var d = routeDrag; routeDrag = null;
     if (!d.moved || ev.type === 'pointercancel') return;   // nur angetippt, nicht gezogen
+    // Nach dem Loslassen meldet der Browser zusätzlich einen "Klick" auf die Karte. Im Modus "Punkte setzen"
+    // würde der sonst einen weiteren Punkt als neues ZIEL anhängen (und das Menü schließen) → diesen einen Klick schlucken.
+    var swallow = function (e) { e.stopPropagation(); e.preventDefault(); window.removeEventListener('click', swallow, true); };
+    window.addEventListener('click', swallow, true);
+    setTimeout(function () { window.removeEventListener('click', swallow, true); }, 400);
     // neues Zwischenziel zwischen den beiden Wegpunkten des Abschnitts einfügen
     routePts().splice(d.leg + 1, 0, { lat: Math.round(d.ll.lat * 1e6) / 1e6, lon: Math.round(d.ll.lng * 1e6) / 1e6, name: '' });
     saveRoute();
