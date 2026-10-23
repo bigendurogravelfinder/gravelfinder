@@ -763,6 +763,10 @@
         <button type="button" id="routeGpx" class="btn light" disabled title="z. B. für Garmin, OsmAnd, Kurviger"><svg class="ic lg"><use href="#i-download"/></svg>GPX speichern</button>
         <button type="button" id="routeFromGps" class="btn light span2" title="Mein Standort als Startpunkt"><svg class="ic lg"><use href="#i-locate"/></svg>Aktuelle Position als Startpunkt setzen</button>
       </div>
+    </div>
+    <!-- Ergebnis gleich unter den Knöpfen (vor der Punkteliste): Länge, Zeit, Anteile, Höhenprofil -->
+    <div class="row" id="routeResult"></div>
+    <div class="row">
       <details class="tip"><summary><svg class="ic"><use href="#i-info"/></svg>So geht's</summary>
         <ul>
           <li>Tippen = Punkt (erster = Start, letzter = Ziel)</li>
@@ -770,15 +774,11 @@
           <li>Route ziehen = Zwischenziel</li>
           <li>POI → „Zur Route“</li>
         </ul></details>
-    </div>
-    <div class="row">
       <div id="routePoints" class="routePoints"></div>
       <div class="routeTools">
         <button type="button" id="routeReverse" class="btn light small" title="Richtung umkehren"><svg class="ic"><use href="#i-swap"/></svg>Umkehren</button>
       </div>
     </div>
-    <!-- Ergebnis gleich unter den Punkten: Länge, Zeit, Anteile, "Ganze Route zeigen" -->
-    <div class="row" id="routeResult"></div>
    </div>
 
    <!-- ===================== Routing-Optionen (wie gerechnet wird) ===================== -->

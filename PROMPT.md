@@ -330,7 +330,7 @@ Zehn Kategorien, einzeln ein-/ausschaltbar, mit Anzahl im Ausschnitt (Symbol = L
   | Tab | Inhalt | Kurzstand unter dem Tab |
   |---|---|---|
   | 🎚 **Profil** | Routing-Optionen (Symbol: drei Schieberegler, `title` „Routing-Optionen …“): „FAHRZEUG“ (Kacheln + Beschreibung), „Schotter“-Schieber, „ERLAUBT / GEMIEDEN“ (Stand „5 ✓ 3 ✕“ in der Überschrift, Legende, Kacheln, Hinweis, Warnung, Häkchen gesperrte Wege zeigen – nicht mehr aufklappbar), „DARSTELLUNG DER ROUTE“ mit „Linie“ | Name des Fahrzeugtyps, z. B. „Big Enduro“ |
-  | 🧭 **Route** | nur die aktuelle Route: Knopf-Raster, „So geht's“, Punktliste + Umkehren, Ergebnis + Höhenprofil (Abschnitt 10a) | z. B. „41 km“ / „2 Punkte“ |
+  | 🧭 **Route** | nur die aktuelle Route: Knopf-Raster, Ergebnis + Höhenprofil, „So geht's“, Punktliste + Umkehren (Abschnitt 10a) | z. B. „41 km“ / „2 Punkte“ |
   | 〰️ **Wege** | Qualitätsstufen (Farbe + Ein/Aus, Anzahl), „↺ Standardfarben“, „▬ Breite“, „◐ Transparenz“, „Karte blasser“ | – |
   | 📂 **GPX** | eigene GPX-Tracks (Abschnitt 10c) | z. B. „2 Tracks“ / „1/2 Tracks“ |
   | 📍 **POI** | 10 Kategorien, „POI ab Zoomstufe anzeigen“ (− / +) | Symbole der aktiven (bis 2), sonst „3 an“ |
@@ -351,8 +351,8 @@ Zehn Kategorien, einzeln ein-/ausschaltbar, mit Anzahl im Ausschnitt (Symbol = L
     „＋ Punkte setzen“ (Verlauf; Antippen schaltet den Routen-Modus ein UND klappt das Menü zu – freie Sicht zum
     Tippen auf die Karte) · „Alle Punkte löschen“ / „Ganze Route zeigen“ (Verlauf) · „GPX speichern“ /
     über die volle Breite „Aktuelle Position als Startpunkt setzen“. „Ganze Route zeigen“ und „GPX speichern“ sind
-    ausgegraut, solange keine Route berechnet ist. Darunter „ⓘ So geht's“, Punkteliste, „⇅ Umkehren“, Ergebnis
-    (Länge · Zeit · Höhenmeter, Anteils-Balken, Legende).
+    ausgegraut, solange keine Route berechnet ist. Darunter das Ergebnis (Länge · Zeit · Höhenmeter,
+    Anteils-Balken, Legende, Höhenprofil), dann „ⓘ So geht's“, Punkteliste, „⇅ Umkehren“.
   - GPX: „📂 GPX laden“, je Track „▬ Breite“ / „◐ Transparenz“ als Schieber-Zeilen, leer „Noch keine Tracks.“
   - Offline: „🌍 Ganz Europa“ (keine Flaggen-Emojis – Windows zeigt sie als Buchstaben), Knopf „⬇ Laden (≈ X MB)“ /
     „✔ Alles gespeichert“ / „Länder anhaken“, Legende „✔ gespeichert · ⟳ Update da · Häkchen weg = löschen“,
@@ -459,7 +459,7 @@ plus je Routing-Option `&profile:avoid_<id>=1|0` (BRouter akzeptiert nur Zahlen,
   `pointer-events: none` – sonst fangen leere Canvas/SVG-Flächen alle Klicks ab; Marker und Greif-Linie bekommen
   ihre Klick-Freigabe einzeln.
 - Schieberegler „Schotter-Vorliebe“ 1–5 (gering … maximal, Standard 3 „stark“).
-- Tab Route: Knopf-Raster · So geht's · Punktliste · Ergebnis/Höhenprofil. Tab Profil: Fahrzeug · „🪨 Schotter“ ·
+- Tab Route: Knopf-Raster · Ergebnis/Höhenprofil · So geht's · Punktliste. Tab Profil: Fahrzeug · „🪨 Schotter“ ·
   Erlaubt / gemieden · „▬ Linie“.
 - Abschnitt **„Erlaubt / gemieden“** im Tab Profil (Überschrift mit Stand „6 ✓ 2 ✕“ in Grün/Rot) mit Legende
   „✓ grün = darf genutzt werden · ✕ rot = wird gemieden“ und acht **Kacheln** in 2 Spalten (Symbol + Name):
@@ -502,7 +502,7 @@ plus je Routing-Option `&profile:avoid_<id>=1|0` (BRouter akzeptiert nur Zahlen,
   im Hinweisstapel) mit **bewegtem Routensymbol** – ein Stück Linie läuft im Verlauf vom Start- zum Zielpunkt
   (stroke-dashoffset-Animation 1,1 s), die beiden Punkte pulsieren abwechselnd – und „Route wird berechnet …“.
   Ein bei jeder Neuberechnung (Punkt gesetzt/verschoben, Option/Stufe geändert), aus bei Ergebnis oder Fehler.
-- **Ergebnis direkt unter den Routenpunkten** (vor Schotter-Vorliebe): Länge · Zeit · Höhenmeter, Anteils-Balken,
+- **Ergebnis direkt unter dem Knopf-Raster** (über „So geht's“ und der Punkteliste): Länge · Zeit · Höhenmeter, Anteils-Balken,
   Legende, darunter das **Höhenprofil**:
   - Kasten mit Kopfzeile „⛰ Höhenprofil“ und rechts „↑ 288 m · ↓ 18 m“; Fläche im Petrol-Verlauf (oben 45 %, unten 6 %
     Deckkraft), Linie im Verlauf Petrol → Blau wie die Symbole (SVG 300 × 92, `preserveAspectRatio="none"`,
