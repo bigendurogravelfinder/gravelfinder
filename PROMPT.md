@@ -347,7 +347,8 @@ Zehn Kategorien, einzeln ein-/ausschaltbar, mit Anzahl im Ausschnitt (Symbol = L
     (4 Stichpunkte: Tippen = Punkt, Punkt ziehen = verschieben, Route ziehen = Zwischenziel, POI → „Zur Route“),
     Leiste unten „🧭 Tippen = Routenpunkt [Fertig]“.
   - **Ganz oben im Route-Tab** ein Knopf-Raster (2 Spalten, je 46 px hoch, Symbol + Text):
-    „＋ Punkte setzen“ (Verlauf) · „Alle Punkte löschen“ / „Ganze Route zeigen“ (Verlauf) · „GPX speichern“ /
+    „＋ Punkte setzen“ (Verlauf; Antippen schaltet den Routen-Modus ein UND klappt das Menü zu – freie Sicht zum
+    Tippen auf die Karte) · „Alle Punkte löschen“ / „Ganze Route zeigen“ (Verlauf) · „GPX speichern“ /
     über die volle Breite „Aktuelle Position als Startpunkt setzen“. „Ganze Route zeigen“ und „GPX speichern“ sind
     ausgegraut, solange keine Route berechnet ist. Darunter „ⓘ So geht's“, Punkteliste, „⇅ Umkehren“, Ergebnis
     (Länge · Zeit · Höhenmeter, Anteils-Balken, Legende).

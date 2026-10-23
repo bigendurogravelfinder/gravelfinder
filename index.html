@@ -3678,7 +3678,10 @@ assign initialcost
   // Tipp, der nur das offene Menü geschlossen hat (siehe Bedienfeld), setzt keinen Punkt
   map.on('click', function (e) { if (routeMode && !e.menuClosed) addRoutePoint(e.latlng); });
 
-  document.getElementById('routeModeBtn').addEventListener('click', function () { setRouteMode(!routeMode); });
+  document.getElementById('routeModeBtn').addEventListener('click', function () {
+    setRouteMode(!routeMode);
+    if (routeMode) setPanelOpen(false);   // Menü zuklappen → freie Sicht auf die Karte zum Punkte-Setzen
+  });
   document.getElementById('routeReverse').addEventListener('click', function () { settings.route.pts.reverse(); saveRoute(); });
   document.getElementById('routeClear').addEventListener('click', function () {
     if (routePts().length && !confirm('Alle Routenpunkte löschen?')) return;
