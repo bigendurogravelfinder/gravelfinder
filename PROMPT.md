@@ -596,6 +596,9 @@ plus je Routing-Option `&profile:avoid_<id>=1|0` (BRouter akzeptiert nur Zahlen,
 Knopfleiste direkt unter dem 🧭-Knopf** (44 px breit wie die Knöpfe) – dort verdeckt ihn das Menü nie (rechts wurde er
 vom ausgeklappten Menü verdeckt). 0–90 %, oben = durchsichtiger; nur sichtbar, solange eine Route angezeigt wird; wirkt auf die ganze Routen-Pane (CSS-Opacity),
 damit der weiße Rand nicht durch die Farbe scheint. Beides wird gespeichert.
+**Warnsignal ab 80 % Transparenz** (Route da, aber kaum sichtbar): Klasse `.faint` am Schieber → sanftes Pulsieren mit
+orangem Leuchtrand (1,8 s, `box-shadow`), Prozentwert orange (#e65100, dunkel #ffb74d), Tooltip „Route ist fast
+unsichtbar … – Schieber nach unten ziehen“. Bei „Bewegung reduzieren“ (`prefers-reduced-motion`) nur fester oranger Rand.
 
 **Anzeige:** Route mit weißem Rand, darüber Abschnitte in den Stufenfarben, Straße blau #2f6fdf;
 eigene Pane über Wegen und Ortsnamen, unter POIs, klickdurchlässig. Abschnitte aus `messages` (je Zeile Endpunkt +
