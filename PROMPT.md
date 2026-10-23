@@ -466,6 +466,10 @@ plus je Routing-Option `&profile:avoid_<id>=1|0` (BRouter akzeptiert nur Zahlen,
   „- - - auf der Karte zeigen“ (= frühere Einstellung „Auch gesperrte Wege anzeigen“, `settings.showRestricted`,
   nur Anzeige – das Routing sperrt diese Wege immer).
 - Fahrzeit-Schätzung kennt auch Autobahn (110 km/h, Auffahrt 60).
+- **Während der Berechnung** (auch bei geschlossenem Menü): Hinweis-Pille unten über der Karte (`#routeBusy`, ganz oben
+  im Hinweisstapel) mit **bewegtem Routensymbol** – ein Stück Linie läuft im Verlauf vom Start- zum Zielpunkt
+  (stroke-dashoffset-Animation 1,1 s), die beiden Punkte pulsieren abwechselnd – und „Route wird berechnet …“.
+  Ein bei jeder Neuberechnung (Punkt gesetzt/verschoben, Option/Stufe geändert), aus bei Ergebnis oder Fehler.
 - **Ergebnis direkt unter den Routenpunkten** (vor Schotter-Vorliebe): Länge · Zeit · Höhenmeter, Anteils-Balken,
   Legende. „Ganze Route zeigen“ und „GPX speichern“ stehen oben im Knopf-Raster (nicht mehr im Ergebnis).
 - **„Ganze Route zeigen“ auch als Kartenknopf** in der linken Knopfleiste direkt unter 🧭 (Symbol: Rahmen-Ecken mit
