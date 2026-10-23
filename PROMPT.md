@@ -136,8 +136,8 @@ Bild gibt es nur noch mit API-Schlüssel). Darum beschriftet die App selbst:
 - **Kyrillisch/griechisch lesbar:** ist `name` nicht lateinisch, liefert das Skript (und die Overpass-Auswertung) als
   6. Feld die erste lateinische Angabe aus `name:sr-Latn`, `name:latin`, `int_name`, `name:en`, `name:de`. Fehlt
   sie, schreibt die App selbst um (serbische Schreibweise: Београд → Beograd, Љ → Lj, ђ → đ …; Griechisch: θ → th,
-  χ → ch, ψ → ps …). Auswahl im Tab „Wege“ unter „ORTSNAMEN (Z. B. SERBIEN)“ als drei Knöpfe
-  „Beograd“ (lateinisch, Standard) · „Београд“ (Original) · „beides“ → „Beograd (Београд)“ (`settings.placeScript`).
+  χ → ch, ψ → ps …). **Angezeigt werden immer beide**: „Beograd (Београд)“ – ohne Einstellung/Menüpunkt
+  (lateinische Namen bleiben unverändert).
 - **Sonst ohne Einstellungen** (keine Schalter, keine Farbe/Transparenz/Leuchtrand – alte gespeicherte Werte
   werden ignoriert). Eigene Leaflet-Pane **zIndex 610 – über Wegen, Route und POI-Symbolen (600)**, mit
   `pointer-events: none` – Klicks gehen durch.
