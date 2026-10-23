@@ -234,6 +234,30 @@
   body.dark .vehGrid button.on { border-color: #38bdf8; box-shadow: inset 0 0 0 1px #38bdf8; }  .routeTools .btn.small, .routeBtns .btn.small { width: auto; margin-top: 0; flex: 1 1 auto; }
   .routePoints .rp { display: flex; align-items: center; gap: 8px; min-height: 38px; border-bottom: 1px solid var(--border); font-size: 14px; }
   .routePoints .rp:last-child { border-bottom: 0; }
+  /* Abschnitt zwischen zwei Punkten (eigenes Verhältnis Asphalt / Offroad) */
+  .rpLeg { border-bottom: 1px solid var(--border); }
+  .rpLeg button {
+    display: flex; align-items: center; gap: 6px; width: 100%; min-height: 30px; padding: 0 0 0 6px; border: 0; background: none;
+    font: inherit; font-size: 12.5px; color: var(--muted); cursor: pointer; text-align: left;
+  }
+  .rpLeg button .ic { width: 14px; height: 14px; transition: transform .15s; }
+  .rpLeg.open button .ic { transform: rotate(180deg); }
+  .rpLeg b { font-weight: 700; color: var(--fg); }
+  .rpLeg.own button { color: var(--accent); }
+  .rpLeg.own b { color: var(--accent); }
+  .legEd { padding: 6px 0 8px; border-bottom: 1px solid var(--border); }
+  .legEd .seg { margin-bottom: 4px; }
+  .legEd .hint { margin-top: 2px; }
+  /* Schild auf der Karte in der Mitte eines Abschnitts mit eigener Einstellung */
+  .legChip { background: none; border: 0; }
+  .legChip span {
+    position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); white-space: nowrap; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px 3px 6px; border-radius: 12px;
+    font-size: 12px; font-weight: 700; background: var(--bg); color: var(--fg); box-shadow: 0 1px 4px rgba(0,0,0,.35);
+    border: 2px solid #2f6fdf;
+  }
+  .legChip span.off { border-color: #2e7d32; }
+  .legChip span .ic { width: 14px; height: 14px; }
   .rp .rpName { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .rp button { border: 0; background: #eceff1; border-radius: 8px; min-width: 32px; min-height: 32px; font-size: 15px; cursor: pointer; }
   .rpBadge, .routePin span {
@@ -1232,7 +1256,11 @@ assign initialcost
       if (saved.poiMinZoom >= 9 && saved.poiMinZoom <= 18) settings.poiMinZoom = Number(saved.poiMinZoom);
       if (saved.route && Array.isArray(saved.route.pts)) {
         settings.route.pts = saved.route.pts.filter(function (p) { return p && isFinite(p.lat) && isFinite(p.lon); })
-          .map(function (p) { return { lat: Number(p.lat), lon: Number(p.lon), name: typeof p.name === 'string' ? p.name : '' }; });
+          .map(function (p) {
+            var q = { lat: Number(p.lat), lon: Number(p.lon), name: typeof p.name === 'string' ? p.name : '' };
+            if (typeof p.leg === 'number' && p.leg >= 0 && p.leg <= 5) q.leg = p.leg;   // eigener Abschnitt ab hier
+            return q;
+          });
         if (saved.route.pref >= 0 && saved.route.pref <= 5) settings.route.pref = Number(saved.route.pref);
         if (saved.route.width >= 2 && saved.route.width <= 10) settings.route.width = Number(saved.route.width);
         if (saved.route.transp >= 0 && saved.route.transp <= 90) settings.route.transp = Number(saved.route.transp);
@@ -3780,13 +3808,32 @@ assign initialcost
   }
 
   function routePts() { return settings.route.pts; }
-  function saveRoute() { saveSettings(); renderRoutePoints(); drawRoutePins(); scheduleRoute(); }
+  function saveRoute() {
+    var pts = routePts();
+    if (pts.length) delete pts[pts.length - 1].leg;      // am Ziel beginnt kein Abschnitt mehr
+    saveSettings(); renderRoutePoints(); drawRoutePins(); scheduleRoute();
+  }
 
   function pointLabel(i, n) { return i === 0 ? 'Start' : i === n - 1 ? 'Ziel' : 'Zwischenziel ' + i; }
   function pinClass(i, n) { return i === 0 ? 'rpS' : i === n - 1 ? 'rpZ' : 'rpV'; }
   // Start = Abfahrts-Pfeil, Ziel = Zielflagge, Zwischenziele = Nummer
   function pinText(i, n) { return i === 0 ? ic('start', 'pinIc') : i === n - 1 ? ic('finish', 'pinIc') : String(i); }
   function pointName(p) { return p.name || (p.lat.toFixed(4) + ', ' + p.lon.toFixed(4)); }
+
+  // ---- Abschnitte: eigenes "Verhältnis Asphalt / Offroad" je Abschnitt ----
+  // Gespeichert am Startpunkt des Abschnitts (pts[i].leg = 0 … 5, fehlt = wie Profil, also settings.route.pref).
+  var openLeg = -1;                                   // in der Punkteliste aufgeklappter Abschnitt
+  function legValue(i) { var l = routePts()[i] && routePts()[i].leg; return typeof l === 'number' ? l : null; }
+  function legPref(i) { var v = legValue(i); return v === null ? settings.route.pref : v; }
+  function legText(v) {
+    return v === null ? 'wie Profil' : v === 0 ? 'nur Asphalt' : v === 5 ? 'maximal Offroad' : 'Offroad ' + PREF_NAMES[v];
+  }
+  function setLeg(i, v) {
+    var p = routePts()[i];
+    if (!p) return;
+    if (v === null) delete p.leg; else p.leg = v;
+    saveRoute();
+  }
 
   function addRoutePoint(ll, name) {
     routePts().push({ lat: Math.round(ll.lat * 1e6) / 1e6, lon: Math.round((ll.lng !== undefined ? ll.lng : ll.lon) * 1e6) / 1e6, name: name || '' });
@@ -3818,15 +3865,38 @@ assign initialcost
     var box = document.getElementById('routePoints'), pts = routePts(), n = pts.length;
     if (!n) { box.innerHTML = '<div class="hint">Noch keine Punkte.</div>'; }
     else {
+      if (openLeg >= n - 1) openLeg = -1;
       box.innerHTML = pts.map(function (p, i) {
         return '<div class="rp"><span class="rpBadge ' + pinClass(i, n) + '">' + pinText(i, n) + '</span>' +
           '<span class="rpName" title="' + esc(pointName(p)) + '">' + esc(pointName(p)) + '</span>' +
           (i > 0 ? '<button type="button" data-act="up" data-i="' + i + '" title="nach oben">' + ic('chev-up') + '</button>' : '') +
           (i < n - 1 ? '<button type="button" data-act="down" data-i="' + i + '" title="nach unten">' + ic('chev-down') + '</button>' : '') +
-          '<button type="button" data-act="del" data-i="' + i + '" title="entfernen">' + ic('x') + '</button></div>';
+          '<button type="button" data-act="del" data-i="' + i + '" title="entfernen">' + ic('x') + '</button></div>' +
+          (i < n - 1 ? legHtml(i) : '');
       }).join('');
     }
     updateRouteSummary();
+  }
+
+  // Zeile zwischen zwei Punkten: "↓ Abschnitt: wie Profil" – antippen klappt die Auswahl auf
+  function legHtml(i) {
+    var v = legValue(i), open = openLeg === i;
+    var h = '<div class="rpLeg' + (v !== null ? ' own' : '') + (open ? ' open' : '') + '">' +
+      '<button type="button" data-leg="' + i + '" aria-expanded="' + open + '" title="Verhältnis Asphalt / Offroad nur für diesen Abschnitt">' +
+      ic('chev-down') + '<span>Abschnitt: <b>' + legText(v) + '</b></span></button></div>';
+    if (!open) return h;
+    var cur = v === null ? settings.route.pref : v;
+    return h + '<div class="legEd" data-i="' + i + '">' +
+      '<div class="seg txt">' +
+        '<button type="button" data-lv="p"' + (v === null ? ' class="on"' : '') + '>wie Profil</button>' +
+        '<button type="button" data-lv="0"' + (v === 0 ? ' class="on"' : '') + '>nur Asphalt</button>' +
+        '<button type="button" data-lv="5"' + (v === 5 ? ' class="on"' : '') + '>maximal Offroad</button>' +
+      '</div>' +
+      '<div class="srow"><span class="sEnd">Asphalt</span>' +
+        '<input type="range" class="legRange" min="0" max="5" step="0.5" value="' + cur + '" aria-label="Verhältnis Asphalt / Offroad für diesen Abschnitt">' +
+        '<span class="sEnd">Offroad</span><span class="sVal wide">' + PREF_NAMES[cur] + '</span></div>' +
+      '<div class="hint">' + (v === null ? 'Nutzt die Einstellung im Tab „Profil“ (' + PREF_NAMES[settings.route.pref] + ').' : 'Gilt nur von Punkt ' + (i === 0 ? 'Start' : i) + ' bis zum nächsten Punkt.') + '</div>' +
+      '</div>';
   }
 
   function updateRouteSummary() {
@@ -3887,40 +3957,97 @@ assign initialcost
 
   // allowFerry: zweiter Versuch, wenn es mit "Fähren vermeiden" keine Route gibt (z. B. Insel ohne Brücke –
   // der Server bricht die Suche nach einem Landweg dann nach einigen Sekunden ab)
+  // Abschnitte mit gleicher Einstellung hintereinander = ein Stück (eine Anfrage); jedes Stück:
+  // { start, end (Punkt-Indizes), pref }
+  function routeRuns(n) {
+    var runs = [];
+    for (var k = 0; k < n - 1; k++) {
+      var pr = legPref(k), last = runs[runs.length - 1];
+      if (last && last.pref === pr) last.end = k + 1; else runs.push({ start: k, end: k + 1, pref: pr });
+    }
+    return runs;
+  }
+  function routeUrl(id, pts, pref, allowFerry) {
+    return BROUTER + '?lonlats=' + pts.map(function (p) { return p.lon.toFixed(6) + ',' + p.lat.toFixed(6); }).join('|') +
+      '&profile=' + encodeURIComponent(id) + '&alternativeidx=0&format=geojson&profile:gravel_pref=' + pref +
+      ROUTE_OPTS.map(function (o) {
+        var on = settings.route.opt[o.id] && !(o.id === 'ferry' && allowFerry);
+        return '&profile:avoid_' + o.id + '=' + (on ? 1 : 0);
+      }).join('') +
+      // Route nutzt die eingeblendeten Stufen; ausgeblendete nur, wenn es nicht anders geht
+      QUALITY.map(function (q) { return '&profile:show_q' + q.lvl + '=' + (settings.q[q.lvl].show ? 1 : 0); }).join('') +
+      '&profile:veh_car=' + (vehicle().car ? 1 : 0);
+  }
+  // Fertig berechnete Stücke merken – ändert man nur einen Abschnitt, werden die anderen nicht neu angefragt
+  var runCache = new Map();
+  function cacheRun(url, txt) {
+    runCache.set(url, txt);
+    if (runCache.size > 30) runCache.delete(runCache.keys().next().value);
+  }
+  // Mehrere Stücke zu einer Route zusammensetzen (Koordinaten, Abschnittszeilen, Länge, Anstieg)
+  function mergeRuns(texts) {
+    var js = texts.map(function (t) { return JSON.parse(t); });
+    if (js.length === 1) return js[0];
+    var f0 = js[0].features && js[0].features[0];
+    if (!f0) return js[0];
+    var coords = f0.geometry.coordinates.slice(), msgs = (f0.properties.messages || []).slice();
+    var len = Number(f0.properties['track-length']) || 0, asc = Number(f0.properties['filtered ascend']) || 0;
+    for (var j = 1; j < js.length; j++) {
+      var f = js[j].features && js[j].features[0];
+      if (!f) continue;
+      coords = coords.concat(f.geometry.coordinates.slice(1));          // Übergabepunkt nicht doppelt
+      msgs = msgs.concat((f.properties.messages || []).slice(1));      // Kopfzeile nur einmal
+      len += Number(f.properties['track-length']) || 0;
+      asc += Number(f.properties['filtered ascend']) || 0;
+    }
+    f0.geometry.coordinates = coords;
+    f0.properties.messages = msgs;
+    f0.properties['track-length'] = String(len);
+    f0.properties['filtered ascend'] = String(asc);
+    return js[0];
+  }
+
   function computeRoute(retried, allowFerry) {
     var pts = routePts().slice();
     if (pts.length < 2) return;
-    var ctrl = new AbortController(), ferryTimedOut = false;
+    var ctrl = new AbortController(), ferryTimedOut = false, ferryTimer = null;
     routeCtrl = ctrl;
+    var runs = routeRuns(pts.length), texts = [];
     ensureProfile().then(function (id) {
-      var url = BROUTER + '?lonlats=' + pts.map(function (p) { return p.lon.toFixed(6) + ',' + p.lat.toFixed(6); }).join('|') +
-        '&profile=' + encodeURIComponent(id) + '&alternativeidx=0&format=geojson&profile:gravel_pref=' + settings.route.pref +
-        ROUTE_OPTS.map(function (o) {
-          var on = settings.route.opt[o.id] && !(o.id === 'ferry' && allowFerry);
-          return '&profile:avoid_' + o.id + '=' + (on ? 1 : 0);
-        }).join('') +
-        // Route nutzt die eingeblendeten Stufen; ausgeblendete nur, wenn es nicht anders geht
-        QUALITY.map(function (q) { return '&profile:show_q' + q.lvl + '=' + (settings.q[q.lvl].show ? 1 : 0); }).join('') +
-        '&profile:veh_car=' + (vehicle().car ? 1 : 0);
-      // Mit "Fähren vermeiden" höchstens 12 s auf einen Landweg warten, danach mit Fähre rechnen
-      if (settings.route.opt.ferry && !allowFerry) {
-        setTimeout(function () { if (routeCtrl === ctrl) { ferryTimedOut = true; ctrl.abort(); } }, 12000);
-      }
-      return fetch(url, { signal: ctrl.signal }).then(function (r) { return r.text(); });
-    }).then(function (txt) {
+      // Stücke nacheinander anfragen (schont den Server – zu viele Anfragen auf einmal → "retry later")
+      return runs.reduce(function (chain, run) {
+        return chain.then(function () {
+          var url = routeUrl(id, pts.slice(run.start, run.end + 1), run.pref, allowFerry);
+          if (runCache.has(url)) { texts.push(runCache.get(url)); return; }
+          // Mit "Fähren vermeiden" höchstens 12 s je Stück auf einen Landweg warten, danach mit Fähre rechnen
+          if (settings.route.opt.ferry && !allowFerry) {
+            clearTimeout(ferryTimer);
+            ferryTimer = setTimeout(function () { if (routeCtrl === ctrl) { ferryTimedOut = true; ctrl.abort(); } }, 12000);
+          }
+          return fetch(url, { signal: ctrl.signal }).then(function (r) { return r.text(); }).then(function (txt) {
+            clearTimeout(ferryTimer);
+            if (/^\s*\{/.test(txt)) cacheRun(url, txt);
+            else texts.failed = true;
+            texts.push(txt);
+            if (texts.failed) throw { routeText: txt };
+          });
+        });
+      }, Promise.resolve());
+    }).then(function () {
       if (ctrl !== routeCtrl) return;
-      if (!/^\s*\{/.test(txt)) {
-        // Profil auf dem Server abgelaufen? Einmal neu hochladen und erneut versuchen
-        if (!retried && /profile/i.test(txt)) { profileId = null; computeRoute(true, allowFerry); return; }
-        throw new Error(txt.trim() || 'keine Antwort');
-      }
       routeCtrl = null;
       setRouteBusy(false);
-      showRoute(JSON.parse(txt), pts);
+      var txt = texts.join('\n');
+      showRoute(mergeRuns(texts), pts);
       // Hinweis nur, wenn die Ersatz-Route wirklich eine Fähre enthält (sonst war die Route nur lang)
       if (lastRoute && allowFerry && /route=ferry/.test(txt)) { lastRoute.ferryForced = true; renderRouteResult(); }
     }).catch(function (err) {
       if (ctrl !== routeCtrl) return;
+      if (err && err.routeText !== undefined) {
+        // Profil auf dem Server abgelaufen? Einmal neu hochladen und erneut versuchen
+        if (!retried && /profile/i.test(err.routeText)) { profileId = null; computeRoute(true, allowFerry); return; }
+        err = new Error(err.routeText.trim() || 'keine Antwort');
+      }
       if (err.name === 'AbortError' && !ferryTimedOut) return;
       var msg = String(err.message || err);
       var noRoute = ferryTimedOut || /not found|no track|target island|watchdog|timeout/i.test(msg);
@@ -3933,6 +4060,8 @@ assign initialcost
         msg = 'Der Routing-Server hat zu lange gerechnet. Zwischenziele setzen oder einzelne „Vermeiden“-Optionen ausschalten.';
       } else if (/not found|no track|target island|position not mapped|from-position|to-position|via-position/i.test(msg)) {
         msg = 'Keine Route gefunden. Liegt jeder Punkt in der Nähe einer Straße oder eines Weges?';
+      } else if (/retry later/i.test(msg)) {
+        msg = 'Der Routing-Server ist gerade ausgelastet – bitte in einer Minute nochmal versuchen.';
       } else if (err.name === 'TypeError') {
         msg = 'Der Routing-Server ist nicht erreichbar (Internet?).';
       }
@@ -3994,6 +4123,7 @@ assign initialcost
       gravelShare: (total - by.road) / (total || 1), pts: pts, all: all, wpIdx: matchWaypoints(all, pts),
       segs: segs.map(function (s) { return { cls: s.cls, dist: s.dist }; }), profile: buildProfile(coords) };
     drawRouteHit(all);
+    drawLegChips(all);
     showRouteOpacity(true);
     renderRouteResult();
     updateRouteSummary();
@@ -4021,6 +4151,24 @@ assign initialcost
     var w = lastRoute.wpIdx, leg = 0;
     for (var k = 0; k < w.length - 1; k++) if (ci >= w[k]) leg = k;
     return leg;
+  }
+
+  // Abschnitte mit eigener Einstellung: kleines Schild in der Mitte des Abschnitts (Antippen = im Menü bearbeiten)
+  function legShort(v) { return v === 0 ? 'nur Asphalt' : v === 5 ? 'max. Offroad' : 'Offroad ' + PREF_NAMES[v]; }
+  function drawLegChips(all) {
+    var w = lastRoute.wpIdx, pts = routePts();
+    for (var k = 0; k < w.length - 1; k++) {
+      var v = legValue(k);
+      if (v === null || !pts[k + 1]) continue;
+      var mid = all[Math.round((w[k] + w[k + 1]) / 2)];
+      if (!mid) continue;
+      (function (k) {
+        L.marker(mid, {
+          pane: 'routePinPane', keyboard: false, title: 'Abschnitt ' + (k + 1) + ': ' + legText(v) + ' – antippen zum Ändern',
+          icon: L.divIcon({ className: 'legChip', html: '<span class="' + (v === 0 ? 'asph' : 'off') + '">' + ic(v === 0 ? 'road' : 'gravel') + esc(legShort(v)) + '</span>', iconSize: [0, 0] })
+        }).on('click', function () { openLeg = k; renderRoutePoints(); showTab('route'); setPanelOpen(true); }).addTo(routeLayer);
+      })(k);
+    }
   }
 
   var hitRenderer = L.svg({ pane: 'routeHitPane', padding: 0.5 });
@@ -4118,8 +4266,12 @@ assign initialcost
     var swallow = function (e) { e.stopPropagation(); e.preventDefault(); window.removeEventListener('click', swallow, true); };
     window.addEventListener('click', swallow, true);
     setTimeout(function () { window.removeEventListener('click', swallow, true); }, 400);
-    // neues Zwischenziel zwischen den beiden Wegpunkten des Abschnitts einfügen
-    routePts().splice(d.leg + 1, 0, { lat: Math.round(d.ll.lat * 1e6) / 1e6, lon: Math.round(d.ll.lng * 1e6) / 1e6, name: '' });
+    // neues Zwischenziel zwischen den beiden Wegpunkten des Abschnitts einfügen – beide Hälften behalten
+    // die Einstellung des alten Abschnitts
+    var np = { lat: Math.round(d.ll.lat * 1e6) / 1e6, lon: Math.round(d.ll.lng * 1e6) / 1e6, name: '' };
+    if (typeof routePts()[d.leg].leg === 'number') np.leg = routePts()[d.leg].leg;
+    routePts().splice(d.leg + 1, 0, np);
+    if (openLeg > d.leg) openLeg++;
     saveRoute();
   }
 
@@ -4271,7 +4423,14 @@ assign initialcost
     setRouteMode(!routeMode);
     if (routeMode) setPanelOpen(false);   // Menü zuklappen → freie Sicht auf die Karte zum Punkte-Setzen
   });
-  document.getElementById('routeReverse').addEventListener('click', function () { settings.route.pts.reverse(); saveRoute(); });
+  document.getElementById('routeReverse').addEventListener('click', function () {
+    // Abschnitts-Einstellungen mitdrehen: Abschnitt k (Punkt k → k+1) wird zu Abschnitt n−2−k
+    var pts = settings.route.pts, n = pts.length, legs = pts.map(function (p) { return p.leg; });
+    pts.reverse();
+    pts.forEach(function (p, j) { var v = j < n - 1 ? legs[n - 2 - j] : undefined; if (v === undefined) delete p.leg; else p.leg = v; });
+    if (openLeg >= 0) openLeg = n - 2 - openLeg;
+    saveRoute();
+  });
   document.getElementById('routeClear').addEventListener('click', function () {
     if (routePts().length && !confirm('Alle Routenpunkte löschen?')) return;
     settings.route.pts = []; saveRoute();
@@ -4289,14 +4448,34 @@ assign initialcost
     if (pts.length && pts[0].name === 'Mein Standort') pts[0] = p; else pts.unshift(p);
     saveRoute();
   }
-  document.getElementById('routePoints').addEventListener('click', function (e) {
+  // Zwei Punkte tauschen – die Abschnitts-Einstellungen bleiben an ihrer Stelle (Abschnitt 1, 2 …)
+  function swapPts(a, b) {
+    var pts = routePts(), t = pts[a], la = pts[a].leg, lb = pts[b].leg;
+    pts[a] = pts[b]; pts[b] = t;
+    [[a, la], [b, lb]].forEach(function (x) { if (x[1] === undefined) delete pts[x[0]].leg; else pts[x[0]].leg = x[1]; });
+  }
+  var routePointsEl = document.getElementById('routePoints');
+  routePointsEl.addEventListener('click', function (e) {
+    var lg = e.target.closest('button[data-leg]');
+    if (lg) { var li = Number(lg.dataset.leg); openLeg = openLeg === li ? -1 : li; renderRoutePoints(); return; }
+    var lv = e.target.closest('.legEd button[data-lv]');
+    if (lv) { setLeg(Number(lv.closest('.legEd').dataset.i), lv.dataset.lv === 'p' ? null : Number(lv.dataset.lv)); return; }
     var b = e.target.closest('button[data-act]');
     if (!b) return;
     var i = Number(b.dataset.i), pts = routePts();
     if (b.dataset.act === 'del') pts.splice(i, 1);
-    if (b.dataset.act === 'up' && i > 0) { var t = pts[i - 1]; pts[i - 1] = pts[i]; pts[i] = t; }
-    if (b.dataset.act === 'down' && i < pts.length - 1) { var u = pts[i + 1]; pts[i + 1] = pts[i]; pts[i] = u; }
+    if (b.dataset.act === 'up' && i > 0) swapPts(i - 1, i);
+    if (b.dataset.act === 'down' && i < pts.length - 1) swapPts(i, i + 1);
     saveRoute();
+  });
+  // Schieber im aufgeklappten Abschnitt: beim Ziehen nur die Anzeige, beim Loslassen übernehmen
+  routePointsEl.addEventListener('input', function (e) {
+    if (!e.target.classList.contains('legRange')) return;
+    e.target.parentNode.querySelector('.sVal').textContent = PREF_NAMES[e.target.value];
+  });
+  routePointsEl.addEventListener('change', function (e) {
+    if (!e.target.classList.contains('legRange')) return;
+    setLeg(Number(e.target.closest('.legEd').dataset.i), Number(e.target.value));
   });
   // Links in Popups: "Punkt entfernen" (Routenpunkt) und "Zur Route hinzufügen" (POI)
   document.addEventListener('click', function (e) {

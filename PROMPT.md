@@ -495,6 +495,23 @@ plus je Routing-Option `&profile:avoid_<id>=1|0` (BRouter akzeptiert nur Zahlen,
   verschiebbar; Popup „Punkt entfernen“.
 - Liste im Menü mit ↑ ↓ ✕, darunter „⇅ Umkehren“ (Startpunkt/Löschen stehen oben im Knopf-Raster).
 - POI-Popup: „➕ Zur Route hinzufügen“ (wird neues Ziel, mit Namen).
+- **Abschnitte mit eigenem Verhältnis Asphalt / Offroad:** In der Punkteliste steht zwischen zwei Punkten die Zeile
+  „⌄ Abschnitt: **wie Profil**“ (klein, grau; mit eigener Einstellung Petrol). Antippen klappt darunter auf: drei Knöpfe
+  **wie Profil · nur Asphalt · maximal Offroad**, darunter Schieber „Asphalt ●── Offroad“ (0–5, Wert wie im Tab Profil),
+  Hinweis („Nutzt die Einstellung im Tab Profil (stark).“ bzw. „Gilt nur von Punkt … bis zum nächsten Punkt.“).
+  - Gespeichert am **Startpunkt** des Abschnitts: `pts[i].leg` = 0 … 5, fehlt = wie Profil; am Ziel nie (`saveRoute` löscht es).
+  - **Berechnung:** aufeinanderfolgende Abschnitte mit gleichem Wert = ein Stück (eine BRouter-Anfrage mit allen Punkten des
+    Stücks); Stücke **nacheinander** anfragen (schont den Server), Ergebnisse in `runCache` (Schlüssel = URL, max. 30) –
+    ändert man einen Abschnitt, werden die anderen nicht neu angefragt. `mergeRuns` hängt Koordinaten (Übergabepunkt
+    nicht doppelt), Abschnittszeilen (Kopfzeile einmal), `track-length` und `filtered ascend` aneinander → Anzeige,
+    Höhenprofil, GPX wie bei einer Route. Ohne eigene Abschnitte = eine Anfrage wie bisher.
+  - **Karte:** Abschnitt mit eigener Einstellung bekommt in seiner Mitte ein Schild (aufrecht, `routePinPane`):
+    weiß mit blauem Rand + Straßen-Symbol „nur Asphalt“ bzw. grünem Rand + Schotter-Symbol „max. Offroad“ / „Offroad mittel“.
+    Antippen öffnet Menü → Tab Route mit aufgeklapptem Abschnitt.
+  - Route ziehen (neues Zwischenziel) → beide Hälften behalten den Wert; „Umkehren“ dreht die Werte mit (Abschnitt k →
+    n−2−k); ↑ ↓ tauscht nur die Punkte, die Werte bleiben an ihrer Stelle (Abschnitt 1, 2 …); Punkt löschen → der Abschnitt
+    davor gilt bis zum nächsten Punkt.
+  - Server-Antwort „Please, retry later!“ → „Der Routing-Server ist gerade ausgelastet – bitte in einer Minute nochmal versuchen.“
 - **Route ziehen:** Linie anfassen (linke Maustaste / Finger halten) und ziehen → gestrichelte Vorschau vom vorigen
   Wegpunkt über den Zeiger zum nächsten folgt dem Zeiger; beim Loslassen entsteht dort ein neues Zwischenziel
   **zwischen den beiden Wegpunkten dieses Abschnitts**, dann Neuberechnung (während des Ziehens keine Server-Anfragen).
