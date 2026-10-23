@@ -365,7 +365,7 @@ Zehn Kategorien, einzeln ein-/ausschaltbar, mit Anzahl im Ausschnitt (Symbol = L
   Reihenfolge links → rechts: Profil · Karte · Route · GPX · POI · Offline · App. Je Tab Symbol, kurzer Name, darunter klein der Stand; `title` mit Erklärung:
   | Tab | Inhalt | Kurzstand unter dem Tab |
   |---|---|---|
-  | 🎚 **Profil** | Routing-Optionen (Symbol = Bild des aktiven Fahrzeugtyps, `<use id="ropTabIcon">`, 33 × 22 px, wechselt in `syncVehicleUi`; `title` „Routing-Optionen …“): „FAHRZEUG“ (Kacheln + Beschreibung), „Schotter“-Schieber, „ERLAUBT / GEMIEDEN“ (Stand „5 ✓ 3 ✕“ in der Überschrift, Legende, Kacheln, Hinweis, Warnung, Häkchen gesperrte Wege zeigen – nicht mehr aufklappbar), „DARSTELLUNG DER ROUTE“ mit „Linie“ | Name des Fahrzeugtyps, z. B. „Big Enduro“ |
+  | 🎚 **Profil** | Routing-Optionen (Symbol = Bild des aktiven Fahrzeugtyps, `<use id="ropTabIcon">`, 33 × 22 px, wechselt in `syncVehicleUi`; `title` „Routing-Optionen …“): „FAHRZEUG“ (Kacheln + Beschreibung), Überschrift „VERHÄLTNIS ASPHALT / OFFROAD“ mit Schieber „Asphalt ●── Offroad“ + Wert (`.sEnd` 12,5 px grau), „ERLAUBT / GEMIEDEN“ (Stand „5 ✓ 3 ✕“ in der Überschrift, Legende, Kacheln, Hinweis, Warnung, Häkchen gesperrte Wege zeigen – nicht mehr aufklappbar), „DARSTELLUNG DER ROUTE“ mit „Linie“ | Name des Fahrzeugtyps, z. B. „Big Enduro“ |
   | 🗺 **Karte** (früher „Wege“; Symbol Faltkarte wie `i-map`, interne id bleibt `way`) | Qualitätsstufen (Farbe + Ein/Aus, Anzahl), „↺ Standardfarben“, „▬ Breite“, „◐ Transparenz“, „Karte blasser“, Höhenschummerung, „GEDREHTE KARTE“, „STAATSGRENZEN“ | – |
   | 🧭 **Route** | nur die aktuelle Route: Knopf-Raster, Ergebnis + Höhenprofil, „So geht's“, Punktliste + Umkehren (Abschnitt 10a) | z. B. „41 km“ / „2 Punkte“ |
   | 📂 **GPX** | eigene GPX-Tracks (Abschnitt 10c) | z. B. „2 Tracks“ / „1/2 Tracks“ |
@@ -441,14 +441,18 @@ Zehn Kategorien, einzeln ein-/ausschaltbar, mit Anzahl im Ausschnitt (Symbol = L
 „Gravelfinder Big Enduro“ steht in `index.html` als `<script type="text/plain" id="brouterProfile">` und wird
 einmal je Sitzung per `POST https://brouter.de/brouter/profile` hochgeladen (Antwort `{ profileid: "custom_…" }`;
 läuft das Profil auf dem Server ab, automatisch neu hochladen). Routenabfrage:
-`GET …/brouter?lonlats=lon,lat|lon,lat|…&profile=<id>&alternativeidx=0&format=geojson&profile:gravel_pref=<1–5>`
+`GET …/brouter?lonlats=lon,lat|lon,lat|…&profile=<id>&alternativeidx=0&format=geojson&profile:gravel_pref=<0–5>`
 plus je Routing-Option `&profile:avoid_<id>=1|0` (BRouter akzeptiert nur Zahlen, nicht `true`).
 
 **Profil (BRouter-Profilsprache):**
 - Zugang wie die Karte (genauester Schlüssel motorcycle → motor_vehicle → vehicle → access); gesperrt = Kosten 10000.
 - Schotterweg = gleicher Filter wie die Karte; Qualitätsstufe wie die Karte (smoothness vor schlechterer von tracktype/surface).
 - Kosten je Meter: Schotter hoch 1,0 · mittel 1,15 · niedrig 1,7.
-  Straßen = Grundkosten × `gravel_pref` (Standard 3): tertiary/unclassified 1,0 · secondary 1,15 · primary 1,3 ·
+  **Schieber „Verhältnis Asphalt / Offroad“** (`gravel_pref` 0–5 in 0,5-Schritten, Standard 3): Offroad (Schotterweg oder
+  `highway=track`) × `offroadmul` = 25 bei 0 („nur Asphalt“ – Offroad nur, wenn es gar nicht anders geht), 2,5 bei 0,5
+  („kaum“), sonst 1. Straßen × `roadmul` (mind. 1,0): 1 → 1,2 · 1,5 → 1,5 · 2 → 1,8 · 2,5 → 2,3 · 3 → 2,9 · 3,5 → 3,7 ·
+  4 → 4,7 · 4,5 → 6,0 · 5 → 8,0 (steigt immer stärker; Kette aus `lesser`-Abfragen, BRouter kennt keine Potenz).
+  Straßen-Grundkosten: tertiary/unclassified 1,0 · secondary 1,15 · primary 1,3 ·
   residential 1,2 · service 1,3 · trunk 2,0 · Feldweg ohne Angaben 1,6 · Fähre 2,0 (+10000 Einstieg) ·
   Autobahn 0,9 (nur wenn erlaubt); Fuß-/Radwege gesperrt.
 - **Routing-Optionen** (Profil-Parameter `avoid_*`, 1 = ja; Kosten werden mit dem Faktor multipliziert):
@@ -471,7 +475,13 @@ plus je Routing-Option `&profile:avoid_<id>=1|0` (BRouter akzeptiert nur Zahlen,
   `trail_visibility=poor` sind nur Aliasse → Profilfehler „unknown lookup value“).
 - Knoten: Poller/Drängelgitter/Steinblock/Drehkreuz gesperrt (außer Zugang erlaubt), Schranke (`lift_gate`) +3000,
   Tor (`gate`) +800 – Forststraßen-Schranken sind oft geschlossen.
-- Auswirkung (Test Wels → Ried): Vorliebe 2 → 10 % Schotter, 3 → 26 %.
+- Auswirkung (Test 23.10.2026, Stufen 1–3 eingeblendet; Offroad-Anteil bei Schieber 0 / 1 / 2 / 3 / 4 / 5):
+  Buchkirchen → Steinhaus 0 / 0 / 4 / 9 / 9 / 14 % · Wels → Kremsmünster 0 / 0 / 9 / 11 / 28 / 36 % ·
+  Gmunden → Kirchdorf 0 / 1 / 18 / 18 / 22 / 34 % (Länge 33 → 36 km).
+  Slowenien (viele Schotterwege): Ljubljana → Idrija 0 / 12 / 36 / 37 / 62 / 82 % (52 → 95 km!) ·
+  Bled → Bohinj 0 / 6 / 25 / 71 / 91 / 91 % (26 → 56 km) · Postojna → Ilirska Bistrica 0 / 14 / 51 / 90 / 90 / 90 % ·
+  Kočevje → Ribnica 0 / 67 / 70 / 71 / 71 / 71 % · Celje → Velenje 0 / 0 / 6 / 8 / 18 / 22 %.
+  Viele Testabfragen hintereinander → brouter.de antwortet „403 Please, retry later!“ (kurz warten).
 
 **Bedienung:** Menüpunkt „🧭 Route“ (zwischen POI und Offline Karten) und Schnellknopf 🧭 oben links unter der Kartenauswahl.
 - „Punkte auf der Karte setzen“ (Routen-Modus): Tippen setzt Punkte – erster = Start, jeder weitere = neues Ziel,
@@ -494,8 +504,9 @@ plus je Routing-Option `&profile:avoid_<id>=1|0` (BRouter akzeptiert nur Zahlen,
 - WICHTIG: Panes mit Zeichenflächen über der Karte (Routenpunkte, Greif-Linie, Standort) brauchen
   `pointer-events: none` – sonst fangen leere Canvas/SVG-Flächen alle Klicks ab; Marker und Greif-Linie bekommen
   ihre Klick-Freigabe einzeln.
-- Schieberegler „Schotter-Vorliebe“ 1–5 (gering … maximal, Standard 3 „stark“).
-- Tab Route: Knopf-Raster · Ergebnis/Höhenprofil · So geht's · Punktliste. Tab Profil: Fahrzeug · „🪨 Schotter“ ·
+- Schieberegler unter der Überschrift „VERHÄLTNIS ASPHALT / OFFROAD“, links „Asphalt“, rechts „Offroad“ (intern Schotter-Vorliebe `settings.route.pref`) 0–5: nur Asphalt · kaum · gering · gering · mittel · mittel ·
+  stark (Standard 3) · stark · sehr stark · sehr stark · maximal.
+- Tab Route: Knopf-Raster · Ergebnis/Höhenprofil · So geht's · Punktliste. Tab Profil: Fahrzeug · „Verhältnis Asphalt / Offroad“ ·
   Erlaubt / gemieden · „▬ Linie“.
 - Abschnitt **„Erlaubt / gemieden“** im Tab Profil (Überschrift mit Stand „6 ✓ 2 ✕“ in Grün/Rot) mit Legende
   „✓ grün = darf genutzt werden · ✕ rot = wird gemieden“ und acht **Kacheln** in 2 Spalten (Symbol + Name):

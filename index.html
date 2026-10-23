@@ -131,7 +131,8 @@
   .srow .sLbl { flex: none; width: 104px; font-size: 14px; color: var(--muted); white-space: nowrap; }
   .srow input[type=range] { flex: 1; min-width: 0; width: auto; }
   .srow .sVal { flex: none; min-width: 42px; text-align: right; font-size: 14px; font-weight: 700; white-space: nowrap; }
-  .srow .sVal.wide { min-width: 70px; }
+  .srow .sVal.wide { min-width: 78px; }
+  .srow .sEnd { flex: none; font-size: 12.5px; color: var(--muted); }   /* Richtungs-Wörter links/rechts am Schieber */
   .srow .sLbl.free { flex: 1; width: auto; white-space: normal; line-height: 1.25; }   /* längerer Text statt Schieber */
   .tabPanel > .srow { margin-top: 10px; }
   .row.rowTop { margin-top: 14px; }
@@ -820,8 +821,11 @@
     <div class="qSep first" style="padding-top:12px">Fahrzeug</div>
     <div class="vehGrid" id="vehGrid" role="radiogroup" aria-label="Fahrzeugtyp"></div>
     <div class="hint" id="vehHint"></div>
-    <div class="srow" title="Wie viel Umweg du für Schotter in Kauf nimmst"><span class="sLbl"><svg class="ic"><use href="#i-gravel"/></svg>Schotter</span>
-      <input type="range" id="prefRange" min="1" max="5" step="0.5" value="3" aria-label="Schotter-Vorliebe">
+    <!-- Offroadanteil (Schotter-Vorliebe): eigene Überschrift, Schieber mit Richtungs-Wörtern links/rechts -->
+    <div class="qSep">Verhältnis Asphalt / Offroad</div>
+    <div class="srow" title="Wie viel Umweg du für mehr Offroad-Anteil in der Route in Kauf nimmst"><span class="sEnd">Asphalt</span>
+      <input type="range" id="prefRange" min="0" max="5" step="0.5" value="3" aria-label="Offroadanteil in der Route">
+      <span class="sEnd">Offroad</span>
       <span class="sVal wide" id="prefValue">stark</span></div>
     <div class="qSep">Erlaubt / gemieden <span class="secSum" id="routeOptSum"></span></div>
     <div class="optLegend"><span class="ok">✓ grün = darf genutzt werden</span><span class="no">✕ rot = wird gemieden</span></div>
@@ -912,8 +916,23 @@ assign validForCars 1
 assign turnInstructionMode = 0
 assign pass1coefficient = 1.2
 
-# Wie stark Schotter gegenüber Asphalt bevorzugt wird (Asphalt kostet so viel mal mehr als guter Schotter)
-assign gravel_pref = 3.0   # %gravel_pref% | Schotter-Vorliebe | number
+# Schieber "Verhältnis Asphalt / Offroad" (0 … 5):
+#   0   = nur Asphalt: Offroad (Schotterwege, Feldwege) ×25 – nur wenn es gar nicht anders geht
+#   0.5 = kaum Offroad: Offroad ×2,5
+#   ab 1 = Asphalt kostet so viel mal mehr als guter Schotter (steigt immer stärker: 1,2 … 8 bei "maximal")
+assign gravel_pref = 3.0   # %gravel_pref% | Verhältnis Asphalt / Offroad | number
+assign offroadmul = if lesser gravel_pref 0.25 then 25 else if lesser gravel_pref 0.75 then 2.5 else 1
+assign roadmul
+  if lesser gravel_pref 0.75 then 1.0
+  else if lesser gravel_pref 1.25 then 1.2
+  else if lesser gravel_pref 1.75 then 1.5
+  else if lesser gravel_pref 2.25 then 1.8
+  else if lesser gravel_pref 2.75 then 2.3
+  else if lesser gravel_pref 3.25 then 2.9
+  else if lesser gravel_pref 3.75 then 3.7
+  else if lesser gravel_pref 4.25 then 4.7
+  else if lesser gravel_pref 4.75 then 6.0
+  else 8.0
 
 # Routing-Optionen (in der App unter Route → Routing-Optionen; 1 = ja, 0 = nein)
 assign avoid_motorway = 1  # %avoid_motorway% | Autobahnen vermeiden | number
@@ -986,7 +1005,7 @@ assign q_base
 assign quality if 4wd_only=yes|recommended then max q_base 4 else q_base
 
 # ---------- Kosten je Meter (1 = am liebsten) ----------
-# Straßen (Verbindungsstücke): Grundkosten × Schotter-Vorliebe
+# Straßen (Verbindungsstücke): Grundkosten × Straßen-Faktor (aus dem Schieber, mind. 1)
 assign roadbase
   if highway=motorway|motorway_link then 0.9     # nur wenn "Autobahnen vermeiden" aus ist: schnelle Überstellung statt Landstraße
   else if highway=trunk|trunk_link then 2.0
@@ -1001,7 +1020,7 @@ assign roadbase
   else 0
 assign roadcost
   if equal roadbase 0 then 10000
-  else max 1.0 ( multiply roadbase gravel_pref )
+  else max 1.0 ( multiply roadbase roadmul )
 
 # Schotterwege nach Qualität; in der App ausgeblendete Stufen (show_qN = 0) nur, wenn es nicht anders geht
 assign qbase
@@ -1028,7 +1047,9 @@ assign optcost
   else if and ( equal avoid_town 1 ) highway=residential|living_street then 4
   else 1
 
-assign basecost multiply optcost ( if isgravel then gravelcost else roadcost )
+# Offroad = Schotterweg oder Feldweg ohne Angaben; Schieber ganz links macht Offroad teuer
+assign offroadf if or isgravel highway=track then offroadmul else 1
+assign basecost multiply ( multiply optcost offroadf ) ( if isgravel then gravelcost else roadcost )
 # Gesperrte Wege/Straßen (Fahrverbot, nur Anrainer, Land-/Forstwirtschaft): Standard praktisch gesperrt.
 # In der App erlaubbar (z. B. mit Genehmigung) – dann nur etwas teurer, damit freie Wege Vorrang behalten.
 assign costfactor
@@ -1211,7 +1232,7 @@ assign initialcost
       if (saved.route && Array.isArray(saved.route.pts)) {
         settings.route.pts = saved.route.pts.filter(function (p) { return p && isFinite(p.lat) && isFinite(p.lon); })
           .map(function (p) { return { lat: Number(p.lat), lon: Number(p.lon), name: typeof p.name === 'string' ? p.name : '' }; });
-        if (saved.route.pref >= 1 && saved.route.pref <= 5) settings.route.pref = Number(saved.route.pref);
+        if (saved.route.pref >= 0 && saved.route.pref <= 5) settings.route.pref = Number(saved.route.pref);
         if (saved.route.width >= 2 && saved.route.width <= 10) settings.route.width = Number(saved.route.width);
         if (saved.route.transp >= 0 && saved.route.transp <= 90) settings.route.transp = Number(saved.route.transp);
         if (saved.route.opt) ROUTE_OPTS.forEach(function (o) {
@@ -4250,7 +4271,7 @@ assign initialcost
     }
   });
 
-  var PREF_NAMES = { 1: 'gering', 1.5: 'gering', 2: 'mittel', 2.5: 'mittel', 3: 'stark', 3.5: 'stark', 4: 'sehr stark', 4.5: 'sehr stark', 5: 'maximal' };
+  var PREF_NAMES = { 0: 'nur Asphalt', 0.5: 'kaum', 1: 'gering', 1.5: 'gering', 2: 'mittel', 2.5: 'mittel', 3: 'stark', 3.5: 'stark', 4: 'sehr stark', 4.5: 'sehr stark', 5: 'maximal' };
   var prefRange = document.getElementById('prefRange'), prefValue = document.getElementById('prefValue');
   prefRange.value = settings.route.pref;
   prefValue.textContent = PREF_NAMES[settings.route.pref] || settings.route.pref;

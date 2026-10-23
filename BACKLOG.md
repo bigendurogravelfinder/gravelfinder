@@ -24,12 +24,12 @@ Im Route-Tab unter dem Ergebnis, mit Qualitäts-Streifen und Anzeige der Stelle 
 
 ### Profil nach Testfahrten feinjustieren
 Heute (BRouter-Profil in `index.html`): Kosten je Meter nach Stufe 1,0 · 1,15 · 1,7 · 3,0 · 6,0; im Tab „Wege“
-nicht angehakte Stufen ×30 (nur wenn es nicht anders geht); Straßen = Grundkosten × Schotter-Vorliebe;
+nicht angehakte Stufen ×30 (nur wenn es nicht anders geht); Straßen = Grundkosten × Straßen-Faktor aus dem Schieber „Verhältnis Asphalt / Offroad“ (1,2 … 8; ganz links „nur Asphalt“ = Offroad ×25);
 Schranke +3000, Tor +800. Nach Testfahrten prüfen:
 - Kostenabstufung der 5 Stufen und der Faktor ×30 für ausgeblendete Stufen,
-- Feldwege ohne jede Angabe (`highway=track` ohne tracktype/surface, Kosten 1,6 × Vorliebe) – eher meiden?
+- Feldwege ohne jede Angabe (`highway=track` ohne tracktype/surface, Kosten 1,6 × Straßen-Faktor) – eher meiden?
 - Schranken/Tore (oft geschlossen) – stärker meiden oder als eigene Vermeiden-Kachel,
-- Schotter-Vorliebe-Regler (1–5) – passt die Skala?
+- Schieber „Verhältnis Asphalt / Offroad“ (0–5, Skala am 23.10.2026 verstärkt) – passen die Abstufungen unterwegs?
 
 ## GPX-Tracks
 - Wegpunkte (`wpt`) aus GPX-Dateien auf der Karte anzeigen (werden derzeit nur gezählt).
