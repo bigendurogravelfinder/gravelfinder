@@ -249,6 +249,13 @@
   .legEd .seg { margin-bottom: 4px; }
   .legEd .hint { margin-top: 2px; }
   /* Schild auf der Karte in der Mitte eines Abschnitts mit eigener Einstellung */
+  .lawWarn { color: #e65100; font-size: 13px; margin: 0 0 6px; }
+  #lawList { padding-left: 18px; }
+  #lawList li { margin: 3px 0; font-size: 13px; line-height: 1.35; }
+  #lawList li.lawHead { list-style: none; margin: 10px 0 2px -18px; font-weight: 700; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .3px; }
+  #lawList li.ban::marker { color: #e65100; }
+  #lawList a { white-space: nowrap; font-weight: 600; }
+  body.dark .lawWarn { color: #ffb74d; }
   .legChip { background: none; border: 0; }
   .legChip span {
     position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); white-space: nowrap; cursor: pointer;
@@ -874,6 +881,17 @@
     <div class="routeErr" id="restrictWarn" hidden><svg class="ic"><use href="#i-warn"/></svg> Gesperrte Wege sind erlaubt – nur fahren, wo du wirklich darfst (Fahrverbot!).</div>
     <label class="check sub" title="gesperrt / nur Anrainer, Land- oder Forstwirtschaft – als graue Strichlinie"><input type="checkbox" id="showRestricted">
       <svg width="28" height="8"><line x1="0" y1="4" x2="28" y2="4" stroke="#777" stroke-width="3" stroke-dasharray="6 5"/></svg> gesperrte Wege auf der Karte zeigen</label>
+    <!-- Länderregeln: Wald-/Forstwege ohne eingetragene Freigabe in Ländern mit gesetzlichem Fahrverbot -->
+    <div class="qSep">Länderregeln für Waldwege</div>
+    <div class="seg txt" id="lawMode" role="radiogroup" aria-label="Länderregeln für Waldwege">
+      <button type="button" data-v="off" title="Länderregeln nicht beachten">aus</button>
+      <button type="button" data-v="hint" title="fragliche Wege orange markieren und beim Routing etwas meiden">Hinweis</button>
+      <button type="button" data-v="strict" title="fragliche Wege wie gesperrte Wege behandeln">streng</button>
+    </div>
+    <div class="hint" id="lawHint"></div>
+    <details class="tip"><summary><svg class="ic"><use href="#i-info"/></svg>Welche Länder?</summary><ul id="lawList"></ul>
+      <div class="hint">Vereinfachung, keine Rechtsauskunft. Vor Ort gelten Beschilderung und Landesrecht. Grenzüberschreitende
+        Abschnitte rechnet das Routing höchstens mit „Hinweis“ – für „streng“ einen Wegpunkt an die Grenze setzen.</div></details>
     <div class="qSep">Darstellung der Route</div>
     <div class="srow" title="Linienstärke der Route (Transparenz: Schieber links auf der Karte)"><span class="sLbl"><svg class="ic"><use href="#i-width"/></svg>Linie</span>
       <input type="range" id="routeWidth" min="2" max="10" step="1" value="4" aria-label="Linienstärke der Route">
@@ -986,6 +1004,8 @@ assign avoid_town     = 0  # %avoid_town% | Ortsgebiet meiden | number
 assign avoid_steep    = 0  # %avoid_steep% | Starke Steigungen meiden | number
 assign avoid_restricted = 1  # %avoid_restricted% | Gesperrte Wege/Straßen meiden | number
 assign veh_car = 0  # %veh_car% | Zugang wie Kraftfahrzeug (Quad, Geländewagen) statt Motorrad | number
+# Länderregel für Wald-/Forstwege ohne Zugangsangabe (die App setzt sie je Abschnitt nach Land): 0 aus, 1 Hinweis, 2 streng
+assign law_track = 0  # %law_track% | Waldwege ohne Freigabe: 0 frei, 1 etwas meiden, 2 wie gesperrt | number
 
 # Welche Qualitätsstufen in der App eingeblendet sind (1 = ja) – nur diese werden bevorzugt
 assign show_q1 = 1  # %show_q1% | Stufe 1 sehr gut | number
@@ -1091,7 +1111,14 @@ assign optcost
 
 # Offroad = Schotterweg oder Feldweg ohne Angaben; Schieber ganz links macht Offroad teuer
 assign offroadf if or isgravel highway=track then offroadmul else 1
-assign basecost multiply ( multiply optcost offroadf ) ( if isgravel then gravelcost else roadcost )
+# Länderregel: Feld-/Forstweg ganz ohne Zugangsangabe in einem Land mit gesetzlichem Waldfahrverbot
+assign noaccesstag and ( and motor_vehicle= vehicle= ) ( and access= motorcycle= )
+assign lawf
+  if equal law_track 0 then 1
+  else if not ( and highway=track noaccesstag ) then 1
+  else if equal law_track 1 then 1.5
+  else if equal avoid_restricted 1 then 10000 else 1.5
+assign basecost multiply ( multiply ( multiply optcost offroadf ) lawf ) ( if isgravel then gravelcost else roadcost )
 # Gesperrte Wege/Straßen (Fahrverbot, nur Anrainer, Land-/Forstwirtschaft): Standard praktisch gesperrt.
 # In der App erlaubbar (z. B. mit Genehmigung) – dann nur etwas teurer, damit freie Wege Vorrang behalten.
 assign costfactor
@@ -1250,6 +1277,7 @@ assign initialcost
     hillshade: false,       // Höhenschummerung
     vehicle: 'bigenduro',   // Fahrzeugtyp fürs Routing (siehe VEHICLES)
     dark: 'off',            // dunkles Design (Menü und Karte): off | system (wie am Handy eingestellt) | on
+    lawMode: 'hint',        // Länderregeln für Wald-/Forstwege ohne Freigabe: off | hint (markieren, leicht meiden) | strict (wie gesperrt)
     rotMode: 'north',       // Karte drehen: north (Norden oben) | free (mit zwei Fingern drehbar) | heading (Fahrtrichtung oben)
     bearing: 0,             // Drehung im Modus "frei" (Grad)
     rotBase: 'gray' };      // Hintergrund ohne Schrift, solange die Karte gedreht ist: gray | sat
@@ -1296,6 +1324,7 @@ assign initialcost
       if (typeof saved.dark === 'boolean') settings.dark = saved.dark ? 'on' : 'off';   // früher nur ein/aus
       else if (/^(off|system|on)$/.test(saved.dark)) settings.dark = saved.dark;
       if (/^(north|free|heading)$/.test(saved.rotMode)) settings.rotMode = saved.rotMode;
+      if (/^(off|hint|strict)$/.test(saved.lawMode)) settings.lawMode = saved.lawMode;
       if (saved.bearing >= 0 && saved.bearing < 360) settings.bearing = Number(saved.bearing);
       if (/^(gray|sat)$/.test(saved.rotBase)) settings.rotBase = saved.rotBase;
       if (saved.border) {
@@ -1833,6 +1862,98 @@ assign initialcost
     return false;
   }
 
+  // ================= Länderregeln: Wald-/Forstwege ohne Freigabe =================
+  // In diesen Ländern ist das Befahren von Wald und Forststraßen mit Kraftfahrzeugen per Gesetz grundsätzlich
+  // verboten (auch ohne Schild), außer mit Erlaubnis. In OSM fehlt diese Angabe oft → Feld-/Forstwege
+  // (highway=track) OHNE eingetragene Zugangsregel gelten hier als "fraglich". Vereinfachung, keine Rechtsauskunft –
+  // vor Ort zählen Beschilderung und Landesrecht. Recherche 23.10.2026.
+  // ban: true = gesetzliches Fahrverbot auf Wald-/Forstwegen ohne Freigabe → Karte/Routing (Hinweis/streng).
+  // ban: false = nur Info in der Liste (Wege sind grundsätzlich befahrbar, es gelten aber Einschränkungen).
+  // url = Gesetzestext bzw. amtliche Stelle (nur geprüfte Adressen, sonst leer).
+  var LAW_RULES = {
+    'albania':        { land: 'Albanien', ban: false, text: 'Keine landesweite Regel für Forstwege gefunden – Schilder, Schranken und Grundbesitzer beachten.' },
+    'andorra':        { land: 'Andorra', ban: false, text: 'Keine landesweite Regel gefunden – viele Pisten sind beschildert; Schilder beachten.' },
+    'austria':        { land: 'Österreich', ban: true, text: 'Forststraßen nur mit Zustimmung des Erhalters (Forstgesetz § 33) – gilt auch ohne Schild.',
+                        url: 'https://www.ris.bka.gv.at/GeltendeFassung.wxe?Abfrage=Bundesnormen&Gesetzesnummer=10010371', src: 'Forstgesetz 1975 (RIS)' },
+    'azores':         { land: 'Azoren', ban: false, text: 'Wie Portugal: keine allgemeine Sperre, aber Schutzgebiete und Brandschutz-Sperren.' },
+    'belarus':        { land: 'Belarus', ban: false, text: 'Keine verlässliche Angabe gefunden – Schilder und Grundbesitzer beachten.' },
+    'belgium':        { land: 'Belgien', ban: true, text: 'Wallonien: im Wald nur Straßen und für Kfz markierte Wege (Code forestier); Flandern: Waldwege für Kfz gesperrt.',
+                        url: 'https://wallex.wallonie.be/eli/loi-decret/2008/07/15/2008203215', src: 'Code forestier (Wallonie)' },
+    'bosnia-herzegovina': { land: 'Bosnien und Herzegowina', ban: false, text: 'Keine landesweite Regel gefunden – Schilder beachten; abseits der Wege Minengefahr in manchen Gebieten!' },
+    'bulgaria':       { land: 'Bulgarien', ban: false, text: 'Keine verlässliche Angabe gefunden – Schutzgebiete sperren Fahrten mit Geländefahrzeugen teils per Verfügung.' },
+    'croatia':        { land: 'Kroatien', ban: false, text: 'Keine eindeutige Regel gefunden – Forststraßen dienen v. a. der Forstwirtschaft; Schilder/Schranken beachten.' },
+    'cyprus':         { land: 'Zypern', ban: false, text: 'Keine verlässliche Angabe gefunden – Schilder beachten.' },
+    'czech-republic': { land: 'Tschechien', ban: true, text: 'Fahren und Abstellen im Wald verboten (Waldgesetz § 20) – gilt auch ohne Schild.',
+                        url: 'https://www.e-sbirka.cz/sb/1995/289', src: 'Zákon o lesích 289/1995' },
+    'denmark':        { land: 'Dänemark', ban: true, text: 'Motorfahrzeuge in Wäldern nur mit Erlaubnis (Naturschutzgesetz; Urteil 2022 zu Waldwegen).' },
+    'estonia':        { land: 'Estland', ban: false, text: 'Forstwege im Wald befahrbar, abseits nur mit Erlaubnis des Waldbesitzers (Forstgesetz § 35); Schutzgebiete strenger.',
+                        url: 'https://www.riigiteataja.ee/akt/MS', src: 'Riigi Teataja' },
+    'faroe-islands':  { land: 'Färöer', ban: false, text: 'Keine verlässliche Angabe gefunden – abseits der Straßen nicht fahren.' },
+    'finland':        { land: 'Finnland', ban: false, text: 'Privatstraßen meist befahrbar (Schilder beachten); Fahren im Gelände nur mit Erlaubnis des Grundbesitzers.',
+                        url: 'https://www.finlex.fi/fi/laki/ajantasa/1995/19951710', src: 'Maastoliikennelaki' },
+    'france':         { land: 'Frankreich', ban: false, text: 'Kfz nur auf öffentlich befahrbaren Wegen inkl. Chemins ruraux (Code de l’environnement L362-1); Forstwege oft per Schranke/Erlass gesperrt.',
+                        url: 'https://www.legifrance.gouv.fr/codes/texte_lc/LEGITEXT000006074220/', src: 'Code de l’environnement' },
+    'germany':        { land: 'Deutschland', ban: true, text: 'Kraftfahrzeuge im Wald nach den Landeswaldgesetzen grundsätzlich verboten (nur Bewirtschaftung, Jagd, mit Erlaubnis).',
+                        url: 'https://www.gesetze-im-internet.de/bwaldg/__14.html', src: 'Bundeswaldgesetz § 14' },
+    'great-britain':  { land: 'Großbritannien', ban: true, text: 'Abseits öffentlicher Straßen (auch auf privaten Wegen) nur mit Erlaubnis – erlaubt sind v. a. BOATs (Road Traffic Act s. 34).',
+                        url: 'https://www.legislation.gov.uk/ukpga/1988/52/section/34', src: 'Road Traffic Act 1988 s. 34' },
+    'greece':         { land: 'Griechenland', ban: false, text: 'Keine allgemeine Sperre gefunden, aber in der Brandsaison (Mai–Okt.) Forststraßen oft gesperrt – hohe Strafen.' },
+    'guernsey-jersey': { land: 'Guernsey und Jersey', ban: false, text: 'Keine verlässliche Angabe gefunden – „Green Lanes“ mit Tempolimit; Schilder beachten.' },
+    'hungary':        { land: 'Ungarn', ban: true, text: 'Motorräder, Quads und Geländefahrzeuge im Wald verboten (Forstgesetz 2009), nur ausgewiesene Wege.',
+                        url: 'https://njt.hu/jogszabaly/2009-37-00-00', src: '2009. évi XXXVII. törvény' },
+    'iceland':        { land: 'Island', ban: false, text: 'Fahren abseits markierter Straßen und Pisten landesweit verboten (Naturschutzgesetz Art. 31); F-Straßen sind erlaubt.',
+                        url: 'https://www.althingi.is/lagas/nuna/2013060.html', src: 'Lög um náttúruvernd 60/2013' },
+    'ireland-and-northern-ireland': { land: 'Irland und Nordirland', ban: true, text: 'Irland: Geländefahrzeuge und Motorräder in Coillte-Wäldern verboten (Bye-Laws 2009); private Wege nur mit Erlaubnis.',
+                        url: 'https://www.coillte.ie/coillte-faqs/can-use-off-road-vehicle-coillte-forests/', src: 'Coillte' },
+    'isle-of-man':    { land: 'Isle of Man', ban: false, text: 'In staatlichen Wäldern ohne Erlaubnis verboten; manche „Green Lanes“ sind für Motorräder offen.' },
+    'italy':          { land: 'Italien', ban: true, text: 'Forst- und Almwege (strade silvo-pastorali) für den allgemeinen Verkehr gesperrt – Details je Region.',
+                        url: 'https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.legislativo:2018-04-03;34', src: 'D.Lgs. 34/2018' },
+    'kosovo':         { land: 'Kosovo', ban: false, text: 'Keine verlässliche Angabe gefunden – Schilder beachten.' },
+    'latvia':         { land: 'Lettland', ban: false, text: 'Keine eindeutige Regel gefunden – Staatsforst (LVM) bittet, Geländefahrten zu unterlassen.' },
+    'liechtenstein':  { land: 'Liechtenstein', ban: true, text: 'Wald und Waldstraßen nur für Forst-, Jagd-, Land- und Alpwirtschaft (Waldgesetz Art. 16).',
+                        url: 'https://www.gesetze.li/konso/1991042000', src: 'Waldgesetz (LGBl. 1991 Nr. 42)' },
+    'lithuania':      { land: 'Litauen', ban: false, text: 'Im Wald nur auf Straßen/Wegen (Schilder beachten); Fahren im Gelände verboten.',
+                        url: 'https://aad.lrv.lt/en/frequently-asked-questions/', src: 'Umweltschutzbehörde (FAQ)' },
+    'luxembourg':     { land: 'Luxemburg', ban: false, text: 'Neues Waldgesetz regelt den Zugang mit Kfz – Details nicht eindeutig gefunden; Schilder beachten.' },
+    'macedonia':      { land: 'Nordmazedonien', ban: false, text: 'Keine allgemeine Sperre gefunden, aber im Sommer zeitweise komplettes Betretungs-/Fahrverbot in Wäldern (Brandschutz).' },
+    'malta':          { land: 'Malta', ban: false, text: 'Keine verlässliche Angabe gefunden.' },
+    'moldova':        { land: 'Moldau', ban: false, text: 'Keine verlässliche Angabe gefunden – Schilder beachten.' },
+    'monaco':         { land: 'Monaco', ban: false, text: 'Keine Waldwege.' },
+    'montenegro':     { land: 'Montenegro', ban: false, text: 'Keine verlässliche Angabe gefunden – Schilder beachten.' },
+    'netherlands':    { land: 'Niederlande', ban: false, text: 'Keine landesweite Sperre; viele unbefestigte Waldwege per Gemeindebeschluss (Schild C1) oder vom Eigentümer gesperrt.',
+                        url: 'https://wetten.overheid.nl/BWBR0006622', src: 'Wegenverkeerswet 1994' },
+    'norway':         { land: 'Norwegen', ban: false, text: 'Fahren im Gelände („utmark“) verboten; für Autos ausgebaute Wege zählen nicht dazu – Schranken/Mautstraßen beachten.',
+                        url: 'https://lovdata.no/dokument/NL/lov/1977-06-10-82', src: 'Motorferdselloven' },
+    'poland':         { land: 'Polen', ban: true, text: 'Im Wald nur auf öffentlichen Straßen; Forstwege nur, wenn per Schild freigegeben (Waldgesetz Art. 29).',
+                        url: 'https://isap.sejm.gov.pl/isap.nsf/DocDetails.xsp?id=WDU19911010444', src: 'Ustawa o lasach (ISAP)' },
+    'portugal':       { land: 'Portugal', ban: false, text: 'Keine allgemeine Sperre gefunden; in Schutzgebieten und bei Brandgefahr Forstwege oft gesperrt.' },
+    'romania':        { land: 'Rumänien', ban: false, text: 'Mit Kfz im Wald verboten – außer auf Forststraßen und markierten Strecken (Codul silvic); Schutzgebiete strenger.' },
+    'serbia':         { land: 'Serbien', ban: false, text: 'Eigene Regeln der Staatsforste (Srbijašume) für Forststraßen – Details nicht gefunden; Schilder beachten.' },
+    'slovakia':       { land: 'Slowakei', ban: true, text: 'Forstwege nur nach Vereinbarung mit Eigentümer/Verwalter (Waldgesetz § 25); in Schutzgebieten zusätzlich verboten.',
+                        url: 'https://www.slov-lex.sk/pravne-predpisy/SK/ZZ/2005/326/', src: 'Zákon o lesoch 326/2005' },
+    'slovenia':       { land: 'Slowenien', ban: false, text: 'Forststraßen dürfen befahren werden (auf eigene Gefahr, außer gesperrt); abseits davon verboten (Naturschutzgesetz).',
+                        url: 'https://www.gov.si/novice/2022-06-30-voznja-v-naravnem-okolju/', src: 'Regierung (gov.si)' },
+    'spain':          { land: 'Spanien', ban: true, text: 'Forstpisten außerhalb des Straßennetzes für Kfz nur eingeschränkt (Ley de Montes Art. 54 bis) – Regeln je Region.',
+                        url: 'https://www.boe.es/buscar/act.php?id=BOE-A-2003-21339', src: 'Ley 43/2003 de Montes' },
+    'sweden':         { land: 'Schweden', ban: false, text: 'Privat- und Forststraßen meist befahrbar (Schilder beachten); Fahren im Gelände verboten (Terrängkörningslag).',
+                        url: 'https://www.riksdagen.se/sv/dokument-och-lagar/dokument/svensk-forfattningssamling/terrangkorningslag-19751313_sfs-1975-1313/', src: 'Terrängkörningslag' },
+    'switzerland':    { land: 'Schweiz', ban: true, text: 'Wald und Waldstraßen nur zu forstlichen Zwecken (Waldgesetz Art. 15) – Kantone können Ausnahmen zulassen.',
+                        url: 'https://www.fedlex.admin.ch/eli/cc/1992/2521_2521_2521/de', src: 'Waldgesetz SR 921.0' },
+    'ukraine':        { land: 'Ukraine', ban: false, text: 'Keine allgemeine Regel gefunden; in Ur- und Naturwäldern Fahren außerhalb öffentlicher Straßen verboten.',
+                        url: 'https://zakon.rada.gov.ua/laws/show/3852-12', src: 'Лісовий кодекс' }
+  };
+  var LAW_LEVEL = { off: 0, hint: 1, strict: 2 };
+  function hasAccessTag(t) { return ACCESS_KEYS.some(function (k) { return t[k] !== undefined; }); }
+  // Länderregel für einen Weg (Land-id) oder null; gemerkt am Weg, sobald die Umrisse da sind
+  function lawOf(w) {
+    if (w.law !== undefined) return w.law;
+    if (w.tags.highway !== 'track' || hasAccessTag(w.tags)) return (w.law = null);
+    if (!outlines) return null;                       // noch unbekannt – später nochmal
+    var mid = w.latlngs[Math.floor(w.latlngs.length / 2)];
+    var c = countryAt(mid.lat !== undefined ? mid.lat : mid[0], mid.lng !== undefined ? mid.lng : mid[1]);
+    return (w.law = LAW_RULES[c] && LAW_RULES[c].ban ? c : null);
+  }
+
   // ================= Warteschlange für Server-Anfragen =================
   // Immer nur EINE Anfrage gleichzeitig (schont den Server). Aufträge für den sichtbaren Ausschnitt
   // ("view") kommen vor Aufträgen zum Vorladen ("preload").
@@ -2315,13 +2436,57 @@ assign initialcost
 
   function loadOutlines() {
     fetch(staticBase + 'outlines.json')
-      .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
-      .then(function (fc) {
-        outlines = {};
-        fc.features.forEach(function (f) { outlines[f.properties.id] = f; });
-        renderCountries();
+      .then(function (r) { if (!r.ok) throw new Error(); return r.text(); })
+      .then(function (txt) {
+        useOutlines(txt);
+        // auch ohne Netz verfügbar halten (Länderregeln brauchen die Umrisse)
+        dbTx(['blocks'], 'readwrite', function (tx) { tx.objectStore('blocks').put({ b: 'outlines', v: DATA_VERSION, t: Date.now(), data: txt }); });
       })
-      .catch(function () { /* ältere Daten ohne Umrisse: Ersatz-Darstellung über Blöcke */ });
+      .catch(function () {   // ohne Netz: gespeicherte Fassung; ältere Daten ohne Umrisse: Ersatz über Blöcke
+        dbTx(['blocks'], 'readonly', function (tx) {
+          var out = {}, r = tx.objectStore('blocks').get('outlines');
+          r.onsuccess = function () { if (r.result && typeof r.result.data === 'string') out.txt = r.result.data; };
+          return out;
+        }).then(function (out) { if (out && out.txt) useOutlines(out.txt); });
+      });
+  }
+  function useOutlines(txt) {
+    var fc;
+    try { fc = JSON.parse(txt); } catch (e) { return; }
+    outlines = {};
+    fc.features.forEach(function (f) {
+      outlines[f.properties.id] = f;
+      // Rahmen je Teilfläche vorab berechnen (schnelle Vorprüfung für countryAt)
+      var polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
+      f._polys = polys.map(function (poly) {
+        var b = [180, 90, -180, -90];
+        poly[0].forEach(function (p) { b[0] = Math.min(b[0], p[0]); b[1] = Math.min(b[1], p[1]); b[2] = Math.max(b[2], p[0]); b[3] = Math.max(b[3], p[1]); });
+        return { ring: poly[0], holes: poly.slice(1), bb: b };
+      });
+    });
+    renderCountries();
+    render();          // Länderregeln jetzt bekannt → Wege neu einordnen
+  }
+  function inRing(ring, lon, lat) {
+    var inside = false;
+    for (var i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      var xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+      if ((yi > lat) !== (yj > lat) && lon < (xj - xi) * (lat - yi) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  }
+  // In welchem Land (id aus regions.json) liegt der Punkt? null = unbekannt / keine Umrisse geladen
+  function countryAt(lat, lon) {
+    if (!outlines) return null;
+    for (var id in outlines) {
+      var ps = outlines[id]._polys || [];
+      for (var k = 0; k < ps.length; k++) {
+        var p = ps[k];
+        if (lon < p.bb[0] || lon > p.bb[2] || lat < p.bb[1] || lat > p.bb[3]) continue;
+        if (inRing(p.ring, lon, lat) && !p.holes.some(function (h) { return inRing(h, lon, lat); })) return id;
+      }
+    }
+    return null;
   }
 
   // ================= Staatsgrenzen (borders.json) – in allen Zoomstufen markant =================
@@ -2748,6 +2913,11 @@ assign initialcost
   function casingStyle() {
     return { color: CASING_COLOR, weight: settings.width + (settings.width >= 4 ? 3 : 2), opacity: 0.95, lineCap: 'round', lineJoin: 'round' };
   }
+  // Länderregel "Hinweis": fragliche Wald-/Forstwege bekommen statt des durchgehenden dunklen Rands einen
+  // breiteren, GESTRICHELTEN dunklen Rand (beißt sich mit keiner Stufenfarbe – Orange wäre wie "mittel")
+  function lawCasingStyle() {
+    return { color: CASING_COLOR, weight: settings.width + 5, opacity: 0.95, dashArray: '3 4', lineCap: 'butt', lineJoin: 'round' };
+  }
   function restrictedStyle() { return { color: RESTRICTED_COLOR, weight: Math.max(1, settings.width - 1), opacity: 0.9, dashArray: '6 6', lineCap: 'butt' }; }
 
   // Transparenz-Regler: 0 % = voll sichtbar, 100 % = unsichtbar. Gilt für die ganze Wege-Ebene,
@@ -2785,14 +2955,17 @@ assign initialcost
     var visibleOk = [], visibleRestricted = [];
     var countOk = 0, countRestricted = 0, qCount = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
 
+    var lawLvl = LAW_LEVEL[settings.lawMode] || 0, countLaw = 0;
     ways.forEach(function (w) {
       if (!drawArea.intersects(w.bounds)) return;
       var inView = view.intersects(w.bounds);
-      if (w.restricted) { visibleRestricted.push(w); if (inView) countRestricted++; return; }
+      // Länderregel "streng": Wald-/Forstwege ohne Freigabe wie gesperrte Wege behandeln
+      if (w.restricted || (lawLvl === 2 && lawOf(w))) { visibleRestricted.push(w); if (inView) countRestricted++; return; }
       if (inView) qCount[w.q.lvl]++;
       if (!settings.q[w.q.lvl].show) return; // Stufe ausgeblendet
       visibleOk.push(w);
       if (inView) countOk++;
+      if (lawLvl === 1 && inView && lawOf(w)) countLaw++;
     });
     // schlechteste Stufe zuerst zeichnen, damit die guten Wege obenauf liegen
     visibleOk.sort(function (a, b) { return b.q.lvl - a.q.lvl; });
@@ -2828,26 +3001,29 @@ assign initialcost
     if (settings.showRestricted) {
       visibleRestricted.forEach(function (w) {
         var l = L.polyline(w.latlngs, L.extend({ renderer: renderer }, restrictedStyle()));
-        l.bindPopup(function () { return popupHtml(w); }, { maxWidth: 300 });
+        l.on('click', function (e) { openWayPopup(w, e.latlng); });
         l.addTo(roadLayer);
         drawn.restrictedLines.push(l);
       });
     }
-    // dunkler Rand unter allen fahrbaren Wegen
+    // dunkler Rand unter allen fahrbaren Wegen; Länderregel "Hinweis": fraglicher Weg mit orangem, gestricheltem Rand
     visibleOk.forEach(function (w) {
-      var c = L.polyline(w.latlngs, L.extend({ renderer: renderer, interactive: false }, casingStyle()));
+      var cs = lawLvl === 1 && lawOf(w) ? lawCasingStyle() : casingStyle();
+      var c = L.polyline(w.latlngs, L.extend({ renderer: renderer, interactive: false }, cs));
+      c._law = cs.dashArray !== undefined;
       c.addTo(roadLayer);
       drawn.casings.push(c);
     });
     visibleOk.forEach(function (w) {
       var l = L.polyline(w.latlngs, L.extend({ renderer: renderer }, lineStyle(w.q.lvl)));
       l._qlvl = w.q.lvl;
-      l.bindPopup(function () { return popupHtml(w); }, { maxWidth: 300 });
+      l.on('click', function (e) { openWayPopup(w, e.latlng); });
       l.addTo(roadLayer);
       drawn.lines.push(l);
     });
 
     lastCountText = countOk + (countOk === 1 ? ' Offroadweg' : ' Offroadwege') + ' im Ausschnitt';
+    if (countLaw) lastCountText += ', davon ' + countLaw + ' fraglich';
     if (settings.showRestricted && countRestricted) lastCountText += ' (+ ' + countRestricted + ' gesperrt)';
     updateViewStatus();
   }
@@ -2857,7 +3033,7 @@ assign initialcost
     var ls = { 1: lineStyle(1), 2: lineStyle(2), 3: lineStyle(3) }, cs = casingStyle(), rs = restrictedStyle();
     var low = map.getZoom() < DETAIL_ZOOM;
     drawn.lines.forEach(function (l) { l.setStyle(low ? overviewStyle(l._qlvl) : ls[l._qlvl]); });
-    drawn.casings.forEach(function (l) { l.setStyle(cs); });
+    drawn.casings.forEach(function (l) { l.setStyle(l._law ? lawCasingStyle() : cs); });
     drawn.restrictedLines.forEach(function (l) { l.setStyle(rs); });
   }
 
@@ -2956,7 +3132,8 @@ assign initialcost
       if (!drawArea.contains(ll)) return;
       if (view.contains(ll)) counts[cat.id] = (counts[cat.id] || 0) + 1;
       L.marker(ll, { icon: poiIcons[cat.id], title: p.tags.name || cat.label, keyboard: false })
-        .bindPopup(function () { return poiPopupHtml(p, cat); }, { maxWidth: 300 })
+        // Info-Fenster an der Karte, damit es beim Neuzeichnen der POI offen bleibt
+        .on('click', function () { L.popup(L.extend({ offset: [0, -14] }, POPUP_OPT)).setLatLng(ll).setContent(poiPopupHtml(p, cat)).openOn(map); })
         .addTo(poiLayer);
     });
     updatePoiCounts(counts);
@@ -3009,6 +3186,13 @@ assign initialcost
     return esc(String(v).split(';').map(function (p) { p = p.trim(); return LABELS[p] || p; }).join(', '));
   }
 
+  // Info-Fenster eines Weges: an der Karte (nicht an der Linie) – sonst schließt es sich, sobald die Wege neu
+  // gezeichnet werden (z. B. nach dem automatischen Verschieben beim Öffnen)
+  // Abstand beim automatischen Verschieben: oben Platz für die Menü-Kopfzeile, links für die Knopfleiste
+  var POPUP_OPT = { maxWidth: 300, autoPanPaddingTopLeft: [64, 90], autoPanPaddingBottomRight: [16, 60] };
+  function openWayPopup(w, ll) {
+    L.popup(POPUP_OPT).setLatLng(ll).setContent(popupHtml(w)).openOn(map);
+  }
   function popupHtml(w) {
     var t = w.tags;
     var name = t.name || t.ref || '';
@@ -3020,6 +3204,8 @@ assign initialcost
 
     return '<h3>' + (name ? esc(name) : 'Ohne Namen') + '</h3>' +
       (w.restricted ? '<div class="warn">' + ic('noentry') + ' Für Motorräder gesperrt / eingeschränkt</div>' : '') +
+      (!w.restricted && lawOf(w) ? '<div class="lawWarn">' + ic('warn') + ' <b>Wahrscheinlich Fahrverbot (' + LAW_RULES[w.law].land + '):</b> ' +
+        esc(LAW_RULES[w.law].text) + ' Hier ist keine Freigabe eingetragen – nur mit Erlaubnis oder Freigabe-Schild fahren.</div>' : '') +
       '<table>' +
       '<tr><td>Qualität</td><td><b><span class="qDot" style="background:' + settings.q[w.q.lvl].color + '"></span>' +
         QUALITY[w.q.lvl - 1].name + '</b> <span style="color:var(--muted)">(' + esc(w.q.why) + ')</span></td></tr>' +
@@ -3991,17 +4177,27 @@ assign initialcost
   // der Server bricht die Suche nach einem Landweg dann nach einigen Sekunden ab)
   // Abschnitte mit gleicher Einstellung hintereinander = ein Stück (eine Anfrage); jedes Stück:
   // { start, end (Punkt-Indizes), pref }
+  // Länderregel je Abschnitt: Land beider Punkte; liegen sie in verschiedenen Ländern, höchstens "Hinweis"
+  function legLaw(pts, k) {
+    var lvl = LAW_LEVEL[settings.lawMode] || 0;
+    if (!lvl) return 0;
+    var a = countryAt(pts[k].lat, pts[k].lon), b = countryAt(pts[k + 1].lat, pts[k + 1].lon);
+    var banA = !!(LAW_RULES[a] && LAW_RULES[a].ban), banB = !!(LAW_RULES[b] && LAW_RULES[b].ban);
+    if (!banA && !banB) return 0;
+    return banA && banB ? lvl : Math.min(lvl, 1);
+  }
   function routeRuns(n) {
-    var runs = [];
+    var runs = [], pts = routePts();
     for (var k = 0; k < n - 1; k++) {
-      var pr = legPref(k), last = runs[runs.length - 1];
-      if (last && last.pref === pr) last.end = k + 1; else runs.push({ start: k, end: k + 1, pref: pr });
+      var pr = legPref(k), lw = legLaw(pts, k), last = runs[runs.length - 1];
+      if (last && last.pref === pr && last.law === lw) last.end = k + 1; else runs.push({ start: k, end: k + 1, pref: pr, law: lw });
     }
     return runs;
   }
-  function routeUrl(id, pts, pref, allowFerry) {
+  function routeUrl(id, pts, pref, allowFerry, law) {
     return BROUTER + '?lonlats=' + pts.map(function (p) { return p.lon.toFixed(6) + ',' + p.lat.toFixed(6); }).join('|') +
       '&profile=' + encodeURIComponent(id) + '&alternativeidx=0&format=geojson&profile:gravel_pref=' + pref +
+      '&profile:law_track=' + (law || 0) +
       ROUTE_OPTS.map(function (o) {
         var on = settings.route.opt[o.id] && !(o.id === 'ferry' && allowFerry);
         return '&profile:avoid_' + o.id + '=' + (on ? 1 : 0);
@@ -4049,7 +4245,7 @@ assign initialcost
       // Stücke nacheinander anfragen (schont den Server – zu viele Anfragen auf einmal → "retry later")
       return runs.reduce(function (chain, run) {
         return chain.then(function () {
-          var url = routeUrl(id, pts.slice(run.start, run.end + 1), run.pref, allowFerry);
+          var url = routeUrl(id, pts.slice(run.start, run.end + 1), run.pref, allowFerry, run.law);
           if (runCache.has(url)) { texts.push(runCache.get(url)); return; }
           // Mit "Fähren vermeiden" höchstens 12 s je Stück auf einen Landweg warten, danach mit Fähre rechnen
           if (settings.route.opt.ferry && !allowFerry) {
@@ -4121,7 +4317,8 @@ assign initialcost
         if (Math.abs(c[0] - mlon) < 2e-6 && Math.abs(c[1] - mlat) < 2e-6) break;
       }
       last = line[line.length - 1];
-      segs.push({ cls: cls, dist: Number(row[iDist]) || 0, line: line, hw: tags.highway });
+      segs.push({ cls: cls, dist: Number(row[iDist]) || 0, line: line, hw: tags.highway,
+        noAcc: tags.highway === 'track' && !hasAccessTag(tags) });
     }
     while (ci < coords.length && segs.length) { var cc = coords[ci++]; segs[segs.length - 1].line.push([cc[1], cc[0]]); }
 
@@ -4133,6 +4330,13 @@ assign initialcost
       var veh = vehicle(), qs = veh.speed || VEHICLES[0].speed, rf = veh.road || 1;
       var v = s.cls === 'road' ? (ROAD_SPEED[s.hw] || 40) * rf : qs[Number(s.cls.charAt(1)) - 1];
       hours += s.dist / 1000 / v;
+    });
+    // Strecke auf Wald-/Forstwegen ohne Freigabe in Ländern mit Fahrverbot (Hinweis unter dem Ergebnis)
+    var lawDist = 0, lawLands = {};
+    if (LAW_LEVEL[settings.lawMode]) segs.forEach(function (s) {
+      if (!s.noAcc || !s.line.length) return;
+      var m = s.line[Math.floor(s.line.length / 2)], c = countryAt(m[0], m[1]);
+      if (LAW_RULES[c] && LAW_RULES[c].ban) { lawDist += s.dist; lawLands[LAW_RULES[c].land] = 1; }
     });
     var props = f.properties;
     var dist = Number(props['track-length']) || total;
@@ -4154,6 +4358,7 @@ assign initialcost
 
     lastRoute = { coords: coords, dist: dist, by: by, total: total || 1, hours: hours, ascend: ascend, bounds: L.latLngBounds(all),
       gravelShare: (total - by.road) / (total || 1), pts: pts, all: all, wpIdx: matchWaypoints(all, pts),
+      lawDist: lawDist, lawLands: Object.keys(lawLands),
       segs: segs.map(function (s) { return { cls: s.cls, dist: s.dist }; }), profile: buildProfile(coords) };
     drawRouteHit(all);
     drawLegChips(all);
@@ -4412,6 +4617,8 @@ assign initialcost
     showRouteResult(
       '<div class="routeStats"><b>' + kmText(r.dist) + '</b> · ≈ ' + timeText(r.hours) + (up ? ' · ↑ ' + Math.round(up) + ' m' : '') + '</div>' +
       (r.ferryForced ? '<div class="routeErr">' + ic('ship') + ' Ohne Fähre wurde keine Route gefunden – diese Route enthält daher eine Fähre.</div>' : '') +
+      (r.lawDist >= 50 ? '<div class="lawWarn">' + ic('warn') + ' ' + kmText(r.lawDist) + ' auf Wald-/Forstwegen ohne Freigabe (' +
+        esc(r.lawLands.join(', ')) + ') – dort gilt meist ein Fahrverbot. Siehe Tab „Profil“ → Länderregeln.</div>' : '') +
       '<div class="routeBar">' + parts.map(function (p) {
         return r.by[p.cls] ? '<span style="width:' + (r.by[p.cls] / r.total * 100) + '%;background:' + p.color + '"></span>' : '';
       }).join('') + '</div>' +
@@ -4525,6 +4732,36 @@ assign initialcost
       addRoutePoint({ lat: Number(add.dataset.lat), lon: Number(add.dataset.lon) }, add.dataset.name || '');
     }
   });
+
+  // Länderregeln: Auswahl aus · Hinweis · streng (Tab Profil)
+  var lawBtns = Array.prototype.slice.call(document.querySelectorAll('#lawMode button'));
+  var LAW_HINT = {
+    off: 'Wald- und Forstwege ohne Angabe gelten überall als frei.',
+    hint: 'Wald-/Forstwege ohne Freigabe in Ländern mit Fahrverbot: mit gestricheltem Rand markiert, beim Routing etwas gemieden.',
+    strict: 'Wald-/Forstwege ohne Freigabe in Ländern mit Fahrverbot gelten als gesperrt (nur, wenn es gar nicht anders geht).'
+  };
+  function syncLawUi() {
+    lawBtns.forEach(function (b) { var on = b.dataset.v === settings.lawMode; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); });
+    document.getElementById('lawHint').textContent = LAW_HINT[settings.lawMode];
+  }
+  // Liste: zuerst die Länder mit gesetzlichem Fahrverbot (wirken auf Karte und Routing), dann alle übrigen
+  (function () {
+    var ids = Object.keys(LAW_RULES).sort(function (a, b) { return LAW_RULES[a].land.localeCompare(LAW_RULES[b].land, 'de'); });
+    function item(id) {
+      var r = LAW_RULES[id];
+      return '<li class="' + (r.ban ? 'ban' : 'free') + '"><b>' + r.land + ':</b> ' + esc(r.text) +
+        (r.url ? ' <a href="' + r.url + '" target="_blank" rel="noopener">' + esc(r.src || 'Gesetz') + ' ↗</a>' : '') + '</li>';
+    }
+    document.getElementById('lawList').innerHTML =
+      '<li class="lawHead">Fahrverbot ohne Freigabe – wird beachtet:</li>' + ids.filter(function (id) { return LAW_RULES[id].ban; }).map(item).join('') +
+      '<li class="lawHead">Andere Länder – nur zur Info:</li>' + ids.filter(function (id) { return !LAW_RULES[id].ban; }).map(item).join('');
+  })();
+  lawBtns.forEach(function (b) {
+    b.addEventListener('click', function () {
+      settings.lawMode = b.dataset.v; syncLawUi(); saveSettings(); render(); scheduleRoute();
+    });
+  });
+  syncLawUi();
 
   var PREF_NAMES = { 0: 'nur Asphalt', 0.5: 'kaum', 1: 'gering', 1.5: 'gering', 2: 'mittel', 2.5: 'mittel', 3: 'stark', 3.5: 'stark', 4: 'sehr stark', 4.5: 'sehr stark', 5: 'maximal' };
   var prefRange = document.getElementById('prefRange'), prefValue = document.getElementById('prefValue');

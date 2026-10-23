@@ -657,6 +657,36 @@ Anstieg (`filtered ascend`), Farbbalken und Anteile hoch/mittel/niedrig/Straße,
   - Stärke gilt ab Zoom 10; unter 10 × 0,8 (mind. 1,5), unter 7 × 0,55 (mind. 1). Weißer Rand = Stärke + max(3, 0,9 × Stärke).
     Muster wächst mit (u = max(Stärke, 2)): Strich-Punkt `3,5u 1,6u 0,7u 1,6u`, gestrichelt `3u 2u`.
 
+## 10e. Länderregeln für Waldwege (Fahrverbot ohne Freigabe)
+
+In vielen Ländern ist das Befahren von Wald/Forststraßen mit Kfz per Gesetz verboten (auch ohne Schild), in OSM fehlt
+die Angabe aber oft. Vereinfachung, keine Rechtsauskunft (Recherche 23.10.2026).
+- **Tabelle `LAW_RULES`** (index.html) für **alle 47 Offline-Länder** (id wie regions.json): `land`, `ban` (true = gesetzliches
+  Fahrverbot → wirkt auf Karte/Routing), `text` (kurz), optional `url` + `src` (Link zum Gesetzestext bzw. amtlicher Stelle;
+  nur geprüfte Adressen). `ban: true` (14): Belgien, Dänemark, Deutschland, Großbritannien, Irland/Nordirland, Italien,
+  Liechtenstein, Österreich, Polen, Schweiz, Slowakei, Spanien, Tschechien, Ungarn. Übrige `ban: false` nur als Info
+  (z. B. Slowenien/Rumänien: Forststraßen erlaubt; Skandinavien: Wege ok, Gelände verboten; Griechenland/Nordmazedonien/
+  Portugal: Brandschutz-Sperren; ohne verlässliche Quelle: „Keine landesweite Regel gefunden – Schilder … beachten“).
+- **„Fraglicher“ Weg:** `highway=track` ohne jede Zugangsangabe (access/vehicle/motor_vehicle/motorcycle) in einem
+  `ban`-Land. Land über **`countryAt(lat, lon)`** = Punkt-in-Polygon auf `outlines.json` (Rahmen-Vorprüfung, Löcher
+  beachtet; Mitte des Weges, Ergebnis am Weg gemerkt `w.law`). `outlines.json` wird jetzt wie die Grenzen in IndexedDB
+  (`blocks`, Schlüssel `outlines`) gespeichert → auch offline.
+- **Einstellung** Tab Profil unter „gesperrte Wege zeigen“: Überschrift „LÄNDERREGELN FÜR WALDWEGE“, Knöpfe **aus ·
+  Hinweis · streng** (`settings.lawMode`, Standard `hint`), Erklärzeile, aufklappbar „ⓘ Welche Länder?“ mit zwei Gruppen
+  („Fahrverbot ohne Freigabe – wird beachtet“ mit orangem Punkt / „Andere Länder – nur zur Info“), je Land Text + Link „… ↗“,
+  darunter Hinweis (keine Rechtsauskunft; grenzüberschreitende Abschnitte höchstens „Hinweis“).
+- **Karte:** Hinweis = fraglicher Weg mit **gestricheltem dunklem Rand** (statt durchgehend; Orange wäre wie Stufe
+  „mittel“), Zähler „…, davon N fraglich“; streng = wie gesperrte Wege (nur sichtbar mit „gesperrte Wege zeigen“).
+  Info-Fenster: orange „⚠ Wahrscheinlich Fahrverbot (Land): <Regel> Hier ist keine Freigabe eingetragen …“.
+- **Routing:** Profil-Parameter `law_track` (0 aus, 1 Hinweis = ×1,5, 2 streng = ×10000 bzw. ×1,5 wenn gesperrte Wege
+  erlaubt) für `highway=track` ohne Zugangsangabe. Die App setzt ihn **je Abschnitt** nach dem Land beider Punkte
+  (beide im ban-Land → gewählte Stufe; nur einer → höchstens Hinweis) – eigenes Stück in `routeRuns`.
+  Unter dem Ergebnis ab 50 m: „⚠ x km auf Wald-/Forstwegen ohne Freigabe (Österreich) – dort gilt meist ein Fahrverbot.“
+  Test Gmunden → Kirchdorf: aus 3,4 km · Hinweis 3,0 km · streng 0 km auf solchen Wegen.
+- **Info-Fenster an der Karte:** Wege- und POI-Info öffnen per `L.popup(...).openOn(map)` (nicht `bindPopup` an der Linie) –
+  sonst schloss sich das Fenster sofort, weil das automatische Verschieben ein Neuzeichnen der Wege auslöst. Abstand beim
+  Verschieben `autoPanPaddingTopLeft [64, 90]` (Menü-Kopfzeile, Knopfleiste).
+
 ## 11. Herausgezoomt (unter Zoom 9)
 
 - Keine Wege/Orte, Hinweis „🔍 Bitte weiter hineinzoomen · grün = offline gespeichert“.
