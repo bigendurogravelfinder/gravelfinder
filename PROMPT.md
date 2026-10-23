@@ -75,6 +75,17 @@ data/v2/blocks/<bi>/<bj>.json.gz   Daten je Block
     seit dem letzten Ankerpunkt); geglättet (40 % je Fix). Im Stand bleibt die letzte Richtung. Drehung in höchstens
     8 Schritten per requestAnimationFrame, erst ab 3° Unterschied (jede Drehung zeichnet die Wege neu).
     Der Fahrtrichtungspfeil am Standort zeigt auf dem Bildschirm `Richtung + Bearing`.
+  - Frei gedreht und nach 0,8 s Ruhe weniger als 5° von Nord → rastet auf Norden ein.
+  - **Gedrehte Karte ohne schiefe Schrift:** Die Namen sind in die Kartenbilder gemalt und würden mitgedreht. Sobald
+    die Drehung > 0,5° ist, wird die gewählte Hintergrundkarte entfernt (nicht nur verdeckt – spart Daten) und ein
+    Hintergrund **ohne Beschriftung** gezeigt; unsere eigenen Ortsnamen bleiben aufrecht obenauf. Zurück bei Norden
+    kommt die gewählte Karte wieder (`activeBase`, gemerkt über `baselayerchange`). Solange gedreht, ist die
+    Kartenauswahl oben links ausgeblendet (`#map.rotBase`). Auswahl im Tab **Karte** unter „GEDREHTE KARTE“
+    (`settings.rotBase`, Standard `gray`), zwei Knöpfe im Stil des dunklen Designs:
+    - **Graue Karte:** Esri `Canvas/World_Light_Gray_Base` (maxNativeZoom 16); ohne „Karte blasser“ (sonst verschwinden
+      die Straßen); im dunklen Design wie die normale Karte umgekehrt → dunkelgrau.
+    - **Satellit:** Esri `World_Imagery` (maxNativeZoom 18); nie umgekehrt, im dunklen Design nur `brightness(0.8)`.
+    Hinweis darunter: „Sobald die Karte nicht nach Norden zeigt, wird dieser Hintergrund ohne Schrift gezeigt …“.
 - **Start:** Wels, Oberösterreich (48.1575, 14.0289), Zoomstufe 12.
 - **Kartenposition in der Adresszeile:** `#breite,länge,zoom` (z. B. `#46.05,14.51,12`), wird bei jedem
   Verschieben per `history.replaceState` aktualisiert und beim Start ausgewertet (für Lesezeichen/Links).
@@ -351,12 +362,12 @@ Zehn Kategorien, einzeln ein-/ausschaltbar, mit Anzahl im Ausschnitt (Symbol = L
 - **Beim ersten Start ist alles eingeklappt**; danach werden Menü-Zustand und aktiver Tab gemerkt.
 - **Tab-Leiste mit sieben Hauptpunkten, keine Unterpunkte** (früherer Tab „Einstellungen“ mit aufklappbaren
   Unterpunkten wurde aufgelöst; gespeichert `tab: 'set'` → zuletzt offener Unterpunkt wird der Tab, sonst „Wege“).
-  Reihenfolge links → rechts: Profil · Route · Wege · GPX · POI · Offline · App. Je Tab Symbol, kurzer Name, darunter klein der Stand; `title` mit Erklärung:
+  Reihenfolge links → rechts: Profil · Route · Karte · GPX · POI · Offline · App. Je Tab Symbol, kurzer Name, darunter klein der Stand; `title` mit Erklärung:
   | Tab | Inhalt | Kurzstand unter dem Tab |
   |---|---|---|
-  | 🎚 **Profil** | Routing-Optionen (Symbol: drei Schieberegler, `title` „Routing-Optionen …“): „FAHRZEUG“ (Kacheln + Beschreibung), „Schotter“-Schieber, „ERLAUBT / GEMIEDEN“ (Stand „5 ✓ 3 ✕“ in der Überschrift, Legende, Kacheln, Hinweis, Warnung, Häkchen gesperrte Wege zeigen – nicht mehr aufklappbar), „DARSTELLUNG DER ROUTE“ mit „Linie“ | Name des Fahrzeugtyps, z. B. „Big Enduro“ |
+  | 🎚 **Profil** | Routing-Optionen (Symbol = Bild des aktiven Fahrzeugtyps, `<use id="ropTabIcon">`, 33 × 22 px, wechselt in `syncVehicleUi`; `title` „Routing-Optionen …“): „FAHRZEUG“ (Kacheln + Beschreibung), „Schotter“-Schieber, „ERLAUBT / GEMIEDEN“ (Stand „5 ✓ 3 ✕“ in der Überschrift, Legende, Kacheln, Hinweis, Warnung, Häkchen gesperrte Wege zeigen – nicht mehr aufklappbar), „DARSTELLUNG DER ROUTE“ mit „Linie“ | Name des Fahrzeugtyps, z. B. „Big Enduro“ |
   | 🧭 **Route** | nur die aktuelle Route: Knopf-Raster, Ergebnis + Höhenprofil, „So geht's“, Punktliste + Umkehren (Abschnitt 10a) | z. B. „41 km“ / „2 Punkte“ |
-  | 〰️ **Wege** | Qualitätsstufen (Farbe + Ein/Aus, Anzahl), „↺ Standardfarben“, „▬ Breite“, „◐ Transparenz“, „Karte blasser“ | – |
+  | 🗺 **Karte** (früher „Wege“; Symbol Faltkarte wie `i-map`, interne id bleibt `way`) | Qualitätsstufen (Farbe + Ein/Aus, Anzahl), „↺ Standardfarben“, „▬ Breite“, „◐ Transparenz“, „Karte blasser“, Höhenschummerung, „GEDREHTE KARTE“, „STAATSGRENZEN“ | – |
   | 📂 **GPX** | eigene GPX-Tracks (Abschnitt 10c) | z. B. „2 Tracks“ / „1/2 Tracks“ |
   | 📍 **POI** | 10 Kategorien, „POI ab Zoomstufe anzeigen“ (− / +) | Symbole der aktiven (bis 2), sonst „3 an“ |
   | 💾 **Offline** | Offline Karten (Abschnitt 9) | z. B. „56 MB“ |
@@ -600,7 +611,7 @@ Anstieg (`filtered ascend`), Farbbalken und Anteile hoch/mittel/niedrig/Straße,
   die Grenze in wegreichen Gebieten; unter GPX 470, Route 490 und Ortsnamen 610),
   `pointer-events: none`, eigener Canvas-Renderer; alle Abschnitte als EINE Linie mit vielen Teilen (schnell).
 - Stil: weißer Rand (Deckkraft 0,9) und darüber die farbige Linie (Deckkraft 0,95).
-- **Einstellbar** im Tab „Wege“ unter der Überschrift „STAATSGRENZEN“ (gespeichert in `settings.border`):
+- **Einstellbar** im Tab „Karte“ unter der Überschrift „STAATSGRENZEN“ (gespeichert in `settings.border`):
   - Farbfeld + Häkchen „anzeigen“ mit kleiner Vorschau-Linie (Standard: an, **Grau #5f6368**; gespeichertes
     früheres Standard-Violett #6d28d9 mit 3 px wird automatisch auf Grau/5 px umgestellt),
   - Stil als drei Knöpfe nebeneinander mit Linien-Vorschau: **Strich-Punkt** (Standard), **gestrichelt**, **durchgehend**,
@@ -641,7 +652,7 @@ Anstieg (`filtered ascend`), Farbbalken und Anteile hoch/mittel/niedrig/Straße,
   CSS-Variablen (Hintergrund #1f2428, Schrift #e6e9ec, Flächen #2b3238) auch für Leaflet-Knöpfe, Popups,
   Ebenen-Auswahl, Quellenangabe; Kartenbild per Filter `invert(1) hue-rotate(180deg) brightness(.95) contrast(.9)`
   (vor „Karte blasser“), Ortsnamen hell mit dunklem Rand, Grenzlinien-Rand dunkel, `theme-color` #1f2428.
-- **Höhenschummerung** (Tab Wege, Häkchen unter „Karte blasser“, `settings.hillshade`, Standard aus): Esri World
+- **Höhenschummerung** (Tab Karte, Häkchen unter „Karte blasser“, `settings.hillshade`, Standard aus): Esri World
   Hillshade (`server.arcgisonline.com/…/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}`, bis Zoom 15 echt,
   darüber hochskaliert) in eigener Pane zIndex 250, Deckkraft 0,45 mit `mix-blend-mode: multiply` (dunkel: soft-light,
   0,7); Quellenangabe „Höhenschummerung © Esri“.

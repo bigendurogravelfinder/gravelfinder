@@ -68,6 +68,7 @@
     fill: none; stroke: url(#icg); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
     opacity: .6; transition: opacity .15s, transform .15s;
   }
+  .tabIcon.veh { width: 33px; height: 22px; }   /* Tab "Profil": Bild des aktiven Fahrzeugs (48 × 32) */
   .tab.active .tabIcon { opacity: 1; transform: scale(1.08); }
   .tab:hover .tabIcon { opacity: .9; }
   #panel.collapsed .tab .tabIcon { opacity: .85; transform: none; }
@@ -413,6 +414,7 @@
     padding: 6px 12px; font-size: 13px; font-weight: 600; opacity: 0; transition: opacity .25s;
   }
   .cmpTip.show { opacity: 1; }
+  #map.rotBase .leaflet-control-layers { display: none; }   /* gedreht: eigener Hintergrund ohne Schrift */
 
   /* ---------- Statusleiste unten ---------- */
   #statusWrap {
@@ -697,11 +699,11 @@
   <div class="tabs" role="tablist">
     <!-- Symbole: schlichte Linien-Icons (24er Raster, 2 px Strich) in der Akzentfarbe -->
     <button type="button" class="tab" role="tab" data-tab="ropt" title="Routing-Optionen: Fahrzeug, Schotter-Vorliebe, erlaubt/gemieden">
-      <svg class="tabIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9M4 12h13M21 12h-1"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/><circle cx="19" cy="12" r="1.8"/></svg><span class="tabName">Profil</span><span class="tabSum" id="sumRopt"></span></button>
+      <svg class="tabIcon veh" aria-hidden="true"><use id="ropTabIcon" href="#i-v-big"/></svg><span class="tabName">Profil</span><span class="tabSum" id="sumRopt"></span></button>
     <button type="button" class="tab" role="tab" data-tab="route" title="Route planen">
       <svg class="tabIcon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8.5 19H16a3.5 3.5 0 0 0 0-7H8a3.5 3.5 0 0 1 0-7h7.5"/></svg><span class="tabName">Route</span><span class="tabSum" id="sumRoute"></span></button>
-    <button type="button" class="tab" role="tab" data-tab="way" title="Offroadwege: Qualität, Farben, Linie">
-      <svg class="tabIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 21 10.5 3M16.5 21 13.5 3"/><path d="M12 6.5v1.5M12 11v2M12 16.5v2.5"/></svg><span class="tabName">Wege</span></button>
+    <button type="button" class="tab" role="tab" data-tab="way" title="Karte: Offroadwege (Qualität, Farben, Linie), Hintergrund, Höhenschummerung, gedrehte Karte, Staatsgrenzen">
+      <svg class="tabIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6.5V20l6-2.5 6 2.5 6-2.5V4l-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/></svg><span class="tabName">Karte</span></button>
     <button type="button" class="tab" role="tab" data-tab="gpx" title="Eigene GPX-Tracks">
       <svg class="tabIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M8.5 17.5c1.5-.5 1.5-3 3.5-3s2.5-2 3.5-2.5"/></svg><span class="tabName">GPX</span><span class="tabSum" id="sumGpx"></span></button>
     <button type="button" class="tab" role="tab" data-tab="poi" title="Tankstellen, Lebensmittel …">
@@ -732,6 +734,13 @@
       <span class="sVal"><span id="bgValue">60</span> %</span></div>
     <label class="check" title="Berge und Täler plastisch schattieren (Esri World Hillshade)"><input type="checkbox" id="hillshadeBox">
       <svg class="ic lg"><use href="#i-mountain"/></svg> Höhenschummerung</label>
+    <!-- Gedrehte Karte: Hintergrund ohne (verdrehte) Beschriftung – Ortsnamen kommen von unserer eigenen Ebene -->
+    <div class="qSep">Gedrehte Karte</div>
+    <div class="seg txt" id="rotBase" role="radiogroup" aria-label="Hintergrund bei gedrehter Karte">
+      <button type="button" data-v="gray" title="ruhige graue Karte ohne Schrift – Wege stechen heraus">Graue Karte</button>
+      <button type="button" data-v="sat" title="Luftbild ohne Schrift">Satellit</button>
+    </div>
+    <div class="hint">Sobald die Karte nicht nach Norden zeigt, wird dieser Hintergrund ohne Schrift gezeigt (sonst stünden die Namen schief).</div>
 
     <!-- Staatsgrenzen: ein/aus, Farbe, Stil, Stärke -->
     <div class="qSep">Staatsgrenzen</div>
@@ -1179,7 +1188,8 @@ assign initialcost
     vehicle: 'bigenduro',   // Fahrzeugtyp fürs Routing (siehe VEHICLES)
     dark: 'off',            // dunkles Design (Menü und Karte): off | system (wie am Handy eingestellt) | on
     rotMode: 'north',       // Karte drehen: north (Norden oben) | free (mit zwei Fingern drehbar) | heading (Fahrtrichtung oben)
-    bearing: 0 };           // Drehung im Modus "frei" (Grad)
+    bearing: 0,             // Drehung im Modus "frei" (Grad)
+    rotBase: 'gray' };      // Hintergrund ohne Schrift, solange die Karte gedreht ist: gray | sat
   POI_CATS.forEach(function (c) { settings.poi[c.id] = c.on; });
   ROUTE_OPTS.forEach(function (o) { settings.route.opt[o.id] = o.on; });
   QUALITY.forEach(function (q) { settings.q[q.lvl] = { color: q.color, show: q.show }; });
@@ -1220,6 +1230,7 @@ assign initialcost
       else if (/^(off|system|on)$/.test(saved.dark)) settings.dark = saved.dark;
       if (/^(north|free|heading)$/.test(saved.rotMode)) settings.rotMode = saved.rotMode;
       if (saved.bearing >= 0 && saved.bearing < 360) settings.bearing = Number(saved.bearing);
+      if (/^(gray|sat)$/.test(saved.rotBase)) settings.rotBase = saved.rotBase;
       if (saved.border) {
         var sb = saved.border, b = settings.border;
         if (typeof sb.show === 'boolean') b.show = sb.show;
@@ -1328,6 +1339,8 @@ assign initialcost
     }
   });
   new ZoomInfo().addTo(map);
+  var activeBase = osm;                                  // gewählte Hintergrundkarte (für "Gedrehte Karte")
+  map.on('baselayerchange', function (e) { activeBase = e.layer; });
   L.control.layers({ 'OpenStreetMap': osm, 'Topokarte (Höhenlinien)': topo, 'CyclOSM (Wege & Oberflächen)': cyclosm }, null, { position: 'topleft' }).addTo(map);
   L.control.scale({ imperial: false, position: 'bottomright' }).addTo(map);
 
@@ -2679,7 +2692,11 @@ assign initialcost
     var f = settings.bgFade / 100;
     // dunkles Design: Kartenbild umkehren (hell ↔ dunkel), Farbtöne bleiben durch hue-rotate erhalten
     var dark = isDark() ? 'invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9) ' : '';
-    map.getPane('tilePane').style.filter = (dark + (f
+    // Satellitenbild (gedrehte Karte) nie umkehren, nur leicht abdunkeln im dunklen Design
+    if (rotBaseOn === 'sat') { map.getPane('tilePane').style.filter = isDark() ? 'brightness(0.8)' : ''; }
+    // graue Karte ist schon zurückhaltend – nicht zusätzlich abschwächen (sonst verschwinden die Straßen)
+    else if (rotBaseOn === 'gray') map.getPane('tilePane').style.filter = dark.trim();
+    else map.getPane('tilePane').style.filter = (dark + (f
       ? 'saturate(' + (1 - 0.9 * f).toFixed(2) + ') brightness(' + (1 + 0.1 * f).toFixed(2) + ') contrast(' + (1 - 0.2 * f).toFixed(2) + ')'
       : '')).trim();
     // Höhenschummerung: hell = Schatten abdunkeln, dunkel = weich einmischen
@@ -3435,11 +3452,60 @@ assign initialcost
   map.on('rotate', function () {
     syncCompass();
     updateHeadingArrow();
-    if (settings.rotMode === 'free') {             // freie Drehung merken
+    updateRotBase();
+    if (settings.rotMode === 'free') {             // freie Drehung merken; fast genau Nord → einrasten
       clearTimeout(bearingSaveTimer);
-      bearingSaveTimer = setTimeout(function () { settings.bearing = Math.round(map.getBearing()); saveSettings(); }, 800);
+      bearingSaveTimer = setTimeout(function () {
+        if (Math.abs(angDiff(map.getBearing(), 0)) < 5) map.setBearing(0);
+        settings.bearing = Math.round(map.getBearing()); saveSettings();
+      }, 800);
     }
   });
+
+  // Gedrehte Karte: Hintergrund ohne Beschriftung (die Schrift in den Kartenbildern würde mitgedreht).
+  // Unsere eigenen Ortsnamen bleiben aufrecht obenauf. Esri wie bei der Höhenschummerung; grau im dunklen
+  // Design wird wie die normale Karte umgekehrt (→ dunkelgrau), das Satellitenbild nicht.
+  var ROT_BASES = {
+    gray: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19, maxNativeZoom: 16,
+      attribution: 'Graue Karte © <a href="https://www.esri.com" target="_blank">Esri</a>, HERE, Garmin, © OpenStreetMap-Mitwirkende'
+    }),
+    sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19, maxNativeZoom: 18,
+      attribution: 'Luftbild © <a href="https://www.esri.com" target="_blank">Esri</a>, Maxar, Earthstar Geographics'
+    })
+  };
+  var rotBaseOn = null;                            // gerade gezeigter Ersatz-Hintergrund (gray | sat) oder null
+  function updateRotBase() {
+    var want = Math.abs(angDiff(map.getBearing(), 0)) > 0.5 ? settings.rotBase : null;
+    if (want === rotBaseOn) return;
+    if (rotBaseOn) map.removeLayer(ROT_BASES[rotBaseOn]);
+    else if (want) map.removeLayer(activeBase);   // normale Karte solange nicht laden
+    if (want) ROT_BASES[want].addTo(map);
+    else map.addLayer(activeBase);
+    rotBaseOn = want;
+    // Kartenauswahl oben links ausblenden, solange gedreht (sie gilt erst wieder bei Norden oben)
+    map.getContainer().classList.toggle('rotBase', !!want);
+    applyBgFade();
+  }
+  var rotBaseBtns = Array.prototype.slice.call(document.querySelectorAll('#rotBase button'));
+  function syncRotBaseBtns() {
+    rotBaseBtns.forEach(function (b) { var on = b.dataset.v === settings.rotBase; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); });
+  }
+  rotBaseBtns.forEach(function (b) {
+    b.addEventListener('click', function () {
+      settings.rotBase = b.dataset.v;
+      syncRotBaseBtns();
+      saveSettings();
+      if (rotBaseOn && rotBaseOn !== settings.rotBase) {      // gerade gedreht → sofort tauschen
+        map.removeLayer(ROT_BASES[rotBaseOn]);
+        rotBaseOn = settings.rotBase;
+        ROT_BASES[rotBaseOn].addTo(map);
+        applyBgFade();
+      }
+    });
+  });
+  syncRotBaseBtns();
 
   var CompassCtl = L.Control.extend({
     options: { position: 'topright' },
@@ -4222,7 +4288,8 @@ assign initialcost
       var on = b.dataset.veh === cur.id; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on));
     });
     document.getElementById('vehHint').textContent = cur.hint;
-    document.getElementById('sumRopt').textContent = cur.label;   // kurz unter dem Tab "Optionen"
+    document.getElementById('sumRopt').textContent = cur.label;   // kurz unter dem Tab "Profil"
+    document.getElementById('ropTabIcon').setAttribute('href', '#i-' + cur.icon);   // Tab-Symbol = aktives Fahrzeug
   }
   // Passen die aktuellen Einstellungen (noch) zum gewählten Fahrzeug? ("Gesperrte Wege" bleibt immer deine Wahl)
   function vehicleMatches(v) {
