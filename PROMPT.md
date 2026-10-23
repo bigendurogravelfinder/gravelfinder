@@ -93,8 +93,8 @@ Fahrzeug durchkommt; `tracktype` grade1–5):
 | 1 sehr gut | fest und glatt | excellent, good, intermediate (jedes Auto) | grade1 | asphalt, concrete, paved, compacted, fine_gravel | Grün #00e04b | an |
 | 2 gut | typischer Schotter, lose Stellen | bad (normales Auto) | grade2 | gravel, unpaved | Gelb #ffe600 | an |
 | 3 mittel | Erde/Naturboden, holprig, bei Nässe rutschig | very_bad (hohe Bodenfreiheit) | grade3 | dirt, ground, earth, pebblestone | Orange #ff8c00 | an |
-| 4 schwer | grob, ausgefahren, Wiese/Fels – nur für Geübte | horrible (Geländewagen) | grade4 | grass, rock | Rot #ff1a4b | **aus** |
-| 5 extrem | Hard Enduro: Schlamm, Sand, kaum erkennbar | very_horrible (Traktor/ATV), impassable | grade5 | sand, mud | Violett #b026ff | **aus** |
+| 4 schlecht | grob, ausgefahren, Wiese/Fels – nur für Geübte | horrible (Geländewagen) | grade4 | grass, rock | Rot #ff1a4b | **aus** |
+| 5 sehr schlecht | Hard Enduro: Schlamm, Sand, kaum erkennbar | very_horrible (Traktor/ATV), impassable | grade5 | sand, mud | Violett #b026ff | **aus** |
 
 - Stufen 1–3 = Big Enduro (Standard eingeblendet), 4–5 = für Geübte / Hard Enduro (Standard ausgeblendet). Im Tab
   „Wege“ steht über allen fünf Stufen nur EINE Überschrift (klein, fett, Großbuchstaben): „QUALITÄT DER OFFROADWEGE“
@@ -106,7 +106,8 @@ Fahrzeug durchkommt; `tracktype` grade1–5):
   und `surface` (bewusst vorsichtig). `4wd_only=yes|recommended` → mindestens Stufe 4. Ohne jede Angabe: Stufe 2.
 - **Routing nutzt die eingeblendeten Stufen:** je Stufe Profil-Parameter `show_q1…show_q5` (1/0); ausgeblendete
   Stufen kosten ×30 (nur wenn es nicht anders geht). Kosten je Meter: 1,0 · 1,15 · 1,7 · 3,0 · 6,0.
-  Stufe ein-/ausblenden rechnet die Route neu. (Die frühere Vermeiden-Kachel „🪨 Grobes“ entfällt dadurch.)
+  Stufe ein-/ausblenden rechnet die Route neu. Unter der Stufenliste steht dazu der Hinweis (mit Routensymbol):
+  „Angehakte Stufen nutzt auch das Routing – nicht angehakte Wege werden beim Routing möglichst vermieden.“ (Die frühere Vermeiden-Kachel „🪨 Grobes“ entfällt dadurch.)
 - Fahrzeit je Stufe: 35 · 28 · 18 · 12 · 7 km/h.
 - Je Stufe im Menü: Farbfeld (Farbe ändern, sofort wirksam), Häkchen (Stufe ein-/ausblenden), Name und Anzahl im
   Ausschnitt (Beschreibung als Tooltip); Link „↺ Standardfarben“.
