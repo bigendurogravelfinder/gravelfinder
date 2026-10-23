@@ -552,7 +552,9 @@ Anstieg (`filtered ascend`), Farbbalken und Anteile hoch/mittel/niedrig/Straße,
   wird geladen …“ und **einmal** neu laden (nicht beim allerersten Start; Sperre über sessionStorage gegen Schleifen).
   Zusätzlich beim Wieder-Öffnen nach > 1 h und beim Knopf „Auf Aktualisierung prüfen“. Test: CACHE-Version erhöht →
   Seite lädt von selbst neu, nur noch der neue Speicher vorhanden.
-- **Dunkles Design** (Tab App, Häkchen „Dunkles Design“, `settings.dark`): Klasse `dark` am `<body>` mit dunklen
+- **Dunkles Design** (Tab App, Überschrift „DUNKLES DESIGN“ mit drei Knöpfen **aus · System · ein**,
+  `settings.dark` = off | system | on, Standard off; früher gespeichertes true/false → on/off). „System“ folgt
+  `prefers-color-scheme` des Geräts und wechselt live mit (z. B. abends automatisch). Klasse `dark` am `<body>` mit dunklen
   CSS-Variablen (Hintergrund #1f2428, Schrift #e6e9ec, Flächen #2b3238) auch für Leaflet-Knöpfe, Popups,
   Ebenen-Auswahl, Quellenangabe; Kartenbild per Filter `invert(1) hue-rotate(180deg) brightness(.95) contrast(.9)`
   (vor „Karte blasser“), Ortsnamen hell mit dunklem Rand, Grenzlinien-Rand dunkel, `theme-color` #1f2428.

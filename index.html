@@ -436,6 +436,9 @@
   body.dark .chip span, body.dark .seg button, body.dark input[type=color], body.dark .preloadRow select,
   body.dark .zoomInfo { background: var(--bg); color: var(--fg); }
   body.dark .seg button svg { stroke: #9aa4ae; }
+  body.dark .seg.txt button { color: #c3cad1; }
+  body.dark .seg.txt button.on { color: #7dd3fc; border-color: #38bdf8; }
+  body.dark .seg button.on svg { stroke: #7dd3fc; }
   body.dark .btn.light .ic, body.dark .gpxHead button .ic { --lens-bg: #2b3238; }
   body.dark .leaflet-bar a, body.dark .leaflet-control-layers, body.dark .leaflet-popup-content-wrapper,
   body.dark .leaflet-popup-tip { background: var(--bg); color: var(--fg); border-color: rgba(255,255,255,.15); }
@@ -604,8 +607,12 @@
       <button type="button" id="installBtn" class="btn wide" hidden><svg class="ic lg"><use href="#i-install"/></svg>Installieren</button>
       <div class="hint" id="installHint"></div>
     </div>
-    <label class="check" title="Menü und Karte dunkel – angenehm nachts und spart bei OLED-Displays Akku"><input type="checkbox" id="darkBox">
-      <svg class="ic lg"><use href="#i-moon"/></svg> Dunkles Design</label>
+    <div class="qSep"><svg class="ic"><use href="#i-moon"/></svg> Dunkles Design</div>
+    <div class="seg txt" id="darkMode" role="radiogroup" aria-label="Dunkles Design" title="Menü und Karte dunkel – angenehm nachts, spart bei OLED-Displays Akku">
+      <button type="button" data-v="off">aus</button>
+      <button type="button" data-v="system" title="wie am Handy eingestellt (wechselt automatisch mit)">System</button>
+      <button type="button" data-v="on">ein</button>
+    </div>
     <label class="check"><input type="checkbox" id="wakeLock"> <svg class="ic lg"><use href="#i-sun"/></svg> Bildschirm wach halten</label>
     <div class="hint" id="wakeHint">braucht mehr Akku</div>
    </div>
@@ -863,6 +870,12 @@ assign initialcost
 (function () {
   'use strict';
 
+  // Dunkles Design aktiv? ("system" = wie am Gerät eingestellt)
+  var SYSTEM_DARK = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+  function isDark() {
+    return settings.dark === 'on' || (settings.dark === 'system' && !!SYSTEM_DARK && SYSTEM_DARK.matches);
+  }
+
   // Symbol aus der Sammlung oben im <body> (#i-…), z. B. ic('trash') oder ic('plus', 'lg')
   function ic(name, cls) {
     return '<svg class="ic' + (cls ? ' ' + cls : '') + '" aria-hidden="true"><use href="#i-' + name + '"/></svg>';
@@ -952,9 +965,9 @@ assign initialcost
 
   var settings = { width: 2, transparency: 0, bgFade: 60, poiMinZoom: 11, route: { pts: [], pref: 3, width: 4, transp: 0, opt: {} }, showRestricted: false, poi: {}, q: {}, panelOpen: false, tab: 'way', offline: [], noAsk: [], wakeLock: false,
     border: { show: true, color: '#5f6368', style: 'dashdot', width: 5 },   // Grenze: grau, dick, Strich-Punkt
-    placeScript: 'latin',
-    hillshade: false,   // Höhenschummerung
-    dark: false };      // dunkles Design (Menü und Karte)   // Ortsnamen in kyrillischer/griechischer Schrift: latin (Umschrift) | orig | both
+    placeScript: 'latin',   // Ortsnamen in kyrillischer/griechischer Schrift: latin (Umschrift) | orig | both
+    hillshade: false,       // Höhenschummerung
+    dark: 'off' };          // dunkles Design (Menü und Karte): off | system (wie am Handy eingestellt) | on
   POI_CATS.forEach(function (c) { settings.poi[c.id] = c.on; });
   ROUTE_OPTS.forEach(function (o) { settings.route.opt[o.id] = o.on; });
   QUALITY.forEach(function (q) { settings.q[q.lvl] = { color: q.color, show: q.show }; });
@@ -991,7 +1004,8 @@ assign initialcost
       if (typeof saved.wakeLock === 'boolean') settings.wakeLock = saved.wakeLock;
       if (/^(latin|orig|both)$/.test(saved.placeScript)) settings.placeScript = saved.placeScript;
       if (typeof saved.hillshade === 'boolean') settings.hillshade = saved.hillshade;
-      if (typeof saved.dark === 'boolean') settings.dark = saved.dark;
+      if (typeof saved.dark === 'boolean') settings.dark = saved.dark ? 'on' : 'off';   // früher nur ein/aus
+      else if (/^(off|system|on)$/.test(saved.dark)) settings.dark = saved.dark;
       if (saved.border) {
         var sb = saved.border, b = settings.border;
         if (typeof sb.show === 'boolean') b.show = sb.show;
@@ -2049,7 +2063,7 @@ assign initialcost
     borderLines.forEach(function (l) { if (b.show && !map.hasLayer(l)) l.addTo(map); if (!b.show && map.hasLayer(l)) map.removeLayer(l); });
     if (!b.show) return;
     var z = map.getZoom(), w = z < 7 ? Math.max(1, b.width * 0.55) : z < 10 ? Math.max(1.5, b.width * 0.8) : b.width;
-    borderLines[0].setStyle({ weight: w + Math.max(3, w * 0.9), color: settings.dark ? '#15191c' : '#ffffff' });
+    borderLines[0].setStyle({ weight: w + Math.max(3, w * 0.9), color: isDark() ? '#15191c' : '#ffffff' });
     borderLines[1].setStyle({ weight: w, color: b.color, dashArray: borderDash(b.style, w) });
   }
   map.on('zoomend', styleBorders);
@@ -2443,13 +2457,13 @@ assign initialcost
   function applyBgFade() {
     var f = settings.bgFade / 100;
     // dunkles Design: Kartenbild umkehren (hell ↔ dunkel), Farbtöne bleiben durch hue-rotate erhalten
-    var dark = settings.dark ? 'invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9) ' : '';
+    var dark = isDark() ? 'invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9) ' : '';
     map.getPane('tilePane').style.filter = (dark + (f
       ? 'saturate(' + (1 - 0.9 * f).toFixed(2) + ') brightness(' + (1 + 0.1 * f).toFixed(2) + ') contrast(' + (1 - 0.2 * f).toFixed(2) + ')'
       : '')).trim();
     // Höhenschummerung: hell = Schatten abdunkeln, dunkel = weich einmischen
-    hillPane.style.mixBlendMode = settings.dark ? 'soft-light' : 'multiply';
-    hillshade.setOpacity(settings.dark ? 0.7 : 0.45);
+    hillPane.style.mixBlendMode = isDark() ? 'soft-light' : 'multiply';
+    hillshade.setOpacity(isDark() ? 0.7 : 0.45);
     if (settings.hillshade && !map.hasLayer(hillshade)) hillshade.addTo(map);
     if (!settings.hillshade && map.hasLayer(hillshade)) map.removeLayer(hillshade);
   }
@@ -2924,16 +2938,19 @@ assign initialcost
     settings.bgFade = Number(bgRange.value); bgValue.textContent = bgRange.value; applyBgFade(); saveSettings();
   });
   // Dunkles Design: Klasse am <body> (Farben über CSS-Variablen), Kartenbild über applyBgFade, Leistenfarbe am Handy
-  var darkBox = document.getElementById('darkBox');
+  var darkBtns = Array.prototype.slice.call(document.querySelectorAll('#darkMode button'));
   function applyDark() {
-    document.body.classList.toggle('dark', settings.dark);
+    var dark = isDark();
+    document.body.classList.toggle('dark', dark);
     var meta = document.querySelector('meta[name=theme-color]');
-    if (meta) meta.setAttribute('content', settings.dark ? '#1f2428' : '#0e7490');
+    if (meta) meta.setAttribute('content', dark ? '#1f2428' : '#0e7490');
+    darkBtns.forEach(function (b) { var on = b.dataset.v === settings.dark; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); });
     applyBgFade();
     styleBorders();
   }
-  darkBox.checked = settings.dark;
-  darkBox.addEventListener('change', function () { settings.dark = darkBox.checked; applyDark(); saveSettings(); });
+  darkBtns.forEach(function (b) { b.addEventListener('click', function () { settings.dark = b.dataset.v; applyDark(); saveSettings(); }); });
+  // "System": umschalten, sobald das Handy (z. B. abends automatisch) auf dunkel/hell wechselt
+  if (SYSTEM_DARK && SYSTEM_DARK.addEventListener) SYSTEM_DARK.addEventListener('change', function () { if (settings.dark === 'system') applyDark(); });
   applyDark();
 
   var hillBox = document.getElementById('hillshadeBox');
