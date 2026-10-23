@@ -326,14 +326,14 @@ Zehn Kategorien, einzeln ein-/ausschaltbar, mit Anzahl im Ausschnitt (Symbol = L
 - **Beim ersten Start ist alles eingeklappt**; danach werden Menü-Zustand und aktiver Tab gemerkt.
 - **Tab-Leiste mit sieben Hauptpunkten, keine Unterpunkte** (früherer Tab „Einstellungen“ mit aufklappbaren
   Unterpunkten wurde aufgelöst; gespeichert `tab: 'set'` → zuletzt offener Unterpunkt wird der Tab, sonst „Wege“).
-  Je Tab Symbol, kurzer Name, darunter klein der Stand; `title` mit Erklärung:
+  Reihenfolge links → rechts: Profil · Route · Wege · GPX · POI · Offline · App. Je Tab Symbol, kurzer Name, darunter klein der Stand; `title` mit Erklärung:
   | Tab | Inhalt | Kurzstand unter dem Tab |
   |---|---|---|
-  | 〰️ **Wege** | Qualitätsstufen (Farbe + Ein/Aus, Anzahl), „↺ Standardfarben“, „▬ Breite“, „◐ Transparenz“, „Karte blasser“ | – |
-  | 📍 **POI** | 10 Kategorien, „POI ab Zoomstufe anzeigen“ (− / +) | Symbole der aktiven (bis 2), sonst „3 an“ |
-  | 🧭 **Route** | nur die aktuelle Route: Knopf-Raster, „So geht's“, Punktliste + Umkehren, Ergebnis + Höhenprofil (Abschnitt 10a) | z. B. „41 km“ / „2 Punkte“ |
   | 🎚 **Profil** | Routing-Optionen (Symbol: drei Schieberegler, `title` „Routing-Optionen …“): „FAHRZEUG“ (Kacheln + Beschreibung), „Schotter“-Schieber, „ERLAUBT / GEMIEDEN“ (Stand „5 ✓ 3 ✕“ in der Überschrift, Legende, Kacheln, Hinweis, Warnung, Häkchen gesperrte Wege zeigen – nicht mehr aufklappbar), „DARSTELLUNG DER ROUTE“ mit „Linie“ | Name des Fahrzeugtyps, z. B. „Big Enduro“ |
+  | 🧭 **Route** | nur die aktuelle Route: Knopf-Raster, „So geht's“, Punktliste + Umkehren, Ergebnis + Höhenprofil (Abschnitt 10a) | z. B. „41 km“ / „2 Punkte“ |
+  | 〰️ **Wege** | Qualitätsstufen (Farbe + Ein/Aus, Anzahl), „↺ Standardfarben“, „▬ Breite“, „◐ Transparenz“, „Karte blasser“ | – |
   | 📂 **GPX** | eigene GPX-Tracks (Abschnitt 10c) | z. B. „2 Tracks“ / „1/2 Tracks“ |
+  | 📍 **POI** | 10 Kategorien, „POI ab Zoomstufe anzeigen“ (− / +) | Symbole der aktiven (bis 2), sonst „3 an“ |
   | 💾 **Offline** | Offline Karten (Abschnitt 9) | z. B. „56 MB“ |
   | 📱 **App** | „📲 Installieren“ (nur wenn der Browser `beforeinstallprompt` liefert) mit Einzeiler-Hinweis (installiert / Chrome-Menü ⋮ / iPhone: Teilen → Zum Home-Bildschirm / `file://` nicht möglich) und „☀️ Bildschirm wach halten“ (Screen Wake Lock, gespeichert, bei `visibilitychange` neu anfordern, ohne Unterstützung ausgegraut) | – |
   Alle Tabs gleich breit (7 × ca. 37 px + ▲ 42 px bei 300 px Menübreite); Namen passen ungekürzt (darum „Profil“
