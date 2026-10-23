@@ -69,6 +69,9 @@ data/v2/blocks/<bi>/<bj>.json.gz   Daten je Block
        die GPS-Fahrtrichtung (Bearing = −Richtung) und führt den Standort mit: Standort bei **65 % der Höhe** (mehr Blick
        nach vorn). Karte selbst verschieben oder „Ganze Route zeigen“ pausiert das Mitführen (Ring gestrichelt);
        Kompass oder „Mein Standort“ antippen führt wieder mit („Wieder mitführen“).
+    **Kompass im Kreis ziehen** (Maus mit gedrückter linker Taste oder Finger, Pointer-Events, ab 6 px Bewegung) dreht
+    die Karte wie ein Drehknopf (Bearing = Start + Winkeländerung um die Kompassmitte) – für Desktops ohne Touch;
+    schaltet dabei auf „frei drehbar“ (Hinweis „Frei drehbar“), der Klick danach wird verschluckt (kein Moduswechsel).
     Beim Wechsel kurzer Hinweis rechts neben dem Kompass (2,6 s): „Norden oben“ / „Frei drehbar – mit zwei Fingern
     drehen“ / „Fahrtrichtung oben – dreht ab ca. 5 km/h mit“. Beim App-Start wird nicht nach dem Standort gefragt.
   - **Fahrtrichtung:** `coords.heading` ab 1,4 m/s (5 km/h), sonst Kurs aus der Bewegung (> 15 m und > Genauigkeit
