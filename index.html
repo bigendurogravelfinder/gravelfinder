@@ -257,16 +257,20 @@
   /* Schild auf der Karte in der Mitte eines Abschnitts mit eigener Einstellung */
   .lawWarn { color: #e65100; font-size: 13px; margin: 0 0 6px; }
   /* Fenster (dialog) über der Karte – z. B. Länderregeln */
-  dialog#lawDlg {
+  dialog.appDlg {
     width: min(560px, calc(100vw - 32px)); max-height: min(86vh, 760px); padding: 0; border: 0; border-radius: 14px;
     background: var(--bg); color: var(--fg); box-shadow: 0 10px 40px rgba(0,0,0,.4); overflow: hidden;
   }
-  dialog#lawDlg[open] { display: flex; flex-direction: column; }
-  dialog#lawDlg::backdrop { background: rgba(0,0,0,.45); }
+  dialog.appDlg[open] { display: flex; flex-direction: column; }
+  dialog.appDlg::backdrop { background: rgba(0,0,0,.45); }
   .dlgHead { display: flex; align-items: center; gap: 8px; padding: 10px 10px 10px 16px; border-bottom: 1px solid var(--border); }
   .dlgHead h2 { flex: 1; margin: 0; font-size: 17px; }
   .dlgClose { width: 44px; height: 44px; border: 0; border-radius: 22px; background: var(--surface2, #eceff1); cursor: pointer; display: flex; align-items: center; justify-content: center; }
   .dlgBody { overflow-y: auto; padding: 4px 16px 16px; -webkit-overflow-scrolling: touch; }
+  dialog.appDlg.small { width: min(420px, calc(100vw - 32px)); }
+  .dlgBtns { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+  .dlgBtns .btn, #rlCancel { width: 100%; margin: 0; justify-content: center; }
+  #rlCancel { margin-top: 6px; }
   .linkBtn { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 8px 0; min-height: 40px;
     font: inherit; font-size: 14px; font-weight: 600; color: var(--accent); cursor: pointer; text-align: left; }
   body.dark .linkBtn { color: #7dd3fc; }
@@ -880,8 +884,10 @@
         <button type="button" id="routeModeBtn" class="btn"><svg class="ic lg"><use href="#i-plus"/></svg>Punkte setzen</button>
         <button type="button" id="routeClear" class="btn light" title="Alle Punkte löschen"><svg class="ic lg"><use href="#i-trash"/></svg>Alle Punkte löschen</button>
         <button type="button" id="routeFit" class="btn" disabled><svg class="ic lg"><use href="#i-fit"/></svg>Ganze Route zeigen</button>
-        <button type="button" id="routeGpx" class="btn light" disabled title="z. B. für Garmin, OsmAnd, Kurviger"><svg class="ic lg"><use href="#i-download"/></svg>GPX speichern</button>
-        <button type="button" id="routeFromGps" class="btn light span2" title="Mein Standort als Startpunkt"><svg class="ic lg"><use href="#i-locate"/></svg>Aktuelle Position als Startpunkt setzen</button>
+        <button type="button" id="routeFromGps" class="btn light" title="Aktuelle Position als Startpunkt setzen"><svg class="ic lg"><use href="#i-locate"/></svg>Standort als Start</button>
+        <label class="btn light fileBtn" title="Mit „Route speichern“ gesicherte GPX-Datei wieder öffnen (andere GPX: Wegpunkte übernehmen)"><svg class="ic lg"><use href="#i-upload"/></svg>Route laden
+          <input type="file" id="routeLoad" accept=".gpx,application/gpx+xml,application/xml,text/xml" hidden></label>
+        <button type="button" id="routeGpx" class="btn light" disabled title="GPX-Datei mit Track und Wegpunkten (für Garmin, OsmAnd, Kurviger …) – enthält zusätzlich alle Einstellungen zum Wiederladen in dieser App"><svg class="ic lg"><use href="#i-download"/></svg>Route speichern</button>
       </div>
     </div>
     <!-- Ergebnis gleich unter den Knöpfen (vor der Punkteliste): Länge, Zeit, Anteile, Höhenprofil -->
@@ -1186,7 +1192,23 @@ assign initialcost
 </script>
 
 <!-- Fenster "Länderregeln für Waldwege" (geöffnet aus Tab Profil → Länderregeln; Inhalt aus LAW_RULES) -->
-<dialog id="lawDlg" aria-labelledby="lawDlgTitle">
+<!-- Fenster "Route laden" (Tab Route → Route laden, oder gespeicherte Route im Tab GPX) -->
+<dialog id="routeLoadDlg" class="appDlg small" aria-labelledby="routeLoadTitle">
+  <div class="dlgHead"><h2 id="routeLoadTitle">Route laden</h2></div>
+  <div class="dlgBody">
+    <p id="routeLoadInfo"></p>
+    <div class="dlgBtns">
+      <button type="button" class="btn" id="rlWith"><svg class="ic lg"><use href="#i-route"/></svg>Mit den Einstellungen der Route</button>
+      <button type="button" class="btn light" id="rlOnly"><svg class="ic lg"><use href="#i-pin"/></svg>Nur die Wegpunkte – mit meinen Einstellungen</button>
+    </div>
+    <label class="check" id="rlRefRow"><input type="checkbox" id="rlRef"> ursprüngliche Linie zum Vergleich zeigen</label>
+    <p class="hint">Die Route wird neu berechnet. Wege-Daten ändern sich laufend – nach längerer Zeit kann die Route an einzelnen
+      Stellen anders verlaufen.</p>
+    <button type="button" class="btn light" id="rlCancel">Abbrechen</button>
+  </div>
+</dialog>
+
+<dialog id="lawDlg" class="appDlg" aria-labelledby="lawDlgTitle">
   <div class="dlgHead">
     <h2 id="lawDlgTitle">Länderregeln für Waldwege</h2>
     <button type="button" class="dlgClose" id="lawDlgClose" aria-label="Fenster schließen" title="schließen"><svg class="ic lg"><use href="#i-x"/></svg></button>
@@ -1354,6 +1376,7 @@ assign initialcost
             return q;
           });
         if (saved.route.pref >= 0 && saved.route.pref <= 5) settings.route.pref = Number(saved.route.pref);
+        if (typeof saved.route.name === 'string') settings.route.name = saved.route.name.slice(0, 80);   // Name beim Speichern
         if (saved.route.width >= 2 && saved.route.width <= 10) settings.route.width = Number(saved.route.width);
         if (saved.route.transp >= 0 && saved.route.transp <= 90) settings.route.transp = Number(saved.route.transp);
         if (saved.route.opt) ROUTE_OPTS.forEach(function (o) {
@@ -3953,6 +3976,11 @@ assign initialcost
   function addGpxFiles(files) {
     Array.prototype.forEach.call(files, function (file) {
       file.text().then(function (txt) {
+        // mit "Route speichern" gesicherte Datei? → als bearbeitbare Route öffnen (Abbrechen = nur als Track anzeigen)
+        if (txt.indexOf(ROUTE_NS) >= 0 &&
+            confirm('„' + file.name + '“ ist eine gespeicherte Route dieser App.\n\nOK = als bearbeitbare Route öffnen\nAbbrechen = nur als Track anzeigen')) {
+          showTab('route'); openRouteFile(file); return;
+        }
         var t = parseGpx(txt, file.name);
         t.id = 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
         t.color = GPX_COLORS[gpxTracks.length % GPX_COLORS.length];
@@ -4684,29 +4712,166 @@ assign initialcost
     el.hidden = !html;
   }
 
+  // ---- Route speichern: GPX mit eingebetteten App-Daten ----
+  // Navis/andere Apps lesen Track (trk) und Wegpunkte (wpt) und überspringen <extensions>. Diese App liest aus
+  // <metadata><extensions><okr:route> (JSON) alle Wegpunkte inkl. Abschnitts-Einstellungen und die Routing-Einstellungen.
+  var ROUTE_NS = 'https://bigendurogravelfinder.github.io/gravelfinder/gpx/route/1';
+  var ROUTE_FORMAT = 1;
+  function routeSettingsSnapshot() {
+    var q = {};
+    QUALITY.forEach(function (x) { q[x.lvl] = !!settings.q[x.lvl].show; });
+    return { vehicle: settings.vehicle, pref: settings.route.pref, opt: JSON.parse(JSON.stringify(settings.route.opt)), q: q, lawMode: settings.lawMode };
+  }
+  function fileDate(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
   function downloadGpx() {
     var r = lastRoute;
     if (!r) return;
+    var d = new Date();
+    var name = prompt('Name der Route:', settings.route.name || ('Route ' + d.toLocaleDateString('de-AT')));
+    if (name === null) return;                              // abgebrochen
+    name = name.trim() || ('Route ' + d.toLocaleDateString('de-AT'));
+    settings.route.name = name; saveSettings();
     var xml = function (s) { return String(s).replace(/[<>&"]/g, function (c) { return { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]; }); };
     var n = r.pts.length;
+    var app = { app: 'offroadkarte', format: ROUTE_FORMAT, name: name, created: d.toISOString(), km: Math.round(r.dist / 100) / 10,
+      pts: r.pts.map(function (p) { var o = { lat: p.lat, lon: p.lon, name: p.name || '' }; if (typeof p.leg === 'number') o.leg = p.leg; return o; }),
+      settings: routeSettingsSnapshot() };
+    var json = JSON.stringify(app).replace(/\]\]>/g, ']]]]><![CDATA[>');     // CDATA-sicher
     var out = '<?xml version="1.0" encoding="UTF-8"?>\n' +
-      '<gpx version="1.1" creator="Gravelfinder Big Enduro" xmlns="http://www.topografix.com/GPX/1/1">\n' +
-      '<metadata><name>Gravelfinder Route</name><desc>' + xml(kmText(r.dist) + ', ' + Math.round(r.gravelShare * 100) + ' % Schotter') + '</desc></metadata>\n';
+      '<gpx version="1.1" creator="Offroadkarte (endurowandern.com)" xmlns="http://www.topografix.com/GPX/1/1" xmlns:okr="' + ROUTE_NS + '">\n' +
+      '<metadata><name>' + xml(name) + '</name><desc>' + xml(kmText(r.dist) + ', ' + Math.round(r.gravelShare * 100) + ' % Schotter') + '</desc>' +
+      '<time>' + d.toISOString() + '</time><extensions><okr:route><![CDATA[' + json + ']]></okr:route></extensions></metadata>\n';
     r.pts.forEach(function (p, i) {
       out += '<wpt lat="' + p.lat.toFixed(6) + '" lon="' + p.lon.toFixed(6) + '"><name>' + xml(pointLabel(i, n) + (p.name ? ': ' + p.name : '')) + '</name></wpt>\n';
     });
-    out += '<trk><name>Gravelfinder Route</name><trkseg>\n';
+    out += '<trk><name>' + xml(name) + '</name><trkseg>\n';
     r.coords.forEach(function (c) {
       out += '<trkpt lat="' + c[1].toFixed(6) + '" lon="' + c[0].toFixed(6) + '">' + (c[2] !== undefined ? '<ele>' + c[2] + '</ele>' : '') + '</trkpt>\n';
     });
     out += '</trkseg></trk>\n</gpx>\n';
     var a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([out], { type: 'application/gpx+xml' }));
-    a.download = 'gravelfinder-route-' + new Date().toISOString().slice(0, 10) + '.gpx';
+    a.download = name.replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, '-').slice(0, 60) + '-' + fileDate(d) + '.gpx';
     document.body.appendChild(a);
     a.click();
     setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
   }
+
+  // ---- Route laden ----
+  // Ergebnis von readRouteFile: { name, created, pts, settings|null, line|null, fromApp }
+  function readRouteFile(text, fileName) {
+    var doc = new DOMParser().parseFromString(text, 'application/xml');
+    if (doc.getElementsByTagName('parsererror').length) throw new Error('Keine gültige GPX-Datei.');
+    var line = [];
+    Array.prototype.forEach.call(doc.getElementsByTagName('trkpt'), function (p) {
+      var la = parseFloat(p.getAttribute('lat')), lo = parseFloat(p.getAttribute('lon'));
+      if (isFinite(la) && isFinite(lo)) line.push([la, lo]);
+    });
+    var ext = doc.getElementsByTagNameNS(ROUTE_NS, 'route')[0];
+    if (ext) {
+      var data;
+      try { data = JSON.parse(ext.textContent); } catch (e) { data = null; }
+      if (data && data.app === 'offroadkarte' && Array.isArray(data.pts)) {
+        if (Number(data.format) > ROUTE_FORMAT) throw new Error('Die Route stammt aus einer neueren App-Version – bitte zuerst die App aktualisieren.');
+        return { name: data.name || fileName, created: data.created, pts: cleanPts(data.pts), settings: data.settings || null, line: line.length > 1 ? line : null, fromApp: true };
+      }
+    }
+    // fremde GPX: Routenpunkte (rtept), sonst Wegpunkte (wpt) übernehmen
+    var src = doc.getElementsByTagName('rtept');
+    if (src.length < 2) src = doc.getElementsByTagName('wpt');
+    var pts = Array.prototype.map.call(src, function (p) {
+      var nm = p.getElementsByTagName('name')[0];
+      return { lat: parseFloat(p.getAttribute('lat')), lon: parseFloat(p.getAttribute('lon')), name: nm ? nm.textContent.trim() : '' };
+    });
+    pts = cleanPts(pts);
+    if (pts.length < 2) throw new Error(line.length > 1
+      ? 'Diese GPX-Datei enthält nur einen Track ohne Routenpunkte – im Tab „GPX“ kannst du sie als Track anzeigen.'
+      : 'In der Datei wurden keine Routenpunkte gefunden.');
+    if (pts.length > 60) throw new Error('Die Datei hat ' + pts.length + ' Punkte – zu viele für eine Route. Im Tab „GPX“ als Track anzeigen.');
+    var nameEl = doc.querySelector('metadata > name') || doc.querySelector('rte > name') || doc.querySelector('trk > name');
+    return { name: (nameEl && nameEl.textContent.trim()) || fileName.replace(/\.gpx$/i, ''), created: null, pts: pts, settings: null, line: line.length > 1 ? line : null, fromApp: false };
+  }
+  // Wegpunkte prüfen (wie beim App-Start): gültige Koordinaten, Abschnitt 0–5, Namen als Text
+  function cleanPts(list) {
+    return list.filter(function (p) { return p && isFinite(p.lat) && isFinite(p.lon) && Math.abs(p.lat) <= 90 && Math.abs(p.lon) <= 180; })
+      .map(function (p) {
+        var q = { lat: Math.round(Number(p.lat) * 1e6) / 1e6, lon: Math.round(Number(p.lon) * 1e6) / 1e6, name: typeof p.name === 'string' ? p.name.slice(0, 80) : '' };
+        if (typeof p.leg === 'number' && p.leg >= 0 && p.leg <= 5) q.leg = p.leg;
+        return q;
+      });
+  }
+  // Routing-Einstellungen aus der Datei übernehmen – jeder Wert geprüft; fehlende bleiben, wie sie sind
+  function applyRouteSettings(s) {
+    if (!s || typeof s !== 'object') return;
+    if (VEHICLES.some(function (v) { return v.id === s.vehicle; })) settings.vehicle = s.vehicle;
+    if (s.pref >= 0 && s.pref <= 5) { settings.route.pref = Number(s.pref); prefRange.value = settings.route.pref; prefValue.textContent = PREF_NAMES[settings.route.pref] || settings.route.pref; }
+    if (s.opt) ROUTE_OPTS.forEach(function (o) {
+      if (typeof s.opt[o.id] !== 'boolean') return;
+      settings.route.opt[o.id] = s.opt[o.id];
+      var box = routeOptsEl.querySelector('[data-opt="' + o.id + '"]');
+      if (box) box.checked = s.opt[o.id];
+    });
+    if (s.q) QUALITY.forEach(function (x) {
+      if (typeof s.q[x.lvl] !== 'boolean') return;
+      settings.q[x.lvl].show = s.q[x.lvl];
+      if (qBoxes[x.lvl]) qBoxes[x.lvl].checked = s.q[x.lvl];
+    });
+    if (/^(off|hint|strict)$/.test(s.lawMode)) settings.lawMode = s.lawMode;
+    updateRouteOptSum(); syncVehicleUi(); syncLawUi();
+    ways.forEach(function (w) { w.restricted = isRestricted(w.tags); });   // Zugang hängt vom Fahrzeug ab
+    render();
+  }
+
+  // Ursprüngliche Linie aus der Datei zum Vergleich (grau gestrichelt, bis "Alle Punkte löschen" oder neue Route geladen)
+  var routeRefLayer = null;
+  function clearRouteRef() { if (routeRefLayer) { map.removeLayer(routeRefLayer); routeRefLayer = null; } }
+
+  var routeLoadDlg = document.getElementById('routeLoadDlg'), pendingRouteFile = null;
+  function closeRouteDlg() { if (routeLoadDlg.close) routeLoadDlg.close(); else routeLoadDlg.removeAttribute('open'); pendingRouteFile = null; }
+  document.getElementById('routeLoad').addEventListener('change', function (e) {
+    var file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (file) openRouteFile(file);
+  });
+  function openRouteFile(file) {
+    file.text().then(function (txt) {
+      var r = readRouteFile(txt, file.name);
+      pendingRouteFile = r;
+      var info = '<b>' + esc(r.name) + '</b><br>' + r.pts.length + ' Punkte' +
+        (r.created ? ' · gespeichert am ' + new Date(r.created).toLocaleDateString('de-AT') : '');
+      if (r.fromApp && r.settings) {
+        var v = VEHICLES.filter(function (x) { return x.id === r.settings.vehicle; })[0];
+        info += '<br>Gerechnet mit: ' + esc(v ? v.label : 'Eigenes') + ', Offroad „' + esc(PREF_NAMES[r.settings.pref] || '?') + '“';
+        if (r.pts.some(function (p) { return typeof p.leg === 'number'; })) info += ', eigene Abschnitts-Einstellungen';
+      } else info += '<br>Fremde GPX-Datei: es werden nur die Wegpunkte übernommen.';
+      document.getElementById('routeLoadInfo').innerHTML = info;
+      document.getElementById('rlWith').hidden = !(r.fromApp && r.settings);
+      document.getElementById('rlRefRow').hidden = !r.line;
+      if (routeLoadDlg.showModal) routeLoadDlg.showModal(); else routeLoadDlg.setAttribute('open', '');
+    }).catch(function (err) { alert('„' + file.name + '“: ' + (err.message || err)); });
+  }
+  function takeRoute(withSettings) {
+    var r = pendingRouteFile;
+    if (!r) return;
+    var showRef = document.getElementById('rlRef').checked && r.line;
+    closeRouteDlg();
+    if (routePts().length && !confirm('Die aktuelle Route wird ersetzt. Fortfahren?')) return;
+    if (withSettings) applyRouteSettings(r.settings);
+    // ohne die Einstellungen der Datei gelten die eigenen – Abschnitts-Werte der Datei bleiben trotzdem erhalten
+    settings.route.pts = r.pts;
+    settings.route.name = r.name;
+    openLeg = -1;
+    clearRouteRef();
+    if (showRef) {
+      routeRefLayer = L.polyline(r.line, { pane: 'routeFxPane', color: '#455a64', weight: 3, opacity: 0.8, dashArray: '2 7', lineCap: 'round', interactive: false }).addTo(map);
+    }
+    saveRoute();
+    map.fitBounds(L.latLngBounds(r.pts.map(function (p) { return [p.lat, p.lon]; })), { padding: [60, 60] });
+  }
+  document.getElementById('rlWith').addEventListener('click', function () { takeRoute(true); });
+  document.getElementById('rlOnly').addEventListener('click', function () { takeRoute(false); });
+  document.getElementById('rlCancel').addEventListener('click', closeRouteDlg);
+  routeLoadDlg.addEventListener('click', function (e) { if (e.target === routeLoadDlg) closeRouteDlg(); });
 
   // ---- Bedienung ----
   // Tipp, der nur das offene Menü geschlossen hat (siehe Bedienfeld), setzt keinen Punkt
@@ -4726,7 +4891,7 @@ assign initialcost
   });
   document.getElementById('routeClear').addEventListener('click', function () {
     if (routePts().length && !confirm('Alle Routenpunkte löschen?')) return;
-    settings.route.pts = []; saveRoute();
+    settings.route.pts = []; settings.route.name = ''; clearRouteRef(); saveRoute();
   });
   document.getElementById('routeFromGps').addEventListener('click', function () {
     if (lastPos && watchId !== null) { insertGpsStart(lastPos); return; }

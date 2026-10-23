@@ -388,8 +388,8 @@ Zehn Kategorien, einzeln ein-/ausschaltbar, mit Anzahl im Ausschnitt (Symbol = L
     Leiste unten „🧭 Tippen = Routenpunkt [Fertig]“.
   - **Ganz oben im Route-Tab** ein Knopf-Raster (2 Spalten, je 46 px hoch, Symbol + Text):
     „＋ Punkte setzen“ (Verlauf; Antippen schaltet den Routen-Modus ein UND klappt das Menü zu – freie Sicht zum
-    Tippen auf die Karte) · „Alle Punkte löschen“ / „Ganze Route zeigen“ (Verlauf) · „GPX speichern“ /
-    über die volle Breite „Aktuelle Position als Startpunkt setzen“. „Ganze Route zeigen“ und „GPX speichern“ sind
+    Tippen auf die Karte) · „Alle Punkte löschen“ / „Ganze Route zeigen“ (Verlauf) · „Standort als Start“ /
+    „Route laden“ (Dateiauswahl .gpx) · „Route speichern“. „Ganze Route zeigen“ und „Route speichern“ sind
     ausgegraut, solange keine Route berechnet ist. Darunter das Ergebnis (Länge · Zeit · Höhenmeter,
     Anteils-Balken, Legende, Höhenprofil), dann „ⓘ So geht's“, Punkteliste, „⇅ Umkehren“.
   - GPX: „📂 GPX laden“, je Track „▬ Breite“ / „◐ Transparenz“ als Schieber-Zeilen, leer „Noch keine Tracks.“
@@ -608,8 +608,29 @@ unsichtbar … – Schieber nach unten ziehen“. Bei „Bewegung reduzieren“ 
 eigene Pane über Wegen und Ortsnamen, unter POIs, klickdurchlässig. Abschnitte aus `messages` (je Zeile Endpunkt +
 `WayTags`). Ergebnis: Länge, geschätzte Fahrzeit (Schotter 35/28/18 km/h je Stufe, Straßen nach Typ 15–80 km/h),
 Anstieg (`filtered ascend`), Farbbalken und Anteile hoch/mittel/niedrig/Straße, „🔍 Ganze Route zeigen“,
-„⬇ GPX speichern“ (GPX 1.1: Wegpunkte Start/Zwischenziele/Ziel + Track mit Höhen). Zusammenfassung im Menü
+„⬇ Route speichern“ (siehe unten). Zusammenfassung im Menü
 „41 km · 20 % Schotter“. Fehler verständlich („Keine Route gefunden …“, „Routing-Server nicht erreichbar“).
+
+**Route speichern / laden (GPX mit eingebetteten App-Daten):**
+- „Route speichern“ fragt nach einem Namen (Vorschlag: letzter Name bzw. „Route TT.MM.JJJJ“; gemerkt in
+  `settings.route.name`) und lädt `<Name>-JJJJ-MM-TT.gpx`: GPX 1.1 mit `<wpt>` (Start/Zwischenziele/Ziel) + `<trk>`
+  (Track mit Höhen) – für Garmin, OsmAnd, Kurviger … – und zusätzlich in `<metadata><extensions><okr:route>`
+  (Namensraum `https://bigendurogravelfinder.github.io/gravelfinder/gpx/route/1`, JSON in CDATA):
+  `{ app: 'offroadkarte', format: 1, name, created, km, pts: [{lat, lon, name, leg?}], settings: { vehicle, pref, opt,
+  q: {1..5: bool}, lawMode } }`. Andere Programme überspringen die Erweiterung.
+- „Route laden“ (auch: gespeicherte Route im Tab GPX → Rückfrage „als bearbeitbare Route öffnen?“, Abbrechen = nur Track):
+  Fenster „Route laden“ (`<dialog class="appDlg small">`) mit Name, Punkteanzahl, Speicherdatum, „Gerechnet mit:
+  Fahrzeug, Offroad „…“, eigene Abschnitts-Einstellungen“ und zwei Knöpfen **„Mit den Einstellungen der Route“**
+  (übernimmt Fahrzeug, Verhältnis, Erlaubt/gemieden, Qualitätsstufen, Länderregeln – jeder Wert geprüft, fehlende bleiben
+  unverändert – und aktualisiert alle Bedienelemente ohne Neuladen) / **„Nur die Wegpunkte – mit meinen Einstellungen“**;
+  Häkchen „ursprüngliche Linie zum Vergleich zeigen“ (grau gepunktet in `routeFxPane`, weg bei „Alle Punkte löschen“ oder
+  nächster geladener Route); Hinweis, dass sich die Route mit neuen Wege-Daten ändern kann; „Abbrechen“.
+  Abschnitts-Einstellungen (`leg`) werden immer übernommen. Vor dem Ersetzen einer vorhandenen Route Rückfrage.
+- Fremde GPX ohne App-Daten: Routenpunkte (`rtept`), sonst Wegpunkte (`wpt`) werden zu Routenpunkten (nur „Nur die
+  Wegpunkte“); nur Track → „… nur einen Track ohne Routenpunkte – im Tab GPX als Track anzeigen“; > 60 Punkte → zu viele.
+  Datei aus neuerer Version (`format` > 1) → „bitte zuerst die App aktualisieren“.
+- Getestet: speichern → Einstellungen verstellen → laden „mit Einstellungen“ ergibt dieselbe Route (21 km, 29 min) inkl.
+  Abschnitt „maximal Offroad“; fremde GPX (Kurviger-rte) und reine Track-Datei; Erkennung im Tab GPX.
 
 **Grenzen:** Routing braucht Internet; brouter.de ist ein freiwillig betriebener Server (für normale Nutzung ok).
 
