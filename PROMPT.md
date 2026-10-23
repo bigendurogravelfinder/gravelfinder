@@ -564,11 +564,17 @@ Am Ende:
 - Größe je Land (Summe der komprimierten Blöcke, in denen es Daten hat) und Gesamtgröße in `index.json`.
 - `outlines.json`: GeoJSON der Ländergrenzen, vereinfacht mit 0,01° und auf 3 Nachkommastellen gerundet.
   (Geofabrik-Grenzlinien sind gepuffert und ungenau – nur für die Offline-Einfärbung, nicht als Grenzlinie.)
-- `borders.json`: `{v: 1, b: [Polyline, …]}` – alle Wege mit `admin_level=2` UND ausdrücklich
-  `boundary=administrative` (Vorfilter `w/admin_level=2`). **Nicht** Wege mit building/office/government/amenity/
-  landuse/leisure/shop/tourism/man_made – Bundesbehörden tragen auch `admin_level=2` (z. B. Bundessortenamt Hannover,
-  sonst kleine Flecken). Ohne Seegrenzen (`maritime=yes`, `border_type` territorial/baseline/maritime/eez/
-  contiguous, `natural=coastline`), je Weg-ID nur einmal (Grenzwege liegen in beiden Länderdateien), Douglas-Peucker 15 m.
+- `borders.json`: `{v: 1, b: [Polyline, …]}` – Grenzwege werden auf ZWEI Arten erkannt (Vorfilter `w/admin_level=2`
+  und `r/admin_level=2` samt Mitgliedern):
+  1. **Mitglied einer Länder-Relation** (`boundary=administrative` + `admin_level=2`, eigener Vorab-Durchlauf
+     `CountryRelations`, weil Relationen in der Datei nach den Wegen stehen) – nötig, da viele Grenzwege selbst keine
+     Angaben tragen (sonst fehlten z. B. Deutschland–Polen, –Niederlande, –Dänemark).
+  2. Sonst nur Wege mit `admin_level=2` UND ausdrücklich `boundary=administrative`, und **nicht** mit building/office/
+     government/amenity/landuse/leisure/shop/tourism/man_made – Bundesbehörden tragen auch `admin_level=2`
+     (z. B. Bundessortenamt Hannover, sonst kleine Flecken).
+  Ohne Seegrenzen (`maritime=yes`, `border_type` baseline/maritime/eez/contiguous, `natural=coastline`).
+  **Nicht** `border_type=territorial` ausschließen – das steht auch an Landgrenzen (z. B. Liechtenstein).
+  Test: Liechtenstein 39, Luxemburg 162, Dänemark 19 Abschnitte; je Weg-ID nur einmal (Grenzwege liegen in beiden Länderdateien), Douglas-Peucker 15 m.
 - Ausgabe: Länder, Dateien, MB, Dauer, größte Länder, übersprungene Länder.
 - **Abbruch**, wenn mehr als 95 % von 1 GB (Grenze von GitHub Pages) – dann bleibt die alte Version online.
 

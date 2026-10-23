@@ -74,24 +74,49 @@ OSMIUM_FILTERS = [
     'nwr/shop=' + ','.join(sorted(POI_SHOP)),
     'nwr/tourism=' + ','.join(sorted(POI_TOURISM)),
     'n/place=' + ','.join(sorted(PLACE_RANK)),
-    'w/admin_level=2',          # Staatsgrenzen (für die Grenzlinien in der App)
+    'w/admin_level=2',          # Staatsgrenzen (für die Grenzlinien in der App) …
+    'r/admin_level=2',          # … und die Länder-Relationen samt ihren Grenzwegen (Grenzwege tragen oft keine eigenen Angaben)
 ]
 # Staatsgrenzen: Linien mit admin_level=2 an Land (Seegrenzen weglassen), vereinfacht auf 15 m
 BORDER_SIMPLIFY_M = 15.0
-SEA_BORDER = {'territorial', 'baseline', 'maritime', 'eez', 'contiguous'}
+# Achtung: border_type=territorial steht auch an LANDgrenzen (z. B. Liechtenstein) – Seegrenzen erkennt man an maritime=yes
+SEA_BORDER = {'baseline', 'maritime', 'eez', 'contiguous'}
 
 
 NOT_BORDER_KEYS = ('building', 'office', 'government', 'amenity', 'landuse', 'leisure', 'shop', 'tourism', 'man_made')
 
 
-def is_land_border(t):
-    # boundary=administrative MUSS eingetragen sein: admin_level=2 allein steht auch an Behörden mit
-    # Bundeszuständigkeit (z. B. office=government in Hannover) – das sind keine Grenzen
+def is_sea_border(t):
+    return t.get('maritime') == 'yes' or t.get('border_type') in SEA_BORDER or t.get('natural') == 'coastline'
+
+
+def is_land_border(t, in_country_relation):
+    """Staatsgrenze an Land?
+    1. Weg gehört zu einer Länder-Relation (boundary=administrative + admin_level=2) – der verlässliche Weg,
+       denn viele Grenzwege tragen selbst keine Angaben (z. B. Deutschland–Polen, –Niederlande, –Dänemark).
+    2. Sonst nur, wenn der Weg selbst admin_level=2 UND boundary=administrative trägt – admin_level=2 allein steht
+       auch an Behörden mit Bundeszuständigkeit (z. B. office=government in Hannover), das sind keine Grenzen."""
+    if is_sea_border(t):
+        return False
+    if in_country_relation:
+        return True
     if t.get('admin_level') != '2' or t.get('boundary') != 'administrative':
         return False
-    if any(k in t for k in NOT_BORDER_KEYS):
-        return False
-    return t.get('maritime') != 'yes' and t.get('border_type') not in SEA_BORDER and t.get('natural') != 'coastline'
+    return not any(k in t for k in NOT_BORDER_KEYS)
+
+
+class CountryRelations(osmium.SimpleHandler):
+    """Vorab-Durchlauf: Weg-IDs aller Länder-Relationen sammeln (Relationen stehen in der Datei nach den Wegen)."""
+    def __init__(self):
+        super().__init__()
+        self.way_ids = set()
+
+    def relation(self, r):
+        t = r.tags
+        if t.get('admin_level') == '2' and t.get('boundary') == 'administrative':
+            for m in r.members:
+                if m.type == 'w':
+                    self.way_ids.add(m.ref)
 
 
 NON_LATIN = re.compile('[Ͱ-Ͽἀ-῿Ѐ-ӿ]')   # griechisch, kyrillisch
@@ -211,10 +236,11 @@ class Store:
 
 
 class Collector(osmium.SimpleHandler):
-    def __init__(self, store, borders):
+    def __init__(self, store, borders, border_way_ids):
         super().__init__()
         self.s = store
         self.borders = borders     # gemeinsam für alle Länder: Weg-ID -> kodierte Grenzlinie (Grenzwege nur einmal)
+        self.border_way_ids = border_way_ids
 
     def node(self, n):
         t = n.tags
@@ -228,7 +254,7 @@ class Collector(osmium.SimpleHandler):
 
     def way(self, w):
         t = w.tags
-        border = is_land_border(t)
+        border = is_land_border(t, w.id in self.border_way_ids)
         if not border and not is_road(t):
             return
         coords = [(nd.lat, nd.lon) for nd in w.nodes if nd.location.valid()]
@@ -453,7 +479,12 @@ def main():
 
             print('  3/4 Auswerten (pyosmium) …', flush=True)
             store = Store()
-            Collector(store, borders).apply_file(filtered, locations=True)
+            rels = CountryRelations()
+            rels.apply_file(filtered)          # schnell: nur Relationen lesen
+            n_before = len(borders)
+            Collector(store, borders, rels.way_ids).apply_file(filtered, locations=True)
+            print(f'    Grenzlinien: {fmt(len(rels.way_ids))} Wege in Länder-Relationen, '
+                  f'{fmt(len(borders) - n_before)} neue Grenzabschnitte', flush=True)
             os.remove(filtered)
             red = 100 - 100 * store.n_points / max(1, store.n_points_raw)
             print(f'    {fmt(len(store.ways))} Schotterwege, {fmt(store.n_pois)} POI, {fmt(store.n_places)} Ortsnamen, '
