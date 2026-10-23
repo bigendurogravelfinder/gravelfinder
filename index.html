@@ -198,7 +198,11 @@
   .btn.small { min-height: 36px; padding: 0 10px; font-size: 13px; width: auto; margin-top: 6px; }
   .btn.active { background: var(--accent-dark); }
   .routeTools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-  .routeTools .btn.small, .routeBtns .btn.small { width: auto; margin-top: 0; flex: 1 1 auto; }
+  /* Knopf-Raster oben im Route-Tab: 2 Spalten, letzter Knopf über die volle Breite */
+  .routeGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .routeGrid .btn { min-height: 46px; margin: 0; width: 100%; padding: 4px 8px; font-size: 13px; line-height: 1.15;
+    border-radius: 14px; white-space: normal; text-align: left; justify-content: flex-start; }
+  .routeGrid .btn.span2 { grid-column: 1 / -1; justify-content: center; }  .routeTools .btn.small, .routeBtns .btn.small { width: auto; margin-top: 0; flex: 1 1 auto; }
   .routePoints .rp { display: flex; align-items: center; gap: 8px; min-height: 38px; border-bottom: 1px solid var(--border); font-size: 14px; }
   .routePoints .rp:last-child { border-bottom: 0; }
   .rp .rpName { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -628,7 +632,14 @@
    <!-- ===================== Route planen ===================== -->
    <div class="tabPanel" data-tab="route" role="tabpanel">
     <div class="row rowTop">
-      <button type="button" id="routeModeBtn" class="btn wide"><svg class="ic lg"><use href="#i-plus"/></svg>Punkte setzen</button>
+      <!-- Die wichtigsten Aktionen ganz oben: 2 × 2 + 1 Knopf -->
+      <div class="routeGrid">
+        <button type="button" id="routeModeBtn" class="btn"><svg class="ic lg"><use href="#i-plus"/></svg>Punkte setzen</button>
+        <button type="button" id="routeClear" class="btn light" title="Alle Punkte löschen"><svg class="ic lg"><use href="#i-trash"/></svg>Alle Punkte löschen</button>
+        <button type="button" id="routeFit" class="btn" disabled><svg class="ic lg"><use href="#i-fit"/></svg>Ganze Route zeigen</button>
+        <button type="button" id="routeGpx" class="btn light" disabled title="z. B. für Garmin, OsmAnd, Kurviger"><svg class="ic lg"><use href="#i-download"/></svg>GPX speichern</button>
+        <button type="button" id="routeFromGps" class="btn light span2" title="Mein Standort als Startpunkt"><svg class="ic lg"><use href="#i-locate"/></svg>Aktuelle Position als Startpunkt setzen</button>
+      </div>
       <details class="tip"><summary><svg class="ic"><use href="#i-info"/></svg>So geht's</summary>
         <ul>
           <li>Tippen = Punkt (erster = Start, letzter = Ziel)</li>
@@ -640,9 +651,7 @@
     <div class="row">
       <div id="routePoints" class="routePoints"></div>
       <div class="routeTools">
-        <button type="button" id="routeFromGps" class="btn light small" title="Mein Standort als Start"><svg class="ic"><use href="#i-locate"/></svg>Start hier</button>
         <button type="button" id="routeReverse" class="btn light small" title="Richtung umkehren"><svg class="ic"><use href="#i-swap"/></svg>Umkehren</button>
-        <button type="button" id="routeClear" class="btn light small" title="Alle Punkte löschen"><svg class="ic"><use href="#i-trash"/></svg>Löschen</button>
       </div>
     </div>
     <!-- Ergebnis gleich unter den Punkten: Länge, Zeit, Anteile, "Ganze Route zeigen" -->
@@ -3548,7 +3557,12 @@ assign initialcost
   function showRouteOpacity(on) {
     routeOpacityEl.classList.toggle('hidden', !on);
     if (routeFitEl) routeFitEl.classList.toggle('hidden', !on);   // Kartenknopf "Ganze Route zeigen" gleich mit
+    // Knöpfe oben im Route-Tab: nur mit berechneter Route bedienbar
+    document.getElementById('routeFit').disabled = !on;
+    document.getElementById('routeGpx').disabled = !on;
   }
+  document.getElementById('routeFit').addEventListener('click', function () { fitRoute(true); });
+  document.getElementById('routeGpx').addEventListener('click', function () { downloadGpx(); });
   // Ganze Route ins Bild holen – rechts Platz lassen, wenn das Menü offen daneben liegt
   function fitRoute(fromMenu) {
     if (!lastRoute) return;
@@ -3616,16 +3630,13 @@ assign initialcost
     showRouteResult(
       '<div class="routeStats"><b>' + kmText(r.dist) + '</b> · ≈ ' + timeText(r.hours) + (r.ascend ? ' · ↑ ' + Math.round(r.ascend) + ' m' : '') + '</div>' +
       (r.ferryForced ? '<div class="routeErr">' + ic('ship') + ' Ohne Fähre wurde keine Route gefunden – diese Route enthält daher eine Fähre.</div>' : '') +
-      '<button type="button" id="routeFit" class="btn wide fitBtn">' + ic('fit', 'lg') + 'Ganze Route zeigen</button>' +
       '<div class="routeBar">' + parts.map(function (p) {
         return r.by[p.cls] ? '<span style="width:' + (r.by[p.cls] / r.total * 100) + '%;background:' + p.color + '"></span>' : '';
       }).join('') + '</div>' +
       // Legende nur mit den vorkommenden Anteilen (spart Platz)
       '<div class="routeLegend">' + parts.filter(function (p) { return r.by[p.cls] > 0; })
-        .map(function (p) { return '<i style="background:' + p.color + '"></i>' + p.name + ' ' + pct(p.cls) + ' %'; }).join(' ') + '</div>' +
-      '<div class="routeBtns"><button type="button" id="routeGpx" class="btn light small" title="z. B. für Garmin, OsmAnd, Kurviger">' + ic('download') + 'GPX speichern</button></div>');
-    document.getElementById('routeFit').onclick = function () { fitRoute(true); };
-    document.getElementById('routeGpx').onclick = downloadGpx;
+        .map(function (p) { return '<i style="background:' + p.color + '"></i>' + p.name + ' ' + pct(p.cls) + ' %'; }).join(' ') + '</div>');
+    // "Ganze Route zeigen" und "GPX speichern" stehen fest oben im Tab (siehe showRouteOpacity)
   }
 
   function showRouteResult(html) {

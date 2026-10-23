@@ -345,7 +345,12 @@ Zehn Kategorien, einzeln ein-/ausschaltbar, mit Anzahl im Ausschnitt (Symbol = L
     („braucht mehr Akku“), „📲 Installieren“ mit Einzeiler-Hinweis.
   - Keine Überschrift im Tab (der Tab sagt es schon). Route: „➕ Punkte setzen“ / „✔ Fertig“, aufklappbar „ⓘ So geht's“
     (4 Stichpunkte: Tippen = Punkt, Punkt ziehen = verschieben, Route ziehen = Zwischenziel, POI → „Zur Route“),
-    Knöpfe „📍 Start hier“, „⇅ Umkehren“, „🗑 Löschen“, Leiste unten „🧭 Tippen = Routenpunkt [Fertig]“.
+    Leiste unten „🧭 Tippen = Routenpunkt [Fertig]“.
+  - **Ganz oben im Route-Tab** ein Knopf-Raster (2 Spalten, je 46 px hoch, Symbol + Text):
+    „＋ Punkte setzen“ (Verlauf) · „Alle Punkte löschen“ / „Ganze Route zeigen“ (Verlauf) · „GPX speichern“ /
+    über die volle Breite „Aktuelle Position als Startpunkt setzen“. „Ganze Route zeigen“ und „GPX speichern“ sind
+    ausgegraut, solange keine Route berechnet ist. Darunter „ⓘ So geht's“, Punkteliste, „⇅ Umkehren“, Ergebnis
+    (Länge · Zeit · Höhenmeter, Anteils-Balken, Legende).
   - GPX: „📂 GPX laden“, je Track „▬ Breite“ / „◐ Transparenz“ als Schieber-Zeilen, leer „Noch keine Tracks.“
   - Offline: „🌍 Ganz Europa“ (keine Flaggen-Emojis – Windows zeigt sie als Buchstaben), Knopf „⬇ Laden (≈ X MB)“ /
     „✔ Alles gespeichert“ / „Länder anhaken“, Legende „✔ gespeichert · ⟳ Update da · Häkchen weg = löschen“,
@@ -436,7 +441,7 @@ plus je Routing-Option `&profile:avoid_<id>=1|0` (BRouter akzeptiert nur Zahlen,
 - Punkte als runde Nadeln: **Start = weißer Abfahrts-Pfeil (▶) auf Grün**, Zwischenziele 1, 2 … (blau),
   **Ziel = weiße karierte Zielflagge auf Rot** (Symbole `start`/`finish`, auch in der Punkteliste); mit dem Finger
   verschiebbar; Popup „Punkt entfernen“.
-- Liste im Menü mit ↑ ↓ ✕; Knöpfe „📍 Mein Standort als Start“, „⇅ Umkehren“, „🗑 Löschen“.
+- Liste im Menü mit ↑ ↓ ✕, darunter „⇅ Umkehren“ (Startpunkt/Löschen stehen oben im Knopf-Raster).
 - POI-Popup: „➕ Zur Route hinzufügen“ (wird neues Ziel, mit Namen).
 - **Route ziehen:** Linie anfassen (linke Maustaste / Finger halten) und ziehen → gestrichelte Vorschau vom vorigen
   Wegpunkt über den Zeiger zum nächsten folgt dem Zeiger; beim Loslassen entsteht dort ein neues Zwischenziel
@@ -457,8 +462,8 @@ plus je Routing-Option `&profile:avoid_<id>=1|0` (BRouter akzeptiert nur Zahlen,
   „- - - auf der Karte zeigen“ (= frühere Einstellung „Auch gesperrte Wege anzeigen“, `settings.showRestricted`,
   nur Anzeige – das Routing sperrt diese Wege immer).
 - Fahrzeit-Schätzung kennt auch Autobahn (110 km/h, Auffahrt 60).
-- **Ergebnis direkt unter den Routenpunkten** (vor Schotter-Vorliebe): Länge · Zeit · Höhenmeter, darunter groß und
-  blau über die volle Breite **„🔍 Ganze Route zeigen“**, dann Anteils-Balken, Legende und „⬇ GPX speichern“.
+- **Ergebnis direkt unter den Routenpunkten** (vor Schotter-Vorliebe): Länge · Zeit · Höhenmeter, Anteils-Balken,
+  Legende. „Ganze Route zeigen“ und „GPX speichern“ stehen oben im Knopf-Raster (nicht mehr im Ergebnis).
 - **„Ganze Route zeigen“ auch als Kartenknopf** in der linken Knopfleiste direkt unter 🧭 (Symbol: Rahmen-Ecken mit
   blauer Linie), nur sichtbar solange eine Route angezeigt wird.
   Zoomt mit Rand (oben/links 70 px, unten 90 px, rechts 30 px bzw. Menübreite + 30 px, wenn das Menü offen
