@@ -59,8 +59,8 @@ data/v2/blocks/<bi>/<bj>.json.gz   Daten je Block
     locAcc 630 = Genauigkeitskreis, routeFx 640 = Ziehen-Vorschau + Höhenprofil-Punkt), `symbolPane(name, z)` in
     `norotatePane` (bleibt aufrecht: label 610, routePin 640 = nur Nadeln, location 650 = nur Standort-Marker;
     POI-Marker in der normalen markerPane). Eine Ebene enthält nur Linien/Flächen ODER nur Marker.
-  - **Kompassrose** (`L.Control` oben rechts, direkt unter der Menü-Kopfzeile: `.leaflet-top.leaflet-right` top 76 px,
-    Querformat 64 px; 44 × 44 px): Ring, rote Nordhälfte mit „N“, graue Südhälfte – die Nadel dreht mit und zeigt immer
+  - **Kompassrose** (`L.Control` in der linken Knopfleiste **direkt unter der Zoomstufe** – per `insertBefore` dorthin
+    verschoben; oben rechts wurde sie vom Menü verdeckt; 44 × 44 px): Ring, rote Nordhälfte mit „N“, graue Südhälfte – die Nadel dreht mit und zeigt immer
     nach Norden. **Antippen wechselt den Modus** `settings.rotMode` (gespeichert, Standard `north`):
     1. **Norden oben** – nicht drehbar, Drehung 0.
     2. **Frei drehbar** – zwei Finger drehen (`touchRotate`), am PC Shift + Mausrad; kleines Dreh-Pfeil-Zeichen im
@@ -69,7 +69,7 @@ data/v2/blocks/<bi>/<bj>.json.gz   Daten je Block
        die GPS-Fahrtrichtung (Bearing = −Richtung) und führt den Standort mit: Standort bei **65 % der Höhe** (mehr Blick
        nach vorn). Karte selbst verschieben oder „Ganze Route zeigen“ pausiert das Mitführen (Ring gestrichelt);
        Kompass oder „Mein Standort“ antippen führt wieder mit („Wieder mitführen“).
-    Beim Wechsel kurzer Hinweis links neben dem Kompass (2,6 s): „Norden oben“ / „Frei drehbar – mit zwei Fingern
+    Beim Wechsel kurzer Hinweis rechts neben dem Kompass (2,6 s): „Norden oben“ / „Frei drehbar – mit zwei Fingern
     drehen“ / „Fahrtrichtung oben – dreht ab ca. 5 km/h mit“. Beim App-Start wird nicht nach dem Standort gefragt.
   - **Fahrtrichtung:** `coords.heading` ab 1,4 m/s (5 km/h), sonst Kurs aus der Bewegung (> 15 m und > Genauigkeit
     seit dem letzten Ankerpunkt); geglättet (40 % je Fix). Im Stand bleibt die letzte Richtung. Drehung in höchstens
@@ -670,7 +670,9 @@ Anstieg (`filtered ascend`), Farbbalken und Anteile hoch/mittel/niedrig/Straße,
 - **Querformat** (`orientation: landscape` und Höhe ≤ 520 px):
   - Menü = Spalte rechts über die volle Höhe (330 px, max. 45 % Breite), Inhalt scrollt darin.
   - „Mein Standort“ als runder Symbolknopf unten rechts (über Maßstab/Quellenangabe), nicht über den Hinweisen.
-  - Routen-Transparenz-Schieber **waagrecht** oben neben der linken Knopfleiste statt senkrecht darunter.
+  - Routen-Transparenz-Schieber **waagrecht** oben direkt rechts neben der linken Knopfleiste statt senkrecht darunter
+    (eigene Media-Query `orientation: landscape` und `max-height: 800px` – gilt also auch für große Handys/Tablets quer;
+    nur sichtbar, solange eine Route angezeigt wird). Hochformat: senkrecht in der Leiste wie bisher.
   - Hinweise unten mittig mit Platz für die Knöpfe; bei offenem Menü in die freie linke Kartenhälfte gerückt.
 
 ---
