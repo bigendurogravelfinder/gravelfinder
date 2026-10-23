@@ -477,6 +477,10 @@
   @keyframes routeRun { from { stroke-dashoffset: 48; } to { stroke-dashoffset: 0; } }
   @keyframes routePulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.25); } }
   #routeBusy { font-size: 14px; }
+  #routeErrPill { font-size: 14px; gap: 8px; }
+  #routeErrPill button { display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; font-size: 14px; }
+  #routeErrPill button.light { padding: 0 10px; }
+  .pill button.light .ic { stroke: url(#icg); }
   body.dark .routeAnim .track { stroke: #3b4650; }
 
   /* ---------- Leaflet-Anpassungen ---------- */
@@ -922,6 +926,8 @@
     </svg>
     <span>Route wird berechnet …</span>
   </div>
+  <!-- Routing-Fehler an derselben Stelle wie "Route wird berechnet" (zusätzlich zum Hinweis im Menü) -->
+  <div id="routeErrPill" class="pill error hidden" role="alert"></div>
   <div id="routeHint" class="pill hidden"></div>
   <div id="updateBox" class="pill offer hidden"></div>
   <div id="offerBox" class="pill offer hidden"></div>
@@ -3931,13 +3937,28 @@ assign initialcost
   var routeBusyEl = document.getElementById('routeBusy');
   function setRouteBusy(on) {
     routeBusyEl.classList.toggle('hidden', !on);
+    if (on) showRouteErrPill('');                 // neue Berechnung → alte Fehlermeldung weg
     placeLocateBtn();
   }
+  var routeErrEl = document.getElementById('routeErrPill');
+  L.DomEvent.disableClickPropagation(routeErrEl);
+  function showRouteErrPill(msg) {
+    routeErrEl.classList.toggle('hidden', !msg);
+    routeErrEl.innerHTML = msg ? '<span>' + ic('warn') + ' ' + esc(msg) + '</span>' +
+      '<button type="button" data-act="retry">' + ic('route') + ' Nochmal</button>' +
+      '<button type="button" class="light" data-act="close" aria-label="Meldung schließen" title="schließen">' + ic('x') + '</button>' : '';
+    placeLocateBtn();
+  }
+  routeErrEl.addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-act]');
+    if (!b) return;
+    if (b.dataset.act === 'retry') scheduleRoute(); else showRouteErrPill('');
+  });
 
   function scheduleRoute() {
     clearTimeout(routeTimer);
     if (routeCtrl) { routeCtrl.abort(); routeCtrl = null; }
-    if (routePts().length < 2) { setRouteBusy(false); routeLayer.clearLayers(); clearRouteHit(); lastRoute = null; showRouteResult(''); updateRouteSummary(); return; }
+    if (routePts().length < 2) { setRouteBusy(false); showRouteErrPill(''); routeLayer.clearLayers(); clearRouteHit(); lastRoute = null; showRouteResult(''); updateRouteSummary(); return; }
     showRouteResult('<div class="routeStats"><div class="spinner" style="display:inline-block;vertical-align:middle"></div> Route wird berechnet …</div>');
     setRouteBusy(true);
     routeTimer = setTimeout(computeRoute, 300);
@@ -4066,13 +4087,14 @@ assign initialcost
         msg = 'Der Routing-Server ist nicht erreichbar (Internet?).';
       }
       showRouteResult('<div class="routeErr">' + ic('warn') + ' ' + esc(msg) + '</div>');
+      showRouteErrPill(msg);
       updateRouteSummary();
     });
   }
 
   function showRoute(json, pts) {
     var f = json.features && json.features[0];
-    if (!f) { showRouteResult('<div class="routeErr">' + ic('warn') + ' Keine Route gefunden.</div>'); return; }
+    if (!f) { showRouteResult('<div class="routeErr">' + ic('warn') + ' Keine Route gefunden.</div>'); showRouteErrPill('Keine Route gefunden.'); return; }
     var coords = f.geometry.coordinates, msgs = f.properties.messages || [], head = msgs[0] || [];
     var iLon = head.indexOf('Longitude'), iLat = head.indexOf('Latitude'), iDist = head.indexOf('Distance'), iTags = head.indexOf('WayTags');
 

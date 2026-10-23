@@ -512,6 +512,10 @@ plus je Routing-Option `&profile:avoid_<id>=1|0` (BRouter akzeptiert nur Zahlen,
     n−2−k); ↑ ↓ tauscht nur die Punkte, die Werte bleiben an ihrer Stelle (Abschnitt 1, 2 …); Punkt löschen → der Abschnitt
     davor gilt bis zum nächsten Punkt.
   - Server-Antwort „Please, retry later!“ → „Der Routing-Server ist gerade ausgelastet – bitte in einer Minute nochmal versuchen.“
+- **Routing-Fehler auch über der Karte:** jede verständliche Fehlermeldung (keine Route, Server ausgelastet / nicht
+  erreichbar / zu lange gerechnet) erscheint zusätzlich zum Menü als rote Leiste `#routeErrPill` an derselben Stelle wie
+  „Route wird berechnet …“ (Hinweisstapel unten), mit Knopf „Nochmal“ (rechnet neu) und ✕ (schließen). Verschwindet bei
+  jeder neuen Berechnung und wenn weniger als 2 Punkte da sind; „Mein Standort“ rückt automatisch darüber.
 - **Route ziehen:** Linie anfassen (linke Maustaste / Finger halten) und ziehen → gestrichelte Vorschau vom vorigen
   Wegpunkt über den Zeiger zum nächsten folgt dem Zeiger; beim Loslassen entsteht dort ein neues Zwischenziel
   **zwischen den beiden Wegpunkten dieses Abschnitts**, dann Neuberechnung (während des Ziehens keine Server-Anfragen).
