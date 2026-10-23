@@ -432,7 +432,9 @@ plus je Routing-Option `&profile:avoid_<id>=1|0` (BRouter akzeptiert nur Zahlen,
 - „Punkte auf der Karte setzen“ (Routen-Modus): Tippen setzt Punkte – erster = Start, jeder weitere = neues Ziel,
   das bisherige Ziel wird Zwischenziel. Hinweis-Leiste unten „Tippe auf die Karte …“ mit „Fertig“. Im Routen-Modus
   sind Wege nicht antippbar (Wege-Ebene `pointer-events: none`), POIs schon.
-- Punkte als runde Nadeln S (grün), 1, 2 … (blau), Z (rot); mit dem Finger verschiebbar; Popup „Punkt entfernen“.
+- Punkte als runde Nadeln: **Start = weißer Abfahrts-Pfeil (▶) auf Grün**, Zwischenziele 1, 2 … (blau),
+  **Ziel = weiße karierte Zielflagge auf Rot** (Symbole `start`/`finish`, auch in der Punkteliste); mit dem Finger
+  verschiebbar; Popup „Punkt entfernen“.
 - Liste im Menü mit ↑ ↓ ✕; Knöpfe „📍 Mein Standort als Start“, „⇅ Umkehren“, „🗑 Löschen“.
 - POI-Popup: „➕ Zur Route hinzufügen“ (wird neues Ziel, mit Namen).
 - **Route ziehen:** Linie anfassen (linke Maustaste / Finger halten) und ziehen → gestrichelte Vorschau vom vorigen
