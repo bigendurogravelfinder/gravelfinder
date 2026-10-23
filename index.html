@@ -302,6 +302,9 @@
   .routeLegend { font-size: 12px; color: var(--muted); line-height: 1.5; }
   .routeLegend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 3px 0 6px; vertical-align: -1px; }
   .routeBtns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .bkBtns { margin-top: 6px; }
+  .bkBtns .btn { flex: 1 1 140px; width: auto; margin-top: 0; font-size: 14px; font-weight: 600; }
+  #bkMsg.ok { color: #2e7d32; font-weight: 600; } #bkMsg.err { color: var(--error); font-weight: 600; }
   .routeErr { color: var(--error); font-size: 14px; }
   /* ---------- Höhenprofil (im Route-Tab unter dem Ergebnis) ---------- */
   .elev { margin-top: 12px; border: 1px solid var(--border); border-radius: 12px; padding: 8px 10px 6px; background: var(--bg); }
@@ -853,6 +856,16 @@
     </div>
     <label class="check"><input type="checkbox" id="wakeLock"> <svg class="ic lg"><use href="#i-sun"/></svg> Bildschirm wach halten</label>
     <div class="hint" id="wakeHint">braucht mehr Akku</div>
+    <!-- Einstellungen als Datei sichern / wiederherstellen (z. B. für ein neues Handy) -->
+    <div class="qSep"><svg class="ic"><use href="#i-download"/></svg> Sichern und wiederherstellen</div>
+    <label class="check"><input type="checkbox" id="bkGpx" checked> GPX-Tracks mitsichern <span class="hint" id="bkGpxCount"></span></label>
+    <div class="routeBtns bkBtns">
+      <button type="button" id="bkExport" class="btn light"><svg class="ic lg"><use href="#i-download"/></svg>Einstellungen sichern</button>
+      <label class="btn light fileBtn"><svg class="ic lg"><use href="#i-upload"/></svg>Einstellungen laden
+        <input type="file" id="bkImport" accept=".json,application/json" hidden></label>
+    </div>
+    <div class="hint" id="bkMsg">Speichert eine kleine Datei mit allen Einstellungen und der aktuellen Route – zum Wiederherstellen
+      oder für ein anderes Gerät. Offline-Kartendaten sind nicht enthalten (einfach neu laden).</div>
    </div>
 
    <!-- ===================== Route planen ===================== -->
@@ -3952,6 +3965,7 @@ assign initialcost
   }
 
   function renderGpxList() {
+    updateBkCount();                                   // Anzahl beim Häkchen "GPX-Tracks mitsichern" (Tab App)
     var box = document.getElementById('gpxList');
     if (!gpxTracks.length) { box.innerHTML = '<div class="hint">Noch keine Tracks.</div>'; }
     else box.innerHTML = gpxTracks.map(function (t, i) {
@@ -4939,6 +4953,63 @@ assign initialcost
   drawRoutePins();
   showRouteResult('');
   if (routePts().length >= 2) scheduleRoute();
+
+  // ================= Sichern und wiederherstellen (Datei) =================
+  // Datei: { app: 'offroadkarte', format: 1, exported, settings: {…}, gpx: [Tracks] }.
+  // Import = wie beim App-Start: Datei-Einstellungen in den Speicher schreiben und neu laden. Der normale Lade-Code
+  // prüft jeden Wert einzeln und fängt mit den Standardwerten an → fehlende Felder (neuere App) bleiben Standard,
+  // unbekannte Felder (ältere/andere Version) werden ignoriert, ungültige Werte verworfen.
+  var BACKUP_FORMAT = 1;
+  var GPX_FIELDS = ['id', 'name', 'file', 'lines', 'km', 'points', 'tracks', 'wpts', 'color', 'width', 'transp', 'show', 'added'];
+  var bkMsgEl = document.getElementById('bkMsg'), bkGpxEl = document.getElementById('bkGpx');
+  function bkMsg(text, cls) { bkMsgEl.textContent = text; bkMsgEl.className = 'hint' + (cls ? ' ' + cls : ''); }
+  function updateBkCount() { document.getElementById('bkGpxCount').textContent = gpxTracks.length ? '(' + gpxTracks.length + ')' : '(keine)'; }
+
+  document.getElementById('bkExport').addEventListener('click', function () {
+    var s = JSON.parse(JSON.stringify(settings));
+    delete s.offline;                       // Offline-Länder gehören zum Gerät (Daten sind nicht in der Datei)
+    var data = { app: 'offroadkarte', format: BACKUP_FORMAT, exported: new Date().toISOString(), settings: s };
+    if (bkGpxEl.checked) data.gpx = gpxTracks.map(function (t) { var r = {}; GPX_FIELDS.forEach(function (k) { r[k] = t[k]; }); return r; });
+    var blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+    var a = document.createElement('a'), d = new Date();
+    a.href = URL.createObjectURL(blob);
+    a.download = 'offroadkarte-einstellungen-' + d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+    bkMsg('Gesichert: ' + a.download + (data.gpx ? ' (mit ' + data.gpx.length + ' GPX-Tracks)' : ''), 'ok');
+  });
+
+  document.getElementById('bkImport').addEventListener('change', function (e) {
+    var file = e.target.files && e.target.files[0];
+    e.target.value = '';                    // dieselbe Datei später nochmals wählbar
+    if (!file) return;
+    var accepted = false;
+    file.text().then(function (txt) {
+      var data;
+      try { data = JSON.parse(txt); } catch (err) { throw new Error('Die Datei ist keine gültige Sicherung.'); }
+      if (!data || data.app !== 'offroadkarte' || typeof data.settings !== 'object' || !data.settings) throw new Error('Das ist keine Sicherung der Offroadkarte.');
+      if (Number(data.format) > BACKUP_FORMAT) throw new Error('Die Sicherung stammt aus einer neueren App-Version – bitte zuerst die App aktualisieren.');
+      var tracks = Array.isArray(data.gpx) ? data.gpx.filter(function (t) { return t && t.id && Array.isArray(t.lines); }) : [];
+      var when = data.exported ? new Date(data.exported).toLocaleString('de-AT') : 'unbekannt';
+      if (!confirm('Sicherung vom ' + when + ' laden?\n\nDeine aktuellen Einstellungen und die Route werden ersetzt' +
+        (tracks.length ? ', ' + tracks.length + ' GPX-Track(s) werden hinzugefügt' : '') + '. Die App startet danach neu.')) return;
+      var s = data.settings;
+      s.offline = settings.offline;         // Offline-Länder dieses Geräts behalten
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
+      catch (err) { throw new Error('Der Browser erlaubt hier kein Speichern (privates Fenster?).'); }
+      accepted = true;
+      if (!tracks.length || !dbOk) return;
+      return dbTx(['gpx'], 'readwrite', function (tx) {
+        var st = tx.objectStore('gpx');
+        tracks.forEach(function (t) { var r = {}; GPX_FIELDS.forEach(function (k) { if (t[k] !== undefined) r[k] = t[k]; }); st.put(r); });
+        return true;
+      });
+    }).then(function () {
+      if (accepted) { bkMsg('Sicherung geladen – die App startet neu …', 'ok'); setTimeout(function () { location.reload(); }, 600); }
+    }).catch(function (err) {
+      bkMsg(err && err.message ? err.message : 'Die Sicherung konnte nicht geladen werden.', 'err');
+    });
+  });
 
   // ================= Start =================
   function updateZoomClass() { map.getContainer().classList.toggle('zoom-low', map.getZoom() < 14); }

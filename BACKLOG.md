@@ -35,6 +35,10 @@ Schranke +3000, Tor +800. Nach Testfahrten prüfen:
 - Wegpunkte (`wpt`) aus GPX-Dateien auf der Karte anzeigen (werden derzeit nur gezählt).
 
 ## App
+- **Einstellungen online speichern (mit Anmeldung)** – vorgemerkt am 23.10.2026. Export/Import als Datei gibt es bereits
+  (Tab App). Idee: Supabase (kostenloser Tarif, Anmeldung per E-Mail-Link, jeder sieht nur seine Daten), gleiches
+  Dateiformat wie der Export. Offen: nur für mich oder für alle Nutzer? Für alle → Datenschutzerklärung + Impressum nötig;
+  Konto beim Dienst muss ich selbst anlegen (Nutzungsbedingungen).
 - ~~Installierbare Web-App (PWA) mit Querformat~~ – erledigt am 22.10.2026.
 - **Android-App als APK:** ggf. als TWA bzw. echte App (Capacitor) mit GPS im Hintergrund / Streckenaufzeichnung.
 - **Hintergrundkarte offline:** Kartenbild selbst ist noch nicht offline verfügbar (öffentliche Kartenserver

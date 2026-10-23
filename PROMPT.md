@@ -722,6 +722,20 @@ die Angabe aber oft. Vereinfachung, keine Rechtsauskunft (Recherche 23.10.2026).
   wird geladen …“ und **einmal** neu laden (nicht beim allerersten Start; Sperre über sessionStorage gegen Schleifen).
   Zusätzlich beim Wieder-Öffnen nach > 1 h und beim Knopf „Auf Aktualisierung prüfen“. Test: CACHE-Version erhöht →
   Seite lädt von selbst neu, nur noch der neue Speicher vorhanden.
+- **Sichern und wiederherstellen** (Tab App, unter „Bildschirm wach halten“, Überschrift „SICHERN UND WIEDERHERSTELLEN“):
+  Häkchen „GPX-Tracks mitsichern (Anzahl)“ (Standard an), zwei Knöpfe nebeneinander „Einstellungen sichern“ /
+  „Einstellungen laden“ (Dateiauswahl .json), Hinweiszeile (Erfolg grün, Fehler rot).
+  - **Datei** `offroadkarte-einstellungen-JJJJ-MM-TT.json`: `{ app: 'offroadkarte', format: 1, exported: ISO-Datum,
+    settings: {…alle Einstellungen inkl. Route/Abschnitte…}, gpx: [Tracks mit id, name, file, lines, km, points, tracks,
+    wpts, color, width, transp, show, added] }`. Ohne `settings.offline` (Offline-Länder gehören zum Gerät).
+  - **Import:** Prüfung `app === 'offroadkarte'` und `format` ≤ eigenes Format (sonst „neuere App-Version – bitte zuerst
+    aktualisieren“); Rückfrage mit Datum der Sicherung; dann `settings` (mit den Offline-Ländern dieses Geräts) in
+    localStorage schreiben, GPX-Tracks in IndexedDB ergänzen (gleiche id = ersetzt) und **neu laden**. Der normale
+    Start-Code prüft jeden Wert einzeln ab den Standardwerten → **fehlende Felder bleiben Standard** (Sicherung aus älterer
+    Version), **unbekannte Felder werden ignoriert**, ungültige Werte verworfen. Getestet: fehlendes Feld, unbekanntes
+    Feld, ungültiger Wert, GPX-Track, falsche Datei („Das ist keine Sicherung der Offroadkarte.“).
+  - Neue Einstellungen künftig immer im Start-Code (`saved.…`) mit Prüfung einlesen – dann funktionieren sie automatisch
+    auch beim Import. Bei einer inkompatiblen Formatänderung `BACKUP_FORMAT` erhöhen und alte Dateien beim Import umrechnen.
 - **Dunkles Design** (Tab App, Überschrift „DUNKLES DESIGN“ mit drei Knöpfen **aus · System · ein**,
   `settings.dark` = off | system | on, Standard off; früher gespeichertes true/false → on/off). „System“ folgt
   `prefers-color-scheme` des Geräts und wechselt live mit (z. B. abends automatisch). Klasse `dark` am `<body>` mit dunklen
