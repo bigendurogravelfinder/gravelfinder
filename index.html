@@ -422,6 +422,34 @@
     .sideSlider .ssTrack input { width: 130px; transform: translate(-50%, -50%); }
     .sideSlider .ssValue { min-width: 32px; text-align: right; }
   }
+
+  /* ---------- Dunkles Design (optional, Tab App) ---------- */
+  body.dark {
+    --bg: #1f2428; --fg: #e6e9ec; --muted: #9aa4ae; --border: rgba(255,255,255,.14);
+    --shadow: 0 2px 12px rgba(0,0,0,.65); --accent-soft: #123842; --error: #ff8a80;
+    --surface2: #2b3238;
+  }
+  html:has(body.dark), body.dark { background: #15191c; }
+  body.dark .tabs, body.dark .tabClose, body.dark .stepper button, body.dark .btn.light, body.dark .gpxHead button,
+  body.dark .rp button, body.dark .pill button.light { background: var(--surface2); color: var(--fg); }
+  body.dark #panel.collapsed .tabs, body.dark .tab.active { background: var(--bg); }
+  body.dark .chip span, body.dark .seg button, body.dark input[type=color], body.dark .preloadRow select,
+  body.dark .zoomInfo { background: var(--bg); color: var(--fg); }
+  body.dark .seg button svg { stroke: #9aa4ae; }
+  body.dark .btn.light .ic, body.dark .gpxHead button .ic { --lens-bg: #2b3238; }
+  body.dark .leaflet-bar a, body.dark .leaflet-control-layers, body.dark .leaflet-popup-content-wrapper,
+  body.dark .leaflet-popup-tip { background: var(--bg); color: var(--fg); border-color: rgba(255,255,255,.15); }
+  body.dark .leaflet-bar a:hover { background: var(--surface2); }
+  body.dark .leaflet-bar { border-color: rgba(255,255,255,.18); }
+  body.dark .leaflet-control-attribution, body.dark .leaflet-control-scale-line { background: rgba(31,36,40,.8); color: #c3cad1; }
+  body.dark .leaflet-control-attribution a, body.dark .leaflet-popup-content a { color: #7dd3fc; }
+  body.dark .leaflet-container { background: #15191c; }
+  /* Ortsnamen: helle Schrift mit dunklem Rand */
+  body.dark .placeLabel span {
+    color: #f1f5f9;
+    text-shadow: -2px -2px 0 #111, 0 -2px 0 #111, 2px -2px 0 #111, 2px 0 0 #111,
+                 2px 2px 0 #111, 0 2px 0 #111, -2px 2px 0 #111, -2px 0 0 #111, 0 0 4px #111, 0 0 6px #111;
+  }
 </style>
 </head>
 <body>
@@ -490,6 +518,10 @@
   <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9z"/></symbol>
   <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></symbol>
   <symbol id="i-tent" viewBox="0 0 24 24"><path d="M3 20.5 12 5l9 15.5z"/><path d="M9.5 20.5 12 15l2.5 5.5"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+  <symbol id="i-monument" viewBox="0 0 24 24"><path d="M10.5 18V6.5L12 3l1.5 3.5V18"/><path d="M8 18h8l1 3H7z"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></symbol>
+  <symbol id="i-ruin" viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V10l4-3.5 2.5 2.5 1.5-2"/><path d="m15 8 4 3v10"/><path d="M9 21v-5h3v5"/><path d="M15 13h1.5M15 16.5h1.5"/></symbol>
   <symbol id="i-view" viewBox="0 0 24 24"><circle cx="7" cy="15.5" r="3.5"/><circle cx="17" cy="15.5" r="3.5"/><path d="M10.5 15.5h3M4 14l2-8h3l1 6M20 14l-2-8h-3l-1 6"/></symbol>
 </svg>
 <div id="map"></div>
@@ -528,6 +560,8 @@
     <div class="srow" title="Hintergrundkarte blasser machen, damit die Wege herausstechen"><span class="sLbl"><svg class="ic"><use href="#i-map"/></svg>Karte blasser</span>
       <input type="range" id="bgRange" min="0" max="100" step="10" value="60" aria-label="Hintergrund abschwächen">
       <span class="sVal"><span id="bgValue">60</span> %</span></div>
+    <label class="check" title="Berge und Täler plastisch schattieren (Esri World Hillshade)"><input type="checkbox" id="hillshadeBox">
+      <svg class="ic lg"><use href="#i-mountain"/></svg> Höhenschummerung</label>
 
     <!-- Ortsnamen in fremder Schrift (kyrillisch, griechisch): lateinisch / Original / beides -->
     <div class="qSep">Ortsnamen (z. B. Serbien)</div>
@@ -570,6 +604,8 @@
       <button type="button" id="installBtn" class="btn wide" hidden><svg class="ic lg"><use href="#i-install"/></svg>Installieren</button>
       <div class="hint" id="installHint"></div>
     </div>
+    <label class="check" title="Menü und Karte dunkel – angenehm nachts und spart bei OLED-Displays Akku"><input type="checkbox" id="darkBox">
+      <svg class="ic lg"><use href="#i-moon"/></svg> Dunkles Design</label>
     <label class="check"><input type="checkbox" id="wakeLock"> <svg class="ic lg"><use href="#i-sun"/></svg> Bildschirm wach halten</label>
     <div class="hint" id="wakeHint">braucht mehr Akku</div>
    </div>
@@ -637,6 +673,8 @@
     <div class="row">
       <div class="hint" id="dataInfo"></div>
       <div class="hint" id="cacheInfo">…</div>
+      <button type="button" id="checkUpdBtn" class="btn light"><svg class="ic"><use href="#i-refresh"/></svg>Auf Aktualisierung prüfen</button>
+      <div class="hint" id="checkUpdMsg"></div>
       <button type="button" id="clearCacheBtn" class="btn light"><svg class="ic"><use href="#i-trash"/></svg>Alles löschen</button>
     </div>
    </div>
@@ -874,7 +912,18 @@ assign initialcost
       match: function (t) { return t.tourism === 'camp_site'; } },
     { id: 'view',  label: 'Aussichtspunkte',    emoji: '🔭', icon: 'view', color: '#7b1fa2', on: false,
       query: 'nwr["tourism"="viewpoint"]',
-      match: function (t) { return t.tourism === 'viewpoint'; } }
+      match: function (t) { return t.tourism === 'viewpoint'; } },
+    // Denkmäler: ohne Gedenktafeln/Stolpersteine/Bänke (sonst tausende Kleinst-Einträge)
+    { id: 'monument', label: 'Denkmäler',       emoji: '🗿', icon: 'monument', color: '#a16207', on: false,
+      query: 'nwr["historic"~"^(monument|memorial)$"]["memorial"!~"^(plaque|blue_plaque|stolperstein|bench|ghost_bike)$"]',
+      match: function (t) { return /^(monument|memorial)$/.test(t.historic || '') && !/^(plaque|blue_plaque|stolperstein|bench|ghost_bike)$/.test(t.memorial || ''); } },
+    { id: 'sight', label: 'Sehenswürdigkeiten', emoji: '⭐', icon: 'star', color: '#c2185b', on: false,
+      query: 'nwr["tourism"="attraction"];\n  nwr["historic"="castle"]',
+      match: function (t) { return t.tourism === 'attraction' || t.historic === 'castle'; } },
+    // Lost Places: OpenStreetMap kennt Ruinen und verlassene Orte/Gebäude (keine eigene offene Lost-Places-Datenbank vorhanden)
+    { id: 'lost', label: 'Lost Places (Ruinen, verlassen)', emoji: '🏚️', icon: 'ruin', color: '#263238', on: false,
+      query: 'nwr["historic"="ruins"];\n  nwr["building"="ruins"];\n  nwr["abandoned:place"];\n  nwr["abandoned:building"]',
+      match: function (t) { return t.historic === 'ruins' || t.building === 'ruins' || t['abandoned:place'] !== undefined || t['abandoned:building'] !== undefined; } }
   ];
 
   // Qualitätsstufen der Schotterwege mit Standardfarben (Regel siehe wayQuality)
@@ -903,7 +952,9 @@ assign initialcost
 
   var settings = { width: 2, transparency: 0, bgFade: 60, poiMinZoom: 11, route: { pts: [], pref: 3, width: 4, transp: 0, opt: {} }, showRestricted: false, poi: {}, q: {}, panelOpen: false, tab: 'way', offline: [], noAsk: [], wakeLock: false,
     border: { show: true, color: '#5f6368', style: 'dashdot', width: 5 },   // Grenze: grau, dick, Strich-Punkt
-    placeScript: 'latin' };   // Ortsnamen in kyrillischer/griechischer Schrift: latin (Umschrift) | orig | both
+    placeScript: 'latin',
+    hillshade: false,   // Höhenschummerung
+    dark: false };      // dunkles Design (Menü und Karte)   // Ortsnamen in kyrillischer/griechischer Schrift: latin (Umschrift) | orig | both
   POI_CATS.forEach(function (c) { settings.poi[c.id] = c.on; });
   ROUTE_OPTS.forEach(function (o) { settings.route.opt[o.id] = o.on; });
   QUALITY.forEach(function (q) { settings.q[q.lvl] = { color: q.color, show: q.show }; });
@@ -939,6 +990,8 @@ assign initialcost
       if (typeof saved.panelOpen === 'boolean') settings.panelOpen = saved.panelOpen;
       if (typeof saved.wakeLock === 'boolean') settings.wakeLock = saved.wakeLock;
       if (/^(latin|orig|both)$/.test(saved.placeScript)) settings.placeScript = saved.placeScript;
+      if (typeof saved.hillshade === 'boolean') settings.hillshade = saved.hillshade;
+      if (typeof saved.dark === 'boolean') settings.dark = saved.dark;
       if (saved.border) {
         var sb = saved.border, b = settings.border;
         if (typeof sb.show === 'boolean') b.show = sb.show;
@@ -1007,6 +1060,16 @@ assign initialcost
     attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap-Mitwirkende</a>, SRTM | Stil: © <a href="https://opentopomap.org" target="_blank">OpenTopoMap</a> (CC-BY-SA)'
   });
   osm.addTo(map);
+  // Höhenschummerung (optional): Esri World Hillshade, halbtransparent über der Karte – eigene Ebene,
+  // damit "Karte blasser" und das dunkle Design sie nicht verfälschen. "multiply" = nur abdunkeln (Schatten).
+  var hillPane = map.createPane('hillPane');
+  hillPane.style.zIndex = 250;
+  hillPane.style.pointerEvents = 'none';
+  hillPane.style.mixBlendMode = 'multiply';
+  var hillshade = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}', {
+    pane: 'hillPane', maxZoom: 19, maxNativeZoom: 15, opacity: 0.45,
+    attribution: 'Höhenschummerung © <a href="https://www.esri.com" target="_blank">Esri</a>'
+  });
   // Zoomstufe direkt unter den Knöpfen + und − (immer sichtbar, nimmt keinen Platz auf der Karte weg)
   var ZoomInfo = L.Control.extend({
     options: { position: 'topleft' },
@@ -1696,7 +1759,8 @@ assign initialcost
   // Nur die Angaben speichern, die die App wirklich anzeigt – spart viel Speicherplatz
   var WAY_KEYS = ['name', 'ref', 'highway', 'surface', 'tracktype', 'smoothness', '4wd_only', 'access', 'vehicle', 'motor_vehicle', 'motorcycle'];
   var POI_KEYS = ['name', 'brand', 'operator', 'amenity', 'shop', 'tourism', 'opening_hours', 'addr:street', 'addr:housenumber',
-    'addr:postcode', 'addr:city', 'phone', 'contact:phone', 'website', 'contact:website', 'automated', 'self_service'];
+    'addr:postcode', 'addr:city', 'phone', 'contact:phone', 'website', 'contact:website', 'automated', 'self_service',
+    'historic', 'memorial', 'building', 'abandoned:place', 'abandoned:building'];
   function pick(tags, keys) {
     var o = {};
     keys.forEach(function (k) { if (tags[k] !== undefined) o[k] = tags[k]; });
@@ -1985,7 +2049,7 @@ assign initialcost
     borderLines.forEach(function (l) { if (b.show && !map.hasLayer(l)) l.addTo(map); if (!b.show && map.hasLayer(l)) map.removeLayer(l); });
     if (!b.show) return;
     var z = map.getZoom(), w = z < 7 ? Math.max(1, b.width * 0.55) : z < 10 ? Math.max(1.5, b.width * 0.8) : b.width;
-    borderLines[0].setStyle({ weight: w + Math.max(3, w * 0.9) });
+    borderLines[0].setStyle({ weight: w + Math.max(3, w * 0.9), color: settings.dark ? '#15191c' : '#ffffff' });
     borderLines[1].setStyle({ weight: w, color: b.color, dashArray: borderDash(b.style, w) });
   }
   map.on('zoomend', styleBorders);
@@ -2094,6 +2158,27 @@ assign initialcost
     };
     document.getElementById('updLater').onclick = function () { updateAsked = true; hideUpdate(); maybeOfferRegion(); };
   }
+
+  // Von Hand prüfen (Tab Offline): Verzeichnis der Daten neu holen und – falls neuer – das Aktualisieren anbieten.
+  // Prüft dabei auch, ob es eine neue App-Version gibt (Service Worker).
+  function manualUpdateCheck() {
+    var btn = document.getElementById('checkUpdBtn'), msg = document.getElementById('checkUpdMsg');
+    btn.disabled = true; msg.textContent = 'Prüfe …';
+    checkAppUpdate();
+    loadStaticIndex().then(function () {
+      btn.disabled = false;
+      if (!staticIndex) { msg.innerHTML = ic('warn') + ' Datenserver nicht erreichbar (Internet?)'; return; }
+      blockRegions = null;          // Länder-Zuordnung der Blöcke neu aufbauen
+      updateCacheInfo();
+      updateAsked = false;
+      checkForUpdates();
+      var stand = new Date(staticBuilt).toLocaleDateString('de-AT');
+      if (!updateEl.classList.contains('hidden')) msg.innerHTML = ic('refresh') + ' Neue Daten vom ' + stand + ' – siehe Hinweis unten';
+      else if (!settings.offline.length) msg.innerHTML = ic('info') + ' Noch keine Länder offline gespeichert (Datenstand ' + stand + ')';
+      else msg.innerHTML = ic('check') + ' Offline-Karten sind aktuell (Stand ' + stand + ')';
+    });
+  }
+  document.getElementById('checkUpdBtn').addEventListener('click', manualUpdateCheck);
 
   // ================= Angebot: "Dieses Land offline speichern?" =================
   // Zeigt die Karte ein aufbereitetes Land, das noch nicht offline gespeichert ist, wird gefragt.
@@ -2357,9 +2442,16 @@ assign initialcost
   // Hintergrund abschwächen: der Kartenhintergrund verliert Farbe und wird etwas heller
   function applyBgFade() {
     var f = settings.bgFade / 100;
-    map.getPane('tilePane').style.filter = f
+    // dunkles Design: Kartenbild umkehren (hell ↔ dunkel), Farbtöne bleiben durch hue-rotate erhalten
+    var dark = settings.dark ? 'invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9) ' : '';
+    map.getPane('tilePane').style.filter = (dark + (f
       ? 'saturate(' + (1 - 0.9 * f).toFixed(2) + ') brightness(' + (1 + 0.1 * f).toFixed(2) + ') contrast(' + (1 - 0.2 * f).toFixed(2) + ')'
-      : '';
+      : '')).trim();
+    // Höhenschummerung: hell = Schatten abdunkeln, dunkel = weich einmischen
+    hillPane.style.mixBlendMode = settings.dark ? 'soft-light' : 'multiply';
+    hillshade.setOpacity(settings.dark ? 0.7 : 0.45);
+    if (settings.hillshade && !map.hasLayer(hillshade)) hillshade.addTo(map);
+    if (!settings.hillshade && map.hasLayer(hillshade)) map.removeLayer(hillshade);
   }
 
   function render() {
@@ -2718,9 +2810,33 @@ assign initialcost
     p.userChoice.then(showInstallState, showInstallState);
   });
   showInstallState();
-  // Service Worker: damit die App installierbar ist und auch ohne Netz startet (nur über http/https möglich)
+  // Service Worker: damit die App installierbar ist und auch ohne Netz startet (nur über http/https möglich).
+  // App-Updates: bei JEDEM Start (und wenn die App nach > 1 h wieder in den Vordergrund kommt) nach einer neuen
+  // Version fragen. Übernimmt der neue Service Worker die Seite, einmal neu laden → neue Version ist aktiv.
+  var swReg = null, lastAppCheck = 0;
+  function checkAppUpdate() {
+    lastAppCheck = Date.now();
+    if (swReg) swReg.update().catch(function () { /* offline – nächster Start */ });
+  }
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
-    navigator.serviceWorker.register('sw.js').catch(function (e) { console.warn('Service Worker nicht registriert', e); });
+    var hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (reg) {
+      swReg = reg;
+      checkAppUpdate();
+    }).catch(function (e) { console.warn('Service Worker nicht registriert', e); });
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      // nur bei einem echten Update (nicht beim allerersten Start) und höchstens einmal je Sitzung
+      if (!hadController) { hadController = true; return; }
+      try { if (sessionStorage.getItem('swReloaded')) return; sessionStorage.setItem('swReloaded', '1'); } catch (e) {}
+      setStatus('<span>' + ic('refresh') + ' Neue App-Version – wird geladen …</span>');
+      setTimeout(function () { location.reload(); }, 600);
+    });
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible' && Date.now() - lastAppCheck > 3600000) {
+        checkAppUpdate();
+        if (staticIndex) loadStaticIndex().then(function () { blockRegions = null; updateAsked = false; checkForUpdates(); });
+      }
+    });
   }
 
   var wakeEl = document.getElementById('wakeLock'), wakeHint = document.getElementById('wakeHint');
@@ -2807,6 +2923,22 @@ assign initialcost
   bgRange.addEventListener('input', function () {
     settings.bgFade = Number(bgRange.value); bgValue.textContent = bgRange.value; applyBgFade(); saveSettings();
   });
+  // Dunkles Design: Klasse am <body> (Farben über CSS-Variablen), Kartenbild über applyBgFade, Leistenfarbe am Handy
+  var darkBox = document.getElementById('darkBox');
+  function applyDark() {
+    document.body.classList.toggle('dark', settings.dark);
+    var meta = document.querySelector('meta[name=theme-color]');
+    if (meta) meta.setAttribute('content', settings.dark ? '#1f2428' : '#0e7490');
+    applyBgFade();
+    styleBorders();
+  }
+  darkBox.checked = settings.dark;
+  darkBox.addEventListener('change', function () { settings.dark = darkBox.checked; applyDark(); saveSettings(); });
+  applyDark();
+
+  var hillBox = document.getElementById('hillshadeBox');
+  hillBox.checked = settings.hillshade;
+  hillBox.addEventListener('change', function () { settings.hillshade = hillBox.checked; applyBgFade(); saveSettings(); });
   applyBgFade();
 
   // POIs ab Zoomstufe (− / +)

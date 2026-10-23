@@ -154,7 +154,7 @@ Name (oder ref, sonst „Ohne Namen“), Warnhinweis „⛔ Für Motorräder ges
 
 ## 5. Orte (POI)
 
-Sieben Kategorien, einzeln ein-/ausschaltbar, mit Anzahl im Ausschnitt:
+Zehn Kategorien, einzeln ein-/ausschaltbar, mit Anzahl im Ausschnitt (Symbol = Linien-Icon im farbigen Kreis):
 
 | id | Name | Symbol | Farbe | OSM-Regel |
 |---|---|---|---|---|
@@ -165,6 +165,16 @@ Sieben Kategorien, einzeln ein-/ausschaltbar, mit Anzahl im Ausschnitt:
 | water | Trinkwasser | 💧 | #0277bd | amenity=drinking_water |
 | camp | Campingplätze | ⛺ | #6d4c41 | tourism=camp_site |
 | view | Aussichtspunkte | 🔭 | #7b1fa2 | tourism=viewpoint |
+| monument | Denkmäler | Obelisk | #a16207 | historic=monument, memorial – ohne memorial=plaque, blue_plaque, stolperstein, bench, ghost_bike |
+| sight | Sehenswürdigkeiten | Stern | #c2185b | tourism=attraction, historic=castle |
+| lost | Lost Places (Ruinen, verlassen) | Ruine | #263238 | historic=ruins, building=ruins, abandoned:place=*, abandoned:building=* |
+
+- **Lost Places:** Eine offene Lost-Places-Datenbank für Europa gibt es nicht (Community-Karten/Apps wie LostPlace.Club
+  sind nicht frei nutzbar). Quelle sind daher die OSM-Angaben für Ruinen und verlassene Orte (vgl. „Europe Abandoned
+  Places Atlas“, der ebenso auf OSM/Overpass aufbaut). Hinweis: Viele Lost Places sind Privatgrund.
+- Aufbereitung: Vorfilter zusätzlich `nwr/historic=castle,memorial,monument,ruins`, `nwr/building=ruins`,
+  `nwr/abandoned:place`, `nwr/abandoned:building`, `tourism=attraction`; POI-Angaben zusätzlich historic, memorial,
+  building, abandoned:place, abandoned:building. Test Traunsee (Zoom 12): 33 Denkmäler, 2 Sehenswürdigkeiten, 17 Lost Places.
 
 - Punkte, Wege und Flächen (Mittelpunkt). Passt ein Ort zu mehreren Kategorien, bestimmt die erste
   eingeschaltete das Symbol (Tankstelle mit Shop = ⛽; ist Tankstelle aus, erscheint sie als 🛒).
@@ -319,7 +329,7 @@ Sieben Kategorien, einzeln ein-/ausschaltbar, mit Anzahl im Ausschnitt:
   | Tab | Inhalt | Kurzstand unter dem Tab |
   |---|---|---|
   | 〰️ **Wege** | Qualitätsstufen (Farbe + Ein/Aus, Anzahl), „↺ Standardfarben“, „▬ Breite“, „◐ Transparenz“, „Karte blasser“ | – |
-  | 📍 **POI** | 7 Kategorien, „POI ab Zoomstufe anzeigen“ (− / +) | Symbole der aktiven (bis 2), sonst „3 an“ |
+  | 📍 **POI** | 10 Kategorien, „POI ab Zoomstufe anzeigen“ (− / +) | Symbole der aktiven (bis 2), sonst „3 an“ |
   | 🧭 **Route** | Route planen (Abschnitt 10a) | z. B. „41 km“ / „2 Punkte“ |
   | 📂 **GPX** | eigene GPX-Tracks (Abschnitt 10c) | z. B. „2 Tracks“ / „1/2 Tracks“ |
   | 💾 **Offline** | Offline Karten (Abschnitt 9) | z. B. „56 MB“ |
@@ -493,6 +503,11 @@ Anstieg (`filtered ascend`), Farbbalken und Anteile hoch/mittel/niedrig/Straße,
 - Solange der Kasten sichtbar ist, wird das Angebot „Land offline speichern?“ zurückgestellt (nie zwei Fragen übereinander).
 - Test: Datenstand der gespeicherten Blöcke künstlich auf „alt“ setzen → Hinweis erscheint; Deutschland
   (882 Blöcke, 86 MB) in ca. 24 s aktualisiert; danach kein Hinweis mehr.
+- **Von Hand prüfen:** Knopf „↻ Auf Aktualisierung prüfen“ im Tab Offline (unter der Speicheranzeige): holt `index.json`
+  neu (no-cache), setzt die Block-Zuordnung zurück, fragt wie oben (auch wenn vorher „Später“) und prüft zugleich auf
+  eine neue App-Version. Ergebnis darunter: „Neue Daten vom … – siehe Hinweis unten“ / „Offline-Karten sind aktuell
+  (Stand …)“ / „Noch keine Länder offline gespeichert“ / „Datenserver nicht erreichbar“.
+- Kommt die (installierte) App nach mehr als 1 h wieder in den Vordergrund, wird ebenso automatisch geprüft.
 
 ## 10d. Staatsgrenzen (alle Zoomstufen)
 
@@ -532,6 +547,19 @@ Anstieg (`filtered ascend`), Farbbalken und Anteile hoch/mittel/niedrig/Straße,
   maskierbar: randlos, Inhalt 66 % (sichere Zone). Bei Änderungen `CACHE` in sw.js erhöhen.
   `sw.js` nur über http(s) registrieren: App-Dateien „zuerst Netz, sonst Speicher“, Leaflet von unpkg „zuerst Speicher“;
   Kacheln, `data/…`, Overpass und BRouter **nicht** abfangen.
+- **App-Update bei jedem Start:** `register('sw.js', { updateViaCache: 'none' })`, danach sofort `reg.update()`;
+  neuer Service Worker übernimmt per skipWaiting/clients.claim → `controllerchange` → Statuszeile „Neue App-Version –
+  wird geladen …“ und **einmal** neu laden (nicht beim allerersten Start; Sperre über sessionStorage gegen Schleifen).
+  Zusätzlich beim Wieder-Öffnen nach > 1 h und beim Knopf „Auf Aktualisierung prüfen“. Test: CACHE-Version erhöht →
+  Seite lädt von selbst neu, nur noch der neue Speicher vorhanden.
+- **Dunkles Design** (Tab App, Häkchen „Dunkles Design“, `settings.dark`): Klasse `dark` am `<body>` mit dunklen
+  CSS-Variablen (Hintergrund #1f2428, Schrift #e6e9ec, Flächen #2b3238) auch für Leaflet-Knöpfe, Popups,
+  Ebenen-Auswahl, Quellenangabe; Kartenbild per Filter `invert(1) hue-rotate(180deg) brightness(.95) contrast(.9)`
+  (vor „Karte blasser“), Ortsnamen hell mit dunklem Rand, Grenzlinien-Rand dunkel, `theme-color` #1f2428.
+- **Höhenschummerung** (Tab Wege, Häkchen unter „Karte blasser“, `settings.hillshade`, Standard aus): Esri World
+  Hillshade (`server.arcgisonline.com/…/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}`, bis Zoom 15 echt,
+  darüber hochskaliert) in eigener Pane zIndex 250, Deckkraft 0,45 mit `mix-blend-mode: multiply` (dunkel: soft-light,
+  0,7); Quellenangabe „Höhenschummerung © Esri“.
 - **Querformat** (`orientation: landscape` und Höhe ≤ 520 px):
   - Menü = Spalte rechts über die volle Höhe (330 px, max. 45 % Breite), Inhalt scrollt darin.
   - „Mein Standort“ als runder Symbolknopf unten rechts (über Maßstab/Quellenangabe), nicht über den Hinweisen.

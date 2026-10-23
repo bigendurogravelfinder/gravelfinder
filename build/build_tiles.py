@@ -59,20 +59,28 @@ GRADES = {'grade1', 'grade2', 'grade3', 'grade4', 'grade5'}
 ROAD_HW = {'unclassified', 'tertiary', 'residential', 'service'}
 POI_AMENITY = {'fuel', 'restaurant', 'cafe', 'fast_food', 'biergarten', 'pub', 'drinking_water'}
 POI_SHOP = {'supermarket', 'convenience', 'bakery', 'butcher', 'greengrocer', 'farm', 'motorcycle', 'motorcycle_repair'}
-POI_TOURISM = {'camp_site', 'viewpoint'}
+POI_TOURISM = {'camp_site', 'viewpoint', 'attraction'}
+# Denkmäler, Burgen/Schlösser (Sehenswürdigkeiten) und Ruinen (Lost Places); Gedenktafeln & Co. weglassen
+POI_HISTORIC = {'monument', 'memorial', 'castle', 'ruins'}
+MEMORIAL_SKIP = {'plaque', 'blue_plaque', 'stolperstein', 'bench', 'ghost_bike'}
+LOST_KEYS = ('abandoned:place', 'abandoned:building')
 # Ortsnamen (werden von der App über den Wegen beschriftet): 1 = Stadt, 2 = Markt/Kleinstadt, 3 = Dorf
 PLACE_RANK = {'city': 1, 'town': 2, 'village': 3}
 
 # nur diese Angaben werden gespeichert (wie WAY_KEYS / POI_KEYS in index.html)
 WAY_KEYS = ['name', 'ref', 'highway', 'surface', 'tracktype', 'smoothness', '4wd_only', 'access', 'vehicle', 'motor_vehicle', 'motorcycle']
 POI_KEYS = ['name', 'brand', 'operator', 'amenity', 'shop', 'tourism', 'opening_hours', 'addr:street', 'addr:housenumber',
-            'addr:postcode', 'addr:city', 'phone', 'contact:phone', 'website', 'contact:website', 'automated', 'self_service']
+            'addr:postcode', 'addr:city', 'phone', 'contact:phone', 'website', 'contact:website', 'automated', 'self_service',
+            'historic', 'memorial', 'building', 'abandoned:place', 'abandoned:building']
 
 OSMIUM_FILTERS = [
     'w/highway=track,' + ','.join(sorted(ROAD_HW)),
     'nwr/amenity=' + ','.join(sorted(POI_AMENITY)),
     'nwr/shop=' + ','.join(sorted(POI_SHOP)),
     'nwr/tourism=' + ','.join(sorted(POI_TOURISM)),
+    'nwr/historic=' + ','.join(sorted(POI_HISTORIC)),
+    'nwr/building=ruins',
+    'nwr/abandoned:place', 'nwr/abandoned:building',
     'n/place=' + ','.join(sorted(PLACE_RANK)),
     'w/admin_level=2',          # Staatsgrenzen (für die Grenzlinien in der App) …
     'r/admin_level=2',          # … und die Länder-Relationen samt ihren Grenzwegen (Grenzwege tragen oft keine eigenen Angaben)
@@ -154,7 +162,12 @@ def is_road(t):
 
 
 def is_poi(t):
-    return t.get('amenity') in POI_AMENITY or t.get('shop') in POI_SHOP or t.get('tourism') in POI_TOURISM
+    if t.get('amenity') in POI_AMENITY or t.get('shop') in POI_SHOP or t.get('tourism') in POI_TOURISM:
+        return True
+    h = t.get('historic')
+    if h in POI_HISTORIC and not (h == 'memorial' and t.get('memorial') in MEMORIAL_SKIP):
+        return True
+    return t.get('building') == 'ruins' or any(k in t for k in LOST_KEYS)
 
 
 def pick(t, keys):
