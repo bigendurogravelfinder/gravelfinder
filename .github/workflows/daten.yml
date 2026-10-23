@@ -37,41 +37,39 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Neu aufbereiten bei: Zeitplan, Start von Hand, Änderung an regions.json / Skript.
-      # Bei reiner App-Änderung (oder Änderung nur an dieser Ablauf-Datei) genügen die gespeicherten Daten vom letzten Lauf.
-      - name: Entscheiden, ob neu aufbereitet wird
-        id: plan
-        env:
-          EVENT: ${{ github.event_name }}
-          BEFORE: ${{ github.event.before }}
+      # Neu aufbereiten bei: Zeitplan, Start von Hand – und IMMER dann, wenn sich Skript oder Länderliste seit dem
+      # gespeicherten Datenstand geändert haben. Dafür bekommt jeder Datenstand einen "Fingerabdruck" (Prüfsumme von
+      # regions.json + build/) mit. So geht eine Skript-Änderung nicht verloren, auch wenn GitHub einzelne Läufe
+      # abbricht (mehrere Dateien einzeln hochgeladen = mehrere Läufe, wartende werden durch neuere ersetzt).
+      # Bei reiner App-Änderung genügen die gespeicherten Daten vom letzten Lauf (dauert dann nur ca. 1 Minute).
+      - name: Fingerabdruck von Skript und Länderliste
+        id: fp
         run: |
-          rebuild=true
-          if [ "$EVENT" = "push" ]; then
-            git fetch --depth=2 origin "${GITHUB_SHA}" >/dev/null 2>&1 || true
-            changed=$(git diff --name-only "$BEFORE" "$GITHUB_SHA" 2>/dev/null || echo "regions.json")
-            echo "Geändert: $changed"
-            if ! echo "$changed" | grep -qE '^(regions\.json|build/)'; then rebuild=false; fi
-          fi
-          echo "rebuild=$rebuild" >> "$GITHUB_OUTPUT"
-          echo "Neu aufbereiten: $rebuild"
+          hash=$(cat regions.json build/build_tiles.py build/requirements.txt | sha256sum | cut -c1-16)
+          echo "hash=$hash" >> "$GITHUB_OUTPUT"
+          echo "Fingerabdruck: $hash"
 
       - name: Letzte Daten wiederherstellen
         id: cache
-        if: steps.plan.outputs.rebuild == 'false'
+        if: github.event_name == 'push'
         uses: actions/cache/restore@v4
         with:
           path: site/data
           key: kartendaten-v2-${{ github.run_id }}
           restore-keys: kartendaten-v2-
 
-      - name: Kein gespeicherter Stand vorhanden – doch neu aufbereiten
+      - name: Entscheiden, ob neu aufbereitet wird
         id: need
+        env:
+          EVENT: ${{ github.event_name }}
+          HASH: ${{ steps.fp.outputs.hash }}
         run: |
-          if [ "${{ steps.plan.outputs.rebuild }}" = "true" ] || [ -z "${{ steps.cache.outputs.cache-matched-key }}" ]; then
-            echo "build=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "build=false" >> "$GITHUB_OUTPUT"
-          fi
+          build=true
+          old=$(cat site/data/.buildhash 2>/dev/null || echo "keiner")
+          echo "Fingerabdruck der gespeicherten Daten: $old"
+          if [ "$EVENT" = "push" ] && [ "$old" = "$HASH" ]; then build=false; fi
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+          echo "Neu aufbereiten: $build"
 
       # Große Länder (Deutschland, Frankreich: je > 4 GB) brauchen Platz – vorinstallierte,
       # hier nicht benötigte Programme entfernen (schafft ca. 30 GB)
@@ -96,7 +94,10 @@ jobs:
 
       - name: Daten aufbereiten
         if: steps.need.outputs.build == 'true'
-        run: python build/build_tiles.py --out site/data/v2 --only "${{ github.event.inputs.nur }}"
+        run: |
+          python build/build_tiles.py --out site/data/v2 --only "${{ github.event.inputs.nur }}"
+          # Fingerabdruck nur bei vollständigem Lauf merken (Teil-Läufe "nur diese Länder" sind Tests)
+          if [ -z "${{ github.event.inputs.nur }}" ]; then echo "${{ steps.fp.outputs.hash }}" > site/data/.buildhash; fi
 
       - name: Daten für spätere App-Updates merken
         if: steps.need.outputs.build == 'true'
