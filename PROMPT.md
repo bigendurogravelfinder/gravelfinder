@@ -51,6 +51,30 @@ data/v2/blocks/<bi>/<bj>.json.gz   Daten je Block
 ## 3. App – Karte
 
 - **Leaflet 1.9.4** über CDN (`https://unpkg.com/leaflet@1.9.4/dist/leaflet.css` und `.js`), `preferCanvas: true`.
+- **Karte drehbar** mit **leaflet-rotate 0.2.8** (`https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js`,
+  GPL-3.0, direkt nach leaflet.js laden; im Service Worker wie Leaflet fest gespeichert). Kartenoptionen
+  `rotate: true, rotateControl: false, touchRotate: false, shiftKeyRotate: false, compassBearing: false`.
+  - **Eigene Ebenen richtig zuordnen** (sonst sitzen Linien falsch): Helfer `linePane(name, z)` legt die Ebene in
+    `rotatePane` (dreht mit: hill 250, country 420, roads 450, border 455, gpx 470, route 490, routeHit 495,
+    locAcc 630 = Genauigkeitskreis, routeFx 640 = Ziehen-Vorschau + Höhenprofil-Punkt), `symbolPane(name, z)` in
+    `norotatePane` (bleibt aufrecht: label 610, routePin 640 = nur Nadeln, location 650 = nur Standort-Marker;
+    POI-Marker in der normalen markerPane). Eine Ebene enthält nur Linien/Flächen ODER nur Marker.
+  - **Kompassrose** (`L.Control` oben rechts, direkt unter der Menü-Kopfzeile: `.leaflet-top.leaflet-right` top 76 px,
+    Querformat 64 px; 44 × 44 px): Ring, rote Nordhälfte mit „N“, graue Südhälfte – die Nadel dreht mit und zeigt immer
+    nach Norden. **Antippen wechselt den Modus** `settings.rotMode` (gespeichert, Standard `north`):
+    1. **Norden oben** – nicht drehbar, Drehung 0.
+    2. **Frei drehbar** – zwei Finger drehen (`touchRotate`), am PC Shift + Mausrad; kleines Dreh-Pfeil-Zeichen im
+       Kompass; Drehung in `settings.bearing` gemerkt.
+    3. **Fahrtrichtung oben** – Ring Petrol, Punkt in der Mitte; startet ggf. die Ortung. Die Karte dreht sich auf
+       die GPS-Fahrtrichtung (Bearing = −Richtung) und führt den Standort mit: Standort bei **65 % der Höhe** (mehr Blick
+       nach vorn). Karte selbst verschieben oder „Ganze Route zeigen“ pausiert das Mitführen (Ring gestrichelt);
+       Kompass oder „Mein Standort“ antippen führt wieder mit („Wieder mitführen“).
+    Beim Wechsel kurzer Hinweis links neben dem Kompass (2,6 s): „Norden oben“ / „Frei drehbar – mit zwei Fingern
+    drehen“ / „Fahrtrichtung oben – dreht ab ca. 5 km/h mit“. Beim App-Start wird nicht nach dem Standort gefragt.
+  - **Fahrtrichtung:** `coords.heading` ab 1,4 m/s (5 km/h), sonst Kurs aus der Bewegung (> 15 m und > Genauigkeit
+    seit dem letzten Ankerpunkt); geglättet (40 % je Fix). Im Stand bleibt die letzte Richtung. Drehung in höchstens
+    8 Schritten per requestAnimationFrame, erst ab 3° Unterschied (jede Drehung zeichnet die Wege neu).
+    Der Fahrtrichtungspfeil am Standort zeigt auf dem Bildschirm `Richtung + Bearing`.
 - **Start:** Wels, Oberösterreich (48.1575, 14.0289), Zoomstufe 12.
 - **Kartenposition in der Adresszeile:** `#breite,länge,zoom` (z. B. `#46.05,14.51,12`), wird bei jedem
   Verschieben per `history.replaceState` aktualisiert und beim Start ausgewertet (für Lesezeichen/Links).
@@ -195,10 +219,11 @@ Zehn Kategorien, einzeln ein-/ausschaltbar, mit Anzahl im Ausschnitt (Symbol = L
 - Wurde der Standort früher schon erlaubt (`navigator.permissions` = granted), wird er beim Start sofort
   angezeigt, ohne die Karte zu verschieben.
 - Markierung: blauer Punkt (#1a73e8) mit weißem Rand und Schatten, **pulsierender Ring**, hellblauer
-  **Genauigkeitskreis**, **Fahrtrichtungspfeil** (nur wenn heading gemeldet und Tempo > 1 m/s).
+  **Genauigkeitskreis**, **Fahrtrichtungspfeil** (geglättete Fahrtrichtung, siehe „Karte drehbar“ in Abschnitt 3).
   Popup: „Du bist hier“, Genauigkeit, Tempo.
-- Eigene Leaflet-Pane (zIndex 650) mit **`pointer-events: none`** – sonst fängt die Zeichenfläche des
-  Genauigkeitskreises alle Klicks auf Wege und Orte ab. Der Punkt selbst bleibt antippbar.
+- Eigene Leaflet-Panes mit **`pointer-events: none`**: Marker in `locationPane` (zIndex 650, aufrecht),
+  Genauigkeitskreis in `locAccPane` (630, dreht mit) – sonst fängt die Zeichenfläche alle Klicks auf Wege und
+  Orte ab. Der Punkt selbst bleibt antippbar. Im Modus „Fahrtrichtung oben“ führt erneutes Tippen wieder mit.
 - Der Button rückt automatisch immer über die Hinweise am unteren Rand (Höhe der Statusleiste messen;
   zusätzlich nach jeder Änderung der Hinweise direkt neu setzen, nicht nur per ResizeObserver).
 - Fehlermeldungen: Zugriff verweigert / GPS aus – verständlich auf Deutsch.
@@ -713,6 +738,8 @@ jeweils mit deutschem Namen. Ausgeschaltet: turkey, georgia (großteils Asien). 
 - Overpass lehnt Skript-Clients (PowerShell o. ä.) teils mit 406 ab – im Browser testen.
 - GitHub Pages: max. 1 GB → Vereinfachung + gzip; Größe im Skript prüfen.
 - Leaflet-Canvas einer oberen Pane fängt alle Klicks → `pointer-events: none` für die Standort-Pane.
+- leaflet-rotate: `map.createPane(name)` ohne Container landet NICHT in der drehenden Ebene → immer `linePane` /
+  `symbolPane` verwenden. Eigenes Control mit neuem `className` muss `leaflet-control` behalten (sonst nicht antippbar).
 - `<div hidden>` mit `display:flex` wird trotzdem angezeigt → `[hidden] { display: none }` ergänzen.
 - Beim Ändern nur des `#…` in der Adresszeile lädt der Browser die Seite nicht neu.
 - Versteckte/eingebettete Browser-Vorschauen haben Fenstergröße 0 oder keinen Speicher → Tests mit echter Fenstergröße.

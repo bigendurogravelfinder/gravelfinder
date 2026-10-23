@@ -14,6 +14,8 @@
 <meta name="apple-mobile-web-app-title" content="endurowandern.com">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Karte drehbar (Norden / frei / Fahrtrichtung) – leaflet-rotate, GPL-3.0, https://github.com/Raruto/leaflet-rotate -->
+<script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
 <style>
   :root {
     --bg: #ffffff;
@@ -389,6 +391,28 @@
     border-bottom: 16px solid #1a73e8;
     filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 1px #fff);
   }
+
+  /* ---------- Kompassrose (Karte drehen) rechts oben, unter der Menü-Kopfzeile ---------- */
+  .leaflet-top.leaflet-right { top: 76px; }
+  @media (orientation: landscape) and (max-height: 520px) { .leaflet-top.leaflet-right { top: 64px; right: 0; } }
+  .compassCtl a { width: 44px !important; height: 44px !important; display: flex !important; align-items: center; justify-content: center; position: relative; }
+  .compassCtl svg { width: 38px; height: 38px; display: block; }
+  .cmpRing { fill: var(--bg); stroke: var(--border); stroke-width: 1.6; }
+  .cmpNeedle { transform-origin: 20px 20px; transition: transform .15s linear; }
+  .cmpN { fill: #d32f2f; } .cmpS { fill: #9aa4ad; }
+  .cmpNeedle text { font: 800 7.5px system-ui, sans-serif; fill: #d32f2f; }
+  .cmpFree { fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; display: none; }
+  .cmpHead { fill: var(--accent); display: none; }
+  .mode-free .cmpFree { display: inline; }
+  .mode-heading .cmpHead { display: inline; }
+  .mode-heading .cmpRing { stroke: var(--accent); stroke-width: 3; fill: var(--accent-soft); }
+  .mode-heading.paused .cmpRing { stroke-dasharray: 4 3; }
+  .cmpTip {
+    position: absolute; right: 52px; top: 8px; white-space: nowrap; pointer-events: none;
+    background: var(--bg); color: var(--fg); box-shadow: var(--shadow); border-radius: 14px;
+    padding: 6px 12px; font-size: 13px; font-weight: 600; opacity: 0; transition: opacity .25s;
+  }
+  .cmpTip.show { opacity: 1; }
 
   /* ---------- Statusleiste unten ---------- */
   #statusWrap {
@@ -1153,7 +1177,9 @@ assign initialcost
     border: { show: true, color: '#5f6368', style: 'dashdot', width: 5 },   // Grenze: grau, dick, Strich-Punkt
     hillshade: false,       // Höhenschummerung
     vehicle: 'bigenduro',   // Fahrzeugtyp fürs Routing (siehe VEHICLES)
-    dark: 'off' };          // dunkles Design (Menü und Karte): off | system (wie am Handy eingestellt) | on
+    dark: 'off',            // dunkles Design (Menü und Karte): off | system (wie am Handy eingestellt) | on
+    rotMode: 'north',       // Karte drehen: north (Norden oben) | free (mit zwei Fingern drehbar) | heading (Fahrtrichtung oben)
+    bearing: 0 };           // Drehung im Modus "frei" (Grad)
   POI_CATS.forEach(function (c) { settings.poi[c.id] = c.on; });
   ROUTE_OPTS.forEach(function (o) { settings.route.opt[o.id] = o.on; });
   QUALITY.forEach(function (q) { settings.q[q.lvl] = { color: q.color, show: q.show }; });
@@ -1192,6 +1218,8 @@ assign initialcost
       if (VEHICLES.some(function (v) { return v.id === saved.vehicle; })) settings.vehicle = saved.vehicle;
       if (typeof saved.dark === 'boolean') settings.dark = saved.dark ? 'on' : 'off';   // früher nur ein/aus
       else if (/^(off|system|on)$/.test(saved.dark)) settings.dark = saved.dark;
+      if (/^(north|free|heading)$/.test(saved.rotMode)) settings.rotMode = saved.rotMode;
+      if (saved.bearing >= 0 && saved.bearing < 360) settings.bearing = Number(saved.bearing);
       if (saved.border) {
         var sb = saved.border, b = settings.border;
         if (typeof sb.show === 'boolean') b.show = sb.show;
@@ -1234,7 +1262,24 @@ assign initialcost
   }
 
   // ================= Karte =================
-  var map = L.map('map', { zoomControl: true, preferCanvas: true }).setView([48.1575, 14.0289], 12);
+  // rotate: Karte drehbar (leaflet-rotate). Drehen mit zwei Fingern / Shift+Mausrad nur im Modus "frei";
+  // eigener Kompass-Knopf statt des Plugin-Knopfs (siehe "Karte drehen").
+  var map = L.map('map', {
+    zoomControl: true, preferCanvas: true,
+    rotate: true, rotateControl: false, touchRotate: false, shiftKeyRotate: false, compassBearing: false
+  }).setView([48.1575, 14.0289], 12);
+  // Eigene Ebenen: Linien/Flächen/Kacheln drehen mit der Karte (rotatePane), Symbole und Beschriftungen
+  // bleiben aufrecht (norotatePane). Eine Ebene darf nur EINE Sorte enthalten – sonst sitzen Linien falsch.
+  function linePane(name, z) {
+    var p = map.createPane(name, map.getPane('rotatePane') || undefined);
+    p.style.zIndex = z;
+    return p;
+  }
+  function symbolPane(name, z) {
+    var p = map.createPane(name, map.getPane('norotatePane') || undefined);
+    p.style.zIndex = z;
+    return p;
+  }
   // Kartenposition in der Adresszeile (#breite,länge,zoom) – für Lesezeichen und Links
   var hashPos = /^#(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?),(\d{1,2})$/.exec(location.hash);
   if (hashPos) map.setView([Number(hashPos[1]), Number(hashPos[2])], Number(hashPos[3]));
@@ -1262,8 +1307,7 @@ assign initialcost
   osm.addTo(map);
   // Höhenschummerung (optional): Esri World Hillshade, halbtransparent über der Karte – eigene Ebene,
   // damit "Karte blasser" und das dunkle Design sie nicht verfälschen. "multiply" = nur abdunkeln (Schatten).
-  var hillPane = map.createPane('hillPane');
-  hillPane.style.zIndex = 250;
+  var hillPane = linePane('hillPane', 250);
   hillPane.style.pointerEvents = 'none';
   hillPane.style.mixBlendMode = 'multiply';
   var hillshade = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}', {
@@ -1289,18 +1333,15 @@ assign initialcost
 
   // Canvas mit großer Klick-Toleranz, damit man dünne Linien am Handy trifft
   // Eigene Ebene für die Wege, damit die Transparenz auf alle Wege gemeinsam wirkt
-  var roadsPane = map.createPane('roadsPane');
-  roadsPane.style.zIndex = 450;
+  var roadsPane = linePane('roadsPane', 450);
   var renderer = L.canvas({ tolerance: 10, pane: 'roadsPane' });
   // Ebene für die eingefärbten Offline-Länder (beim Herauszoomen), unter den Wegen
-  map.createPane('countryPane').style.zIndex = 420;
+  linePane('countryPane', 420);
   // Staatsgrenzen: über Karte, Offline-Flächen und Schotterwegen (450), unter GPX, Route und Ortsnamen; Klicks gehen durch
-  var borderPane = map.createPane('borderPane');
-  borderPane.style.zIndex = 455;
+  var borderPane = linePane('borderPane', 455);
   borderPane.style.pointerEvents = 'none';
-  // Ortsnamen ÜBER den Wegen (unter den POI-Symbolen); lässt Klicks durch
-  var labelPane = map.createPane('labelPane');
-  labelPane.style.zIndex = 610;            // Ortsnamen immer obenauf – auch über den POI-Symbolen (600)
+  // Ortsnamen ÜBER den Wegen (unter den POI-Symbolen); lässt Klicks durch. Bleiben beim Drehen aufrecht.
+  var labelPane = symbolPane('labelPane', 610);   // Ortsnamen immer obenauf – auch über den POI-Symbolen (600)
   labelPane.style.pointerEvents = 'none';
   var roadLayer = L.layerGroup().addTo(map);
 
@@ -3175,8 +3216,9 @@ assign initialcost
 
   // ================= Mein Standort =================
   // Eigene Ebene über Wegen und Orten (Orte: 600, Popups: 700), damit der Standort immer sichtbar ist
-  var locationPane = map.createPane('locationPane');
-  locationPane.style.zIndex = 650;
+  var locationPane = symbolPane('locationPane', 650);
+  // Genauigkeitskreis ist eine Fläche → eigene, mitdrehende Ebene (direkt unter den Routenpunkten)
+  linePane('locAccPane', 630).style.pointerEvents = 'none';
   // Wichtig: Der Genauigkeitskreis wird auf eine Zeichenfläche über der ganzen Karte gemalt.
   // Ohne diese Zeile würde sie alle Klicks auf Wege und Orte abfangen.
   // Der blaue Punkt selbst bleibt antippbar (Leaflet gibt ihm eigene Klick-Freigabe).
@@ -3201,7 +3243,7 @@ assign initialcost
     locateBtn.classList.add('active');
 
     if (!posMarker) {
-      posCircle = L.circle(ll, { pane: 'locationPane', radius: acc, color: '#1a73e8', weight: 1, opacity: 0.6, fillColor: '#1a73e8', fillOpacity: 0.12, interactive: false }).addTo(map);
+      posCircle = L.circle(ll, { pane: 'locAccPane', radius: acc, color: '#1a73e8', weight: 1, opacity: 0.6, fillColor: '#1a73e8', fillOpacity: 0.12, interactive: false }).addTo(map);
       posMarker = L.marker(ll, { pane: 'locationPane', icon: locIcon, keyboard: false, title: 'Mein Standort' }).addTo(map);
       posMarker.bindPopup('');
     } else {
@@ -3211,18 +3253,13 @@ assign initialcost
     posMarker.setPopupContent('<b>Du bist hier</b><br>Genauigkeit ± ' + acc + ' m' +
       (pos.coords.speed ? '<br>Tempo ca. ' + Math.round(pos.coords.speed * 3.6) + ' km/h' : ''));
 
-    // Fahrtrichtungspfeil nur, wenn das Gerät eine Richtung meldet und man sich bewegt
-    var el = posMarker.getElement();
-    if (el) {
-      var h = pos.coords.heading;
-      var moving = h !== null && !isNaN(h) && (pos.coords.speed || 0) > 1;
-      el.classList.toggle('has-heading', moving);
-      if (moving) el.querySelector('.loc-heading').style.transform = 'rotate(' + h + 'deg)';
-    }
+    // Fahrtrichtung (geglättet) → Pfeil am Standort und ggf. Karte drehen (Abschnitt "Karte drehen")
+    trackHeading(pos, ll);
 
     if (centerOnNextFix) {
       centerOnNextFix = false;
       map.setView(ll, Math.max(map.getZoom(), 14));
+      if (settings.rotMode === 'heading') resumeFollow();
     }
     if (pendingGpsStart) { pendingGpsStart = false; insertGpsStart(ll); } // "Mein Standort als Start"
   }
@@ -3255,7 +3292,10 @@ assign initialcost
 
   locateBtn.addEventListener('click', function () {
     if (!navigator.geolocation) { alert('Dein Browser kann den Standort nicht ermitteln.'); return; }
-    if (lastPos && watchId !== null) { map.setView(lastPos, Math.max(map.getZoom(), 14)); return; }
+    if (lastPos && watchId !== null) {
+      if (settings.rotMode === 'heading') { resumeFollow(); return; }   // wieder mitführen
+      map.setView(lastPos, Math.max(map.getZoom(), 14)); return;
+    }
     centerOnNextFix = true;
     locateBtn.classList.add('busy');
     startWatch();
@@ -3270,10 +3310,165 @@ assign initialcost
     }
   } catch (e) {}
 
+  // ================= Karte drehen =================
+  // Kompassrose rechts oben unter dem Menü (Nadel zeigt immer nach Norden). Antippen wechselt:
+  //   Norden oben → frei drehbar (zwei Finger / Shift+Mausrad) → Fahrtrichtung oben (GPS) → Norden oben …
+  // Bearing (leaflet-rotate): Drehung der Karte im Uhrzeigersinn; Fahrtrichtung h oben ⇔ Bearing = −h.
+  var ROT_MODES = ['north', 'free', 'heading'];
+  var ROT_TEXT = {
+    north: 'Norden oben',
+    free: 'Frei drehbar – mit zwei Fingern drehen',
+    heading: 'Fahrtrichtung oben – dreht ab ca. 5 km/h mit'
+  };
+  var headSm = null, headMoving = false, headAnchor = null;   // geglättete Fahrtrichtung (Grad, 0 = Nord)
+  var followPaused = false, rotAnim = null, compassEl = null, rotTipTimer = null, bearingSaveTimer = null;
+
+  function wrap360(a) { a %= 360; return a < 0 ? a + 360 : a; }
+  function angDiff(a, b) { return ((a - b + 540) % 360) - 180; }       // kürzester Weg von b nach a (−180…180)
+  function courseBetween(a, b) {                                     // Kurs von a nach b (Grad)
+    var f1 = a.lat * Math.PI / 180, f2 = b.lat * Math.PI / 180, dl = (b.lng - a.lng) * Math.PI / 180;
+    var y = Math.sin(dl) * Math.cos(f2), x = Math.cos(f1) * Math.sin(f2) - Math.sin(f1) * Math.cos(f2) * Math.cos(dl);
+    return wrap360(Math.atan2(y, x) * 180 / Math.PI);
+  }
+
+  // GPS-Fix auswerten: Richtung vom Gerät (ab 5 km/h), sonst aus der Bewegung seit dem letzten Ankerpunkt
+  function trackHeading(pos, ll) {
+    var c = pos.coords, hd = null;
+    if (c.heading !== null && c.heading !== undefined && !isNaN(c.heading) && (c.speed || 0) > 1.4) hd = c.heading;
+    else if (headAnchor && (c.speed === null || c.speed === undefined || c.speed > 1.4)) {
+      var d = headAnchor.distanceTo(ll);
+      if (d > 15 && d > c.accuracy) hd = courseBetween(headAnchor, ll);
+    }
+    if (!headAnchor || hd !== null) headAnchor = ll;
+    headMoving = hd !== null;
+    if (hd !== null) headSm = headSm === null ? hd : wrap360(headSm + 0.4 * angDiff(hd, headSm));
+    updateHeadingArrow();
+    if (settings.rotMode === 'heading') followPos();
+  }
+
+  // Pfeil am Standort: zeigt auf dem Bildschirm in Fahrtrichtung (auch bei gedrehter Karte)
+  function updateHeadingArrow() {
+    var el = posMarker && posMarker.getElement();
+    if (!el) return;
+    el.classList.toggle('has-heading', headMoving && headSm !== null);
+    if (headMoving && headSm !== null) el.querySelector('.loc-heading').style.transform = 'rotate(' + (headSm + map.getBearing()) + 'deg)';
+  }
+
+  // Standort im Modus "Fahrtrichtung" im unteren Drittel halten (mehr Blick nach vorn)
+  function placeAnchor() {
+    if (!lastPos) return false;
+    var s = map.getSize(), p = map.latLngToContainerPoint(lastPos);
+    var off = p.subtract(L.point(s.x / 2, s.y * 0.65));
+    if (Math.abs(off.x) + Math.abs(off.y) < 1) return false;
+    map._rawPanBy(off);
+    map.fire('move');
+    return true;
+  }
+
+  // Karte sanft auf eine Drehung bringen (wenige Schritte – jede Drehung zeichnet die Wege neu)
+  function rotateTo(target, keepAnchor) {
+    if (rotAnim) cancelAnimationFrame(rotAnim);
+    var from = map.getBearing(), diff = angDiff(target, from);
+    var steps = Math.abs(diff) < 4 ? 1 : Math.min(8, Math.ceil(Math.abs(diff) / 10)), i = 0;
+    (function step() {
+      i++;
+      map.setBearing(wrap360(from + diff * i / steps));
+      if (keepAnchor) placeAnchor();
+      if (i < steps) rotAnim = requestAnimationFrame(step);
+      else { rotAnim = null; map.fire('moveend'); }
+    })();
+  }
+
+  function followPos() {
+    if (followPaused || !lastPos) return;
+    var target = headSm === null ? map.getBearing() : wrap360(-headSm);
+    if (Math.abs(angDiff(target, map.getBearing())) >= 3) rotateTo(target, true);
+    else if (placeAnchor()) map.fire('moveend');
+  }
+  function resumeFollow() {
+    followPaused = false;
+    if (lastPos && map.getZoom() < 14) map.setView(lastPos, 14, { animate: false });
+    followPos();
+    syncCompass();
+  }
+  // Selbst verschieben / "Ganze Route zeigen" → Mitführen pausiert; "Mein Standort" setzt es fort
+  function pauseFollow() {
+    if (settings.rotMode !== 'heading' || followPaused) return;
+    followPaused = true;
+    syncCompass();
+  }
+  map.on('dragstart', pauseFollow);
+
+  function setRotMode(mode, quiet) {
+    settings.rotMode = mode;
+    var free = mode === 'free';
+    map.touchRotate[free ? 'enable' : 'disable']();
+    map.shiftKeyRotate[free ? 'enable' : 'disable']();
+    if (mode === 'north') rotateTo(0, false);
+    if (mode === 'heading') {
+      followPaused = false;
+      // beim App-Start (quiet) nicht nach dem Standort fragen – das übernimmt "früher erlaubt" bzw. "Mein Standort"
+      if (navigator.geolocation && watchId === null && !quiet) { centerOnNextFix = true; locateBtn.classList.add('busy'); startWatch(); }
+      else followPos();
+    }
+    syncCompass();
+    saveSettings();
+    if (!quiet) showRotTip(ROT_TEXT[mode]);
+  }
+
+  function syncCompass() {
+    if (!compassEl) return;
+    var b = map.getBearing();
+    compassEl.querySelector('.cmpNeedle').style.transform = 'rotate(' + b + 'deg)';
+    compassEl.className = 'leaflet-control leaflet-bar compassCtl mode-' + settings.rotMode + (followPaused ? ' paused' : '');
+    compassEl.firstChild.title = ROT_TEXT[settings.rotMode] + ' (antippen zum Wechseln)';
+  }
+  function showRotTip(text) {
+    var tip = compassEl && compassEl.querySelector('.cmpTip');
+    if (!tip) return;
+    tip.textContent = text;
+    tip.classList.add('show');
+    clearTimeout(rotTipTimer);
+    rotTipTimer = setTimeout(function () { tip.classList.remove('show'); }, 2600);
+  }
+
+  map.on('rotate', function () {
+    syncCompass();
+    updateHeadingArrow();
+    if (settings.rotMode === 'free') {             // freie Drehung merken
+      clearTimeout(bearingSaveTimer);
+      bearingSaveTimer = setTimeout(function () { settings.bearing = Math.round(map.getBearing()); saveSettings(); }, 800);
+    }
+  });
+
+  var CompassCtl = L.Control.extend({
+    options: { position: 'topright' },
+    onAdd: function () {
+      var el = L.DomUtil.create('div', 'leaflet-bar compassCtl');
+      el.innerHTML = '<a href="#" role="button" aria-label="Karte drehen">' +
+        '<svg viewBox="0 0 40 40" aria-hidden="true"><circle class="cmpRing" cx="20" cy="20" r="17"/>' +
+        '<g class="cmpNeedle"><path class="cmpN" d="M20 11l4.6 9h-9.2z"/><path class="cmpS" d="M20 31l4.6-11h-9.2z"/>' +
+        '<text x="20" y="9.6" text-anchor="middle">N</text></g>' +
+        '<path class="cmpFree" d="M8.5 27a13 13 0 0 1-1.2-10.6M5.2 19.6l2.1-3.2 2.9 2.4"/>' +
+        '<circle class="cmpHead" cx="20" cy="20" r="2.2"/></svg></a><span class="cmpTip"></span>';
+      L.DomEvent.disableClickPropagation(el);
+      el.firstChild.addEventListener('click', function (e) {
+        e.preventDefault();
+        // pausiertes Mitführen: erster Tipp führt wieder mit, statt den Modus zu wechseln
+        if (settings.rotMode === 'heading' && followPaused && lastPos) { resumeFollow(); showRotTip('Wieder mitführen'); return; }
+        setRotMode(ROT_MODES[(ROT_MODES.indexOf(settings.rotMode) + 1) % ROT_MODES.length]);
+      });
+      compassEl = el;
+      return el;
+    }
+  });
+  new CompassCtl().addTo(map);
+  if (settings.rotMode === 'free') map.setBearing(settings.bearing);
+  setRotMode(settings.rotMode, true);
+
   // ================= Eigene GPX-Tracks =================
   // Jede Datei wird ein Track (mit beliebig vielen Abschnitten: trkseg/rte). Gespeichert in IndexedDB ("gpx").
-  var gpxPane = map.createPane('gpxPane');
-  gpxPane.style.zIndex = 470;                  // über den Schotterwegen, unter Ortsnamen und Route
+  var gpxPane = linePane('gpxPane', 470);      // über den Schotterwegen, unter Ortsnamen und Route
   gpxPane.style.pointerEvents = 'none';
   var gpxTracks = [];
   var GPX_COLORS = ['#c000ff', '#00b8d4', '#ff6d00', '#1565c0', '#d81b60', '#6d4c41'];
@@ -3426,16 +3621,15 @@ assign initialcost
   // die Route und liefert je Abschnitt die OSM-Angaben – damit färbt die App die Route nach Qualitätsstufe ein.
   var BROUTER = 'https://brouter.de/brouter';
   var ROUTE_ROAD_COLOR = '#2f6fdf';
-  var routePane = map.createPane('routePane');
-  routePane.style.zIndex = 490;                 // über Wegen und Ortsnamen, unter den POI-Symbolen
+  var routePane = linePane('routePane', 490);   // über Wegen, unter den POI-Symbolen
   routePane.style.pointerEvents = 'none';
   // Beide Ebenen klickdurchlässig – sonst fängt ihre (unsichtbare) Zeichenfläche alle Klicks auf der Karte ab.
   // Routenpunkte und Greif-Linie bleiben trotzdem antippbar (Leaflet gibt ihnen eigene Klick-Freigabe).
-  var routePinPane = map.createPane('routePinPane');
-  routePinPane.style.zIndex = 640;
+  var routePinPane = symbolPane('routePinPane', 640);   // nur Nadeln (Marker)
   routePinPane.style.pointerEvents = 'none';
-  var routeHitPane = map.createPane('routeHitPane');
-  routeHitPane.style.zIndex = 495;                     // unsichtbare Greif-Linie über der Route (unter den POIs)
+  // Ziehen-Vorschau und Höhenprofil-Punkt sind gezeichnete Formen → mitdrehende Ebene
+  linePane('routeFxPane', 640).style.pointerEvents = 'none';
+  var routeHitPane = linePane('routeHitPane', 495);     // unsichtbare Greif-Linie über der Route (unter den POIs)
   routeHitPane.style.pointerEvents = 'none';
   var routeLayer = L.layerGroup().addTo(map);
   var routeLines = [];          // gezeichnete Routenlinien (Rand + farbige Abschnitte) – für Linienstärke
@@ -3743,6 +3937,7 @@ assign initialcost
   // Ganze Route ins Bild holen – rechts Platz lassen, wenn das Menü offen daneben liegt
   function fitRoute(fromMenu) {
     if (!lastRoute) return;
+    pauseFollow();                                       // Fahrtrichtungs-Modus: nicht gleich wieder zum Standort springen
     var narrow = window.innerWidth < 600 && !LANDSCAPE.matches;
     if (fromMenu && narrow) setPanelOpen(false);          // am Handy hochkant verdeckt das Menü sonst die Karte
     var right = 30;
@@ -3767,8 +3962,8 @@ assign initialcost
     map.dragging.disable();
     routeDrag = {
       leg: leg, start: map.mouseEventToContainerPoint(ev), moved: false, ll: ll,
-      preview: L.polyline([a, ll, b], { pane: 'routePinPane', color: '#1565c0', weight: 4, opacity: 0.9, dashArray: '8 8', interactive: false }).addTo(map),
-      ghost: L.circleMarker(ll, { pane: 'routePinPane', radius: 9, color: '#fff', weight: 3, fillColor: '#1565c0', fillOpacity: 1, interactive: false }).addTo(map)
+      preview: L.polyline([a, ll, b], { pane: 'routeFxPane', color: '#1565c0', weight: 4, opacity: 0.9, dashArray: '8 8', interactive: false }).addTo(map),
+      ghost: L.circleMarker(ll, { pane: 'routeFxPane', radius: 9, color: '#fff', weight: 3, fillColor: '#1565c0', fillOpacity: 1, interactive: false }).addTo(map)
     };
     document.addEventListener('pointermove', moveRouteDrag);
     document.addEventListener('pointerup', endRouteDrag);
@@ -3881,7 +4076,7 @@ assign initialcost
       cur.style.left = (best.d / p.km * 100) + '%';
       tip.textContent = best.d.toFixed(1).replace('.', ',') + ' km · ' + Math.round(best.e) + ' m';
       tip.classList.toggle('left', f > 0.6);
-      if (!elevMarker) elevMarker = L.circleMarker(best.ll, { pane: 'routePinPane', radius: 8, color: '#fff', weight: 3, fillColor: '#0e7490', fillOpacity: 1, interactive: false }).addTo(map);
+      if (!elevMarker) elevMarker = L.circleMarker(best.ll, { pane: 'routeFxPane', radius: 8, color: '#fff', weight: 3, fillColor: '#0e7490', fillOpacity: 1, interactive: false }).addTo(map);
       else elevMarker.setLatLng(best.ll);
     }
     function hide() { cur.hidden = true; if (elevMarker) { map.removeLayer(elevMarker); elevMarker = null; } }

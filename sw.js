@@ -2,9 +2,10 @@
 // Hält nur die App selbst (Seite, Symbole, Leaflet) vor, damit sie auch ohne Netz startet.
 // Karten-Kacheln, Schotter-Daten, Overpass und BRouter laufen unverändert übers Netz
 // (die Schotter-Daten speichert die App ohnehin selbst in IndexedDB).
-var CACHE = 'gravelfinder-app-v6';   // erhöhen, wenn sich Symbole o. Ä. ändern → alter Speicher wird verworfen
+var CACHE = 'gravelfinder-app-v7';   // erhöhen, wenn sich Symbole o. Ä. ändern → alter Speicher wird verworfen
 var SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
-var LEAFLET = 'https://unpkg.com/leaflet@1.9.4/';
+// Bibliotheken mit fester Version (Leaflet + Erweiterung zum Drehen der Karte)
+var LIBS = ['https://unpkg.com/leaflet@1.9.4/', 'https://unpkg.com/leaflet-rotate@0.2.8/'];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(SHELL); }).then(function () { return self.skipWaiting(); }));
@@ -21,8 +22,8 @@ self.addEventListener('fetch', function (e) {
   if (req.method !== 'GET') return;
   var url = new URL(req.url);
 
-  // Leaflet: einmal laden, danach aus dem Speicher (Version ist fix)
-  if (req.url.indexOf(LEAFLET) === 0) {
+  // Leaflet & Co.: einmal laden, danach aus dem Speicher (Version ist fix)
+  if (LIBS.some(function (p) { return req.url.indexOf(p) === 0; })) {
     e.respondWith(caches.match(req).then(function (hit) {
       return hit || fetch(req).then(function (res) {
         if (res.ok) { var copy = res.clone(); caches.open(CACHE).then(function (c) { c.put(req, copy); }); }
