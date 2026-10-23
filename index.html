@@ -150,21 +150,27 @@
     display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 10px; box-sizing: border-box;
     border: 1px solid var(--border); border-radius: 10px; font-size: 13px; background: #fff; user-select: none; white-space: nowrap;
   }
-  /* Erlaubt (Häkchen aus) = grün mit ✓, gemieden (Häkchen an) = rot mit ✕ – auf einen Blick erkennbar */
-  .chip span { background: #e8f5e9 !important; border-color: #66bb6a !important; color: #1b5e20; font-weight: 600;
-    padding: 0 8px !important; gap: 5px !important; font-size: 12.5px !important; white-space: normal !important; line-height: 1.15; min-width: 0; }
-  .chip span::after { content: '✓'; margin-left: auto; font-weight: 800; color: #2e7d32; }
-  .chip input:checked + span { background: #fdecea !important; border-color: #ef5350 !important; color: #b71c1c; }
-  .chip input:checked + span::after { content: '✕'; color: #c62828; }
-  .chip span .ic { stroke: currentColor; }
-  .optLegend { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; font-weight: 700; margin: 2px 0 8px; }
-  .optLegend .ok, .sumOk { color: #2e7d32; } .optLegend .no, .sumNo { color: #c62828; }
+  /* Kacheln im App-Stil (wie Fahrzeug-Kacheln: neutral, Symbol im Petrol-Verlauf). Status bleibt rot/grün:
+     rundes Abzeichen rechts (✓ grün = erlaubt, ✕ rot = gemieden) + schmaler Farbstreifen links */
+  .chip span { background: var(--bg) !important; border-color: var(--border) !important; color: var(--fg); font-weight: 600;
+    padding: 0 6px 0 9px !important; gap: 6px !important; font-size: 12.5px !important; white-space: normal !important; line-height: 1.15; min-width: 0;
+    box-shadow: inset 4px 0 0 #43a047; }
+  .chip span .ic { stroke: url(#icg); flex: none; }
+  /* Name darf schrumpfen und mit Trennstrich umbrechen – sonst schiebt ein langes Wort (Schnellstraße) das Abzeichen hinaus */
+  .chipName { flex: 1; min-width: 0; font-style: normal; hyphens: manual; overflow-wrap: break-word; }
+  .chip span::after {
+    content: '✓'; margin-left: auto; flex: none; width: 20px; height: 20px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #fff; background: #43a047;
+  }
+  .chip input:checked + span { box-shadow: inset 4px 0 0 #e53935; color: var(--muted); }
+  .chip input:checked + span::after { content: '✕'; background: #e53935; }
+  .chip:hover span { border-color: var(--accent) !important; }
+  .optLegend { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; font-weight: 600; margin: 2px 0 8px; color: var(--muted); }
+  .optLegend .ok, .optLegend .no { display: inline-flex; align-items: center; gap: 5px; }
+  .optLegend b { width: 16px; height: 16px; border-radius: 50%; color: #fff; font-size: 10px; display: inline-flex; align-items: center; justify-content: center; }
+  .optLegend .ok b { background: #43a047; } .optLegend .no b { background: #e53935; }
+  .sumOk { color: #2e7d32; } .sumNo { color: #c62828; }
   body.dark .sumOk { color: #81c784; } body.dark .sumNo { color: #ef9a9a; }
-  body.dark .chip span { background: #16351f !important; border-color: #2e7d32 !important; color: #a5d6a7; }
-  body.dark .chip span::after { color: #81c784; }
-  body.dark .chip input:checked + span { background: #3d1a1a !important; border-color: #e53935 !important; color: #ef9a9a; }
-  body.dark .chip input:checked + span::after { color: #ef9a9a; }
-  body.dark .optLegend .ok { color: #81c784; } body.dark .optLegend .no { color: #ef9a9a; }
   .chip input:focus-visible + span { outline: 2px solid var(--accent); }
   .check.sub { padding-left: 24px; }   /* Unterpunkt, gehört zur Zeile darüber */
   .optLine { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 14px; font-weight: 600; }
@@ -584,6 +590,7 @@
   body.dark #panel.collapsed .tabs, body.dark .tab.active { background: var(--bg); }
   body.dark .chip span, body.dark .seg button, body.dark input[type=color], body.dark .preloadRow select,
   body.dark .zoomInfo { background: var(--bg); color: var(--fg); }
+  body.dark .chip input:checked + span { color: var(--muted); }
   body.dark .seg button svg { stroke: #9aa4ae; }
   body.dark .seg.txt button { color: #c3cad1; }
   body.dark .seg.txt button.on { color: #7dd3fc; border-color: #38bdf8; }
@@ -894,7 +901,7 @@
       <span class="sEnd">Offroad</span>
       <span class="sVal wide" id="prefValue">stark</span></div>
     <div class="qSep">Erlaubt / gemieden <span class="secSum" id="routeOptSum"></span></div>
-    <div class="optLegend"><span class="ok">✓ grün = darf genutzt werden</span><span class="no">✕ rot = wird gemieden</span></div>
+    <div class="optLegend"><span class="ok"><b>✓</b>darf genutzt werden</span><span class="no"><b>✕</b>wird gemieden</span></div>
     <div id="routeOpts" class="chips"></div>
     <div class="hint">Antippen wechselt. Gemieden heißt: nur, wenn es gar nicht anders geht.</div>
     <div class="routeErr" id="restrictWarn" hidden><svg class="ic"><use href="#i-warn"/></svg> Gesperrte Wege sind erlaubt – nur fahren, wo du wirklich darfst (Fahrverbot!).</div>
@@ -1291,7 +1298,7 @@ assign initialcost
   var ROUTE_OPTS = [
     { id: 'restricted', on: true, icon: 'noentry', label: 'Gesperrte Wege', hint: 'Fahrverbot, nur Anrainer, Land-/Forstwirtschaft – grün nur, wenn du dort fahren darfst (z. B. mit Genehmigung)' },
     { id: 'motorway', on: true,  icon: 'motorway', label: 'Autobahn', hint: 'Autobahnen vermeiden (aus = schnelle Überstellung erlaubt)' },
-    { id: 'trunk',    on: false, icon: 'car', label: 'Schnellstraße', hint: 'Schnell- und Kraftfahrstraßen vermeiden' },
+    { id: 'trunk',    on: false, icon: 'car', label: 'Schnell­straße', hint: 'Schnell- und Kraftfahrstraßen vermeiden' },
     { id: 'toll',     on: false, icon: 'toll', label: 'Maut', hint: 'Mautstraßen und Mautstellen vermeiden (soweit eingetragen)' },
     { id: 'ferry',    on: false, icon: 'ship', label: 'Fähre', hint: 'Fähren vermeiden' },
     { id: 'ford',     on: true,  icon: 'waves', label: 'Furt', hint: 'Bachdurchfahrten vermeiden' },
@@ -4816,7 +4823,7 @@ assign initialcost
   }
   routeOptsEl.innerHTML = ROUTE_OPTS.map(function (o) {
     return '<label class="chip" title="' + o.hint + '"><input type="checkbox" data-opt="' + o.id + '"' + (settings.route.opt[o.id] ? ' checked' : '') + '>' +
-      '<span>' + ic(o.icon) + o.label + '</span></label>';
+      '<span>' + ic(o.icon) + '<i class="chipName">' + o.label + '</i></span></label>';
   }).join('');
   routeOptsEl.addEventListener('change', function (e) {
     var id = e.target.dataset && e.target.dataset.opt;

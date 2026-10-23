@@ -533,10 +533,14 @@ plus je Routing-Option `&profile:avoid_<id>=1|0` (BRouter akzeptiert nur Zahlen,
 - Tab Route: „▬ Linie“ · Knopf-Raster · Ergebnis/Höhenprofil · So geht's · Punktliste. Tab Profil: Fahrzeug ·
   „Verhältnis Asphalt / Offroad“ · Erlaubt / gemieden · Länderregeln (Abschnitt „Darstellung der Route“ entfernt).
 - Abschnitt **„Erlaubt / gemieden“** im Tab Profil (Überschrift mit Stand „6 ✓ 2 ✕“ in Grün/Rot) mit Legende
-  „✓ grün = darf genutzt werden · ✕ rot = wird gemieden“ und acht **Kacheln** in 2 Spalten (Symbol + Name):
+  (grünes Rund-Abzeichen ✓ „darf genutzt werden“ · rotes ✕ „wird gemieden“) und acht **Kacheln** in 2 Spalten (Symbol + Name):
   Gesperrte Wege · Autobahn · Schnellstraße · Maut · Fähre · Furt · Ortsgebiet · Steilstücke.
-  **Grün** (hellgrün hinterlegt, grüner Rand, ✓) = erlaubt, **Rot** (hellrot, roter Rand, ✕) = gemieden; Antippen
-  wechselt, Route wird sofort neu berechnet; Erklärung als Tooltip; dunkles Design mit dunkelgrün/dunkelrot.
+  Kacheln im **App-Stil** wie die Fahrzeug-Kacheln: neutraler Hintergrund (`--bg`), grauer Rand, Symbol im Petrol-Verlauf
+  `#icg`; Status bleibt rot/grün: rundes Abzeichen rechts (20 px, weißes ✓ auf #43a047 = erlaubt / ✕ auf #e53935 =
+  gemieden) + 4 px Farbstreifen links (`box-shadow: inset`); gemiedene Kachel mit gedämpfter Schrift. Name in eigenem
+  Feld `.chipName` (flex: 1, min-width: 0), damit lange Wörter das Abzeichen nicht hinausschieben; „Schnell­straße“
+  mit weicher Trennstelle (bricht als „Schnell-straße“ um). Antippen
+  wechselt, Route wird sofort neu berechnet; Erklärung als Tooltip; dunkles Design gleich (nur Hintergrund dunkel).
   Standard: Gesperrte Wege, Autobahn und Furt rot, Rest grün. Darunter „Antippen wechselt. Gemieden heißt: nur, wenn
   es gar nicht anders geht.“ Sind gesperrte Wege grün, erscheint rot: „⚠ Gesperrte Wege sind erlaubt – nur fahren, wo
   du wirklich darfst (Fahrverbot!).“ Zuletzt das Häkchen „- - - gesperrte Wege auf der Karte zeigen“
