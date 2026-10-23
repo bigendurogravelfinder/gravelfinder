@@ -2892,10 +2892,10 @@ assign initialcost
   var qList = document.getElementById('qList');
   var qInputs = {};
   QUALITY.forEach(function (q) {
-    if (q.lvl === 1 || q.lvl === 4) {   // Überschriften: 1–3 = Big Enduro, 4–5 = für Geübte
+    if (q.lvl === 1) {   // eine Überschrift über allen fünf Stufen
       var sep = document.createElement('div');
-      sep.className = 'qSep' + (q.lvl === 1 ? ' first' : '');
-      sep.textContent = q.lvl === 1 ? 'BigEnduro' : 'für Geübte / Hard Enduro';
+      sep.className = 'qSep first';
+      sep.textContent = 'Qualität der Offroadwege';
       qList.appendChild(sep);
     }
     var row = document.createElement('div');

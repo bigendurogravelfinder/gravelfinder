@@ -97,8 +97,8 @@ Fahrzeug durchkommt; `tracktype` grade1–5):
 | 5 extrem | Hard Enduro: Schlamm, Sand, kaum erkennbar | very_horrible (Traktor/ATV), impassable | grade5 | sand, mud | Violett #b026ff | **aus** |
 
 - Stufen 1–3 = Big Enduro (Standard eingeblendet), 4–5 = für Geübte / Hard Enduro (Standard ausgeblendet). Im Tab
-  „Wege“ stehen Überschriften (klein, fett, Großbuchstaben): „BIGENDURO“ über Stufe 1–3 und – nach gestrichelter
-  Linie – „FÜR GEÜBTE / HARD ENDURO“ über Stufe 4–5.
+  „Wege“ steht über allen fünf Stufen nur EINE Überschrift (klein, fett, Großbuchstaben): „QUALITÄT DER OFFROADWEGE“
+  (keine Trennung/Überschrift mehr zwischen Stufe 3 und 4).
 - Farben bewusst **leuchtend** – die Hintergrundkarte hat selbst Grün (Wald), Gelb und Rot (Straßen), aber nur in
   Pastelltönen. Früher gespeicherte alte Standardfarben werden automatisch ersetzt (Stufe 1 #1fa83c, Stufe 2 #ffc107,
   Stufe 3 #e53935 und #ff1a4b – Rot war früher die schlechteste Stufe), selbst gewählte Farben bleiben.
